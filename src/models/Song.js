@@ -1,20 +1,19 @@
-module.exports = (sequelize, DataTypes, Model, Album) => {
+module.exports = (sequelize, DataTypes, Model, Album, User) => {
     class Song extends Model {}
 
     Song.init(
         {
             id: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.STRING,
                 primaryKey: true,
-                autoIncrement: true,
             },
             albumId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.STRING,
                 references: {
                     model: Album,
                     key: 'albumId',
                 },
-                allowNull: false,
+                allowNull: true,
             },
             title: {
                 type: DataTypes.STRING,
@@ -36,14 +35,14 @@ module.exports = (sequelize, DataTypes, Model, Album) => {
                 type: DataTypes.BOOLEAN,
                 allowNull: false,
             },
-            // uploaded_by_user: {
-            //     type: DataTypes.INTEGER,
-            //     references: {
-            //         model: User,
-            //         key: 'id',
-            //     },
-            //     allowNull: true,
-            // },
+            uploadUserId: {
+                type: DataTypes.INTEGER,
+                references: {
+                    model: User,
+                    key: 'id',
+                },
+                allowNull: true,
+            },
         },
         {
             sequelize,

@@ -4,12 +4,12 @@ module.exports = (sequelize, DataTypes, Model, Song, Artist) => {
     ArtistSong.init(
         {
             songId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.STRING,
                 references: {
                     model: Song,
                     key: 'id',
                 },
-                allowNull: true,
+                allowNull: false,
             },
             artistId: {
                 type: DataTypes.INTEGER,
@@ -17,7 +17,11 @@ module.exports = (sequelize, DataTypes, Model, Song, Artist) => {
                     model: Artist,
                     key: 'id',
                 },
-                allowNull: true,
+                allowNull: false,
+            },
+            main: {
+                type: DataTypes.BOOLEAN,
+                allowNull: false,
             },
         },
         {

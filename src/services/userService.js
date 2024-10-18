@@ -1,8 +1,8 @@
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+const saltRounds = 10;
+
 const db = require('../models');
 const User = db.User;
-const saltRounds = 10;
 
 const getUsersService = async (userId) => {
     try {
@@ -25,24 +25,6 @@ const getUsersService = async (userId) => {
         return {
             errCode: 8,
             errMess: 'Cannot get user',
-        };
-    }
-};
-
-const postUserService = async (postData) => {
-    try {
-        const hashPass = await bcrypt.hash(postData.password, saltRounds);
-        postData.password = hashPass;
-        let data = await User.create(postData);
-        return {
-            errCode: 1,
-            errMess: 'Create successful users',
-            data: data,
-        };
-    } catch (error) {
-        return {
-            errCode: 8,
-            errMess: 'Create new user failed',
         };
     }
 };
@@ -92,59 +74,30 @@ const updateUserService = async (userId, updateData) => {
     }
 };
 
-const generalAccessToken = (data) => {
-    const access_token = jwt.sign(data, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1m' });
-    return access_token;
-};
-
-const generalRefreshToken = (data) => {
-    const refresh_token = jwt.sign(data, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '365d' });
-    return refresh_token;
-};
-
-const loginService = async (data) => {
-    // check email exits
+const registerService = async (data) => {
     try {
-        const user = await User.findOne({ where: { email: data.email } });
-        if (!user) {
-            return {
-                errCode: 2,
-                errMess: 'Email does not exist',
-            };
-        }
-        // Validate password
-        const isPasswordValid = await bcrypt.compare(data.password, user.password);
-        if (!isPasswordValid) {
-            return {
-                errCode: 3,
-                errMess: 'Incorrect password',
-            };
-        }
-        // Step 3: Generate JWT token
-        const access_token = generalAccessToken({ id: user.id, email: user.email });
-        const refresh_token = generalRefreshToken({ id: user.id, email: user.email });
-        console.log('access: ', access_token);
-        console.log('refresh_token: ', refresh_token);
-        // Step 4: Return response with token and user information
+        const hashPass = await bcrypt.hash(data.password, saltRounds);
+        data.password = hashPass;
+        data.role = 'User';
+        data.statusPassword = false;
+        data.accountType = 'Free';
+        data.status = true;
+        const newUser = await User.create(data);
         return {
-            errCode: 1,
-            errMess: 'Login successful',
-            user: user,
-            access_token: access_token,
-            refresh_token: refresh_token,
+            errCode: 0,
+            errMess: 'User created successfully',
         };
     } catch (error) {
         return {
             errCode: 8,
-            errMess: `Internal server error: ${error.message}`,
+            errMess: `User creation failed: ${error.message}`,
         };
     }
 };
 
 module.exports = {
     getUsersService,
-    postUserService,
     deleteUserService,
     updateUserService,
-    loginService,
+    registerService,
 };

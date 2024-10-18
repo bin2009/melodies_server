@@ -1,12 +1,15 @@
+const { AlbumTypes } = require('./enum');
+
 module.exports = (sequelize, DataTypes, Model) => {
     class Album extends Model {}
 
     Album.init(
         {
             albumId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.STRING,
                 primaryKey: true,
-                autoIncrement: true,
+                // autoIncrement: true,
+                allowNull: false,
             },
             title: {
                 type: DataTypes.STRING,
@@ -15,11 +18,11 @@ module.exports = (sequelize, DataTypes, Model) => {
             releaseDate: {
                 type: DataTypes.DATE,
             },
-            coverImage: {
-                type: DataTypes.STRING,
-            },
+            // coverImage: {
+            //     type: DataTypes.STRING,
+            // },
             albumType: {
-                type: DataTypes.ENUM('album', 'single', 'ep'),
+                type: DataTypes.ENUM(Object.values(AlbumTypes)),
             },
         },
         {

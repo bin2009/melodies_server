@@ -4,16 +4,15 @@ module.exports = (sequelize, DataTypes, Model) => {
     Artist.init(
         {
             id: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.STRING,
                 primaryKey: true,
-                autoIncrement: true,
             },
             name: {
                 type: DataTypes.STRING,
                 allowNull: false,
             },
             avatar: {
-                type: DataTypes.STRING,
+                type: DataTypes.TEXT,
                 allowNull: true,
             },
             bio: {

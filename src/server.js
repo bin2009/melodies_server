@@ -7,6 +7,10 @@ const bodyParser = require('body-parser');
 const http = require('http');
 const { Server } = require('socket.io');
 
+// redis
+const { connectRedis } = require('./services/redisService');
+connectRedis();
+
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(
@@ -24,7 +28,9 @@ configViewEngine(app);
 
 // config route
 const userRoute = require('./routes/userRoute');
-app.use('/api/users', userRoute);
+app.use('/api', userRoute);
+const songRoute = require('./routes/songRoute');
+app.use('/api', songRoute);
 
 // initialize server
 const port = process.env.PORT || 3000;

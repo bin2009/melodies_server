@@ -1,0 +1,61 @@
+# version: '3.9'
+
+services:
+
+  db:
+    image: postgres:14
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    expose:
+      - ${DB_PORT}
+    networks:
+      - my_network
+  
+
+
+  redis:
+    image: redis:6.2
+    restart: always
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    expose:
+      - ${REDIS_PORT}
+    networks:
+      - my_network
+
+
+
+  backend:
+    build: 
+      context: ./
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # - DB_HOST=host.docker.internal
+      - DB_PORT=${DB_PORT}
+      - DB_HOST=db
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    ports:
+      - ${PORT}:${PORT}
+    depends_on:
+      - db
+      - redis
+    networks:
+      - my_network
+
+
+networks:
+  my_network:
+    driver: bridge
+# docker compose -p baoloc-nodejs-postgres up -d
+
+
+# POSTGRES_USER=${POSTGRES_USER}
+#       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+#       - POSTGRES_DB=${POSTGRES_DB}
