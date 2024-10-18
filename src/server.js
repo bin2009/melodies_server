@@ -2,6 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
+
+app.use(cors());
+app.use(cookieParser());
 
 // http & socketio
 const http = require('http');
@@ -28,9 +33,13 @@ configViewEngine(app);
 
 // config route
 const userRoute = require('./routes/userRoute');
-app.use('/api', userRoute);
+app.use('/api/users', userRoute);
 const songRoute = require('./routes/songRoute');
 app.use('/api', songRoute);
+const adminRoute = require('./routes/adminRoute');
+app.use('/api/admin', adminRoute);
+const authRoute = require('./routes/authRoute');
+app.use('/api/auth', authRoute);
 
 // initialize server
 const port = process.env.PORT || 3000;

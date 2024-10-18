@@ -3,12 +3,12 @@ const emailService = require('../services/emailService');
 
 const checkEmailExits = async (req, res) => {
     const response = await emailService.checkEmailExitsService(req.body.email);
-    res.status(statusCodes[response.errCode]).json(response);
+    return res.status(statusCodes[response.errCode]).json(response);
 };
 
 const sendOtp = async (req, res) => {
     const response = await emailService.emailOtpService(req.body.email);
-    res.status(statusCodes[response.errCode]).json(response);
+    return res.status(statusCodes[response.errCode]).json(response);
 };
 
 const verifyEmailOtp = async (email, otp) => {

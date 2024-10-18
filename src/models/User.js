@@ -34,6 +34,7 @@ module.exports = (sequelize, DataTypes, Model) => {
             statusPassword: {
                 type: DataTypes.BOOLEAN,
                 allowNull: false,
+                defaultValue: false,
             },
             name: {
                 type: DataTypes.STRING,
@@ -45,10 +46,13 @@ module.exports = (sequelize, DataTypes, Model) => {
             },
             accountType: {
                 type: DataTypes.ENUM('Premium', 'Free'),
+                allowNull: false,
+                defaultValue: 'Free',
             },
             status: {
                 type: DataTypes.BOOLEAN,
                 allowNull: false,
+                defaultValue: true,
             },
         },
         {
