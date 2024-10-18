@@ -50,6 +50,9 @@ services:
       - redis
     networks:
       - my_network
+    volumes:
+    - ./:/PBL6/node/app
+    - /PBL6/node/app/node_modules
 
 volumes:
   pg_data:  
