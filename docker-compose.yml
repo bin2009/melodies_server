@@ -15,6 +15,8 @@ services:
       - ${DB_PORT}
     networks:
       - my_network
+    volumes:
+      - pg_data:/var/lib/postgresql/data  # Dữ liệu được lưu trữ ở đây
   
 
 
@@ -49,13 +51,10 @@ services:
     networks:
       - my_network
 
+volumes:
+  pg_data:  
+
 
 networks:
   my_network:
     driver: bridge
-# docker compose -p baoloc-nodejs-postgres up -d
-
-
-# POSTGRES_USER=${POSTGRES_USER}
-#       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-#       - POSTGRES_DB=${POSTGRES_DB}
