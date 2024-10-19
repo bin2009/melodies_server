@@ -4,11 +4,17 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
     Song.init(
         {
             id: {
-                type: DataTypes.STRING,
+                type: DataTypes.UUID,
                 primaryKey: true,
+                allowNull: false,
+                defaultValue: DataTypes.UUIDV4,
+            },
+            id2: {
+                type: DataTypes.STRING,
+                allowNull: false,
             },
             albumId: {
-                type: DataTypes.STRING,
+                type: DataTypes.UUID,
                 references: {
                     model: Album,
                     key: 'albumId',

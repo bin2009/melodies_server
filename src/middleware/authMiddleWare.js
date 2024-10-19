@@ -13,7 +13,7 @@ const verifyToken = (req, res, next) => {
             next();
         });
     } else {
-        res.status(401).json("You're not authenticated");
+        return res.status(401).json("You're not authenticated");
     }
 };
 
@@ -24,7 +24,7 @@ const verifyTokenAndAdmin = (req, res, next) => {
         if (req.user.id === req.params.id || req.user.role === 'Admin') {
             next();
         } else {
-            res.status(403).json("You're not allowed");
+            return res.status(403).json("You're not allowed");
         }
     });
 };
