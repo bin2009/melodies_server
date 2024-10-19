@@ -1,30 +1,35 @@
 const jwt = require('jsonwebtoken');
 
-const authMiddleWare = (req, res, next) => {
-    const token = req.headers.token.split(' ')[1];
+const verifyToken = (req, res, next) => {
+    const token = req.headers.token;
 
-    if (!token) {
-        return res.status(403).json({
-            message: 'No token provided',
-        });
-    }
-
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, user) {
-        if (err) {
-            return res.status(401).json({
-                message: 'Invalid token',
-            });
-        }
-
-        if (user.role === 'Admin') {
+    if (token) {
+        const accessToken = token.split(' ')[1];
+        jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+            if (err) {
+                return res.status(403).json('Token is not valid');
+            }
+            req.user = user;
             next();
-        } else if (user.role === 'User') {
+        });
+    } else {
+        return res.status(401).json("You're not authenticated");
+    }
+};
+
+const verifyUser = (req, res, next) => {};
+
+const verifyTokenAndAdmin = (req, res, next) => {
+    verifyToken(req, res, () => {
+        if (req.user.id === req.params.id || req.user.role === 'Admin') {
+            next();
         } else {
-            return res.status(404).json({
-                message: 'The user is not authentication',
-            });
+            return res.status(403).json("You're not allowed");
         }
     });
 };
 
-module.exports = authMiddleWare;
+module.exports = {
+    verifyToken,
+    verifyTokenAndAdmin,
+};

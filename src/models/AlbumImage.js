@@ -4,7 +4,7 @@ module.exports = (sequelize, DataTypes, Model, Album) => {
     AlbumImage.init(
         {
             albumId: {
-                type: DataTypes.STRING,
+                type: DataTypes.UUID,
                 references: {
                     model: Album,
                     key: 'albumId',

@@ -6,9 +6,13 @@ module.exports = (sequelize, DataTypes, Model) => {
     Album.init(
         {
             albumId: {
-                type: DataTypes.STRING,
+                type: DataTypes.UUID,
                 primaryKey: true,
-                // autoIncrement: true,
+                allowNull: false,
+                defaultValue: DataTypes.UUIDV4,
+            },
+            albumId2: {
+                type: DataTypes.STRING,
                 allowNull: false,
             },
             title: {

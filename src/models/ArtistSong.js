@@ -4,7 +4,7 @@ module.exports = (sequelize, DataTypes, Model, Song, Artist) => {
     ArtistSong.init(
         {
             songId: {
-                type: DataTypes.STRING,
+                type: DataTypes.UUID,
                 references: {
                     model: Song,
                     key: 'id',
@@ -12,7 +12,7 @@ module.exports = (sequelize, DataTypes, Model, Song, Artist) => {
                 allowNull: false,
             },
             artistId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 references: {
                     model: Artist,
                     key: 'id',

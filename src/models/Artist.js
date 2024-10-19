@@ -4,8 +4,13 @@ module.exports = (sequelize, DataTypes, Model) => {
     Artist.init(
         {
             id: {
-                type: DataTypes.STRING,
+                type: DataTypes.UUID,
                 primaryKey: true,
+                allowNull: false,
+                defaultValue: DataTypes.UUIDV4,
+            },
+            id2: {
+                type: DataTypes.STRING,
             },
             name: {
                 type: DataTypes.STRING,

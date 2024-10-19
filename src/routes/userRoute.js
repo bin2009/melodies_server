@@ -2,30 +2,28 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const emailController = require('../controllers/emailController');
-const authController = require('../controllers/authController');
+
+// middleware
+const authMiddleWare = require('../middleware/authMiddleWare');
 
 // ---------------------------USER------------------------
 // get
-router.get('/users/', userController.getUsers);
-router.get('/users/:id', userController.getUsers);
+router.get('/', authMiddleWare.verifyToken, userController.getUsers);
+router.get('/:id', userController.getUsers);
 // delete
-router.delete('/users/:id', userController.deleteUser);
+router.delete('/:id', userController.deleteUser);
 // update
-router.patch('/users/:id', userController.updateUser);
+router.patch('/:id', userController.updateUser);
 // create
-router.post('/users/register', userController.register);
+router.post('/register', userController.register);
 
 // ---------------------------EMAIL------------------------
-router.post('/user/checkEmail', emailController.checkEmailExits);
-router.post('/users/otp', emailController.sendOtp);
+router.post('/checkEmail', emailController.checkEmailExits);
+router.post('/otp', emailController.sendOtp);
 
-// ---------------------------AUTHENTICATION------------------------
-router.post('/users/login');
-
-
-// ---------------------------TEST------------------------
-router.get('/test', (req,res) => {
-    res.send("test ok")
-})
+// ---------------------------HOME------------------------
+router.get('/home', (req, res) => {
+    return res.status(200).json('Admin page');
+});
 
 module.exports = router;
