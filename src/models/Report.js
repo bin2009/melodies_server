@@ -4,12 +4,12 @@ module.exports = (sequelize, DataTypes, Model, Comment) => {
     Report.init(
         {
             id: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 primaryKey: true,
-                autoIncrement: true,
+                defaultValue: DataTypes.UUIDV4,
             },
             commentId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 references: {
                     model: Comment,
                     key: 'id',

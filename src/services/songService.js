@@ -1,30 +1,30 @@
 const db = require('../models');
 const Song = db.Song;
 
-const getSongService = async (key) => {
+const getAllSongService = async () => {
     try {
-        if (key === 'all') {
-            const songs = await Song.findAll();
-            return {
-                errCode: 0,
-                errMess: 'Get song success',
-                data: songs,
-            };
-        } else {
-            const song = await Song.findOne({ where: { id: key } });
-            if (song) {
-                return {
-                    errCode: 0,
-                    errMess: 'Get song success',
-                    data: song,
-                };
-            } else {
-                return {
-                    errCode: 0,
-                    errMess: 'Song not found',
-                };
-            }
-        }
+        const songs = await Song.findAll();
+        return {
+            errCode: 0,
+            errMess: 'Get all songs',
+            songs: songs,
+        };
+    } catch (error) {
+        return {
+            errCode: 8,
+            errMess: `Internal Server Error ${error.message}`,
+        };
+    }
+};
+
+const getSongService = async (songId) => {
+    try {
+        const song = await Song.findOne({ where: { id: songId } });
+        return {
+            errCode: 0,
+            errMess: 'Get song by ID',
+            songs: song,
+        };
     } catch (error) {
         return {
             errCode: 8,
@@ -106,6 +106,7 @@ const createSongService = async (data) => {
 };
 
 module.exports = {
+    getAllSongService,
     getSongService,
     deleteSongService,
     updateSongService,

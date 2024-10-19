@@ -4,12 +4,12 @@ module.exports = (sequelize, DataTypes, Model, User, Song) => {
     Like.init(
         {
             likeId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
+                defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
-                autoIncrement: true,
             },
             userId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 references: {
                     model: User,
                     key: 'id',
@@ -17,7 +17,7 @@ module.exports = (sequelize, DataTypes, Model, User, Song) => {
                 allowNull: false,
             },
             songId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 references: {
                     model: Song,
                     key: 'id',

@@ -4,17 +4,17 @@ module.exports = (sequelize, DataTypes, Model, User, Song) => {
     Comment.init(
         {
             id: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 primaryKey: true,
-                autoIncrement: true,
+                defaultValue: DataTypes.UUIDV4,
             },
             commentParentId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 allowNull: true,
                 defaultValue: null,
             },
             userId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 references: {
                     model: User,
                     key: 'id',
@@ -22,7 +22,7 @@ module.exports = (sequelize, DataTypes, Model, User, Song) => {
                 allowNull: false,
             },
             songId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 references: {
                     model: Song,
                     key: 'id',

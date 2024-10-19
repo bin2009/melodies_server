@@ -4,12 +4,12 @@ module.exports = (sequelize, DataTypes, Model, User, Artist) => {
     Follow.init(
         {
             followerId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 primaryKey: true,
-                autoIncrement: true,
+                defaultValue: DataTypes.UUIDV4,
             },
             userId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 references: {
                     model: User,
                     key: 'id',
@@ -17,7 +17,7 @@ module.exports = (sequelize, DataTypes, Model, User, Artist) => {
                 allowNull: false,
             },
             artistId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 references: {
                     model: Artist,
                     key: 'id',

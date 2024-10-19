@@ -4,9 +4,10 @@ module.exports = (sequelize, DataTypes, Model) => {
     User.init(
         {
             id: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 primaryKey: true,
-                autoIncrement: true,
+                defaultValue: DataTypes.UUIDV4,
+                allowNull: false,
             },
             role: {
                 type: DataTypes.ENUM('Admin', 'User', 'Guest'),

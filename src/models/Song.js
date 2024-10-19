@@ -9,10 +9,6 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
                 allowNull: false,
                 defaultValue: DataTypes.UUIDV4,
             },
-            id2: {
-                type: DataTypes.STRING,
-                allowNull: false,
-            },
             albumId: {
                 type: DataTypes.UUID,
                 references: {
@@ -42,7 +38,7 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
                 allowNull: false,
             },
             uploadUserId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 references: {
                     model: User,
                     key: 'id',

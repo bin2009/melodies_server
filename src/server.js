@@ -35,7 +35,7 @@ configViewEngine(app);
 const userRoute = require('./routes/userRoute');
 app.use('/api/users', userRoute);
 const songRoute = require('./routes/songRoute');
-app.use('/api', songRoute);
+app.use('/api/songs', songRoute);
 const adminRoute = require('./routes/adminRoute');
 app.use('/api/admin', adminRoute);
 const authRoute = require('./routes/authRoute');

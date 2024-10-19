@@ -6,12 +6,12 @@ module.exports = (sequelize, DataTypes, Model, User, SubscriptionPackage) => {
     Subscriptions.init(
         {
             id: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 primaryKey: true,
-                autoIncrement: true,
+                defaultValue: DataTypes.UUIDV4,
             },
             userId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 references: {
                     model: User,
                     key: 'id',
@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes, Model, User, SubscriptionPackage) => {
                 allowNull: false,
             },
             packageId: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.UUID,
                 references: {
                     model: SubscriptionPackage,
                     key: 'id',

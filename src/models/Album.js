@@ -11,10 +11,6 @@ module.exports = (sequelize, DataTypes, Model) => {
                 allowNull: false,
                 defaultValue: DataTypes.UUIDV4,
             },
-            albumId2: {
-                type: DataTypes.STRING,
-                allowNull: false,
-            },
             title: {
                 type: DataTypes.STRING,
                 allowNull: false,
@@ -23,7 +19,7 @@ module.exports = (sequelize, DataTypes, Model) => {
                 type: DataTypes.DATE,
             },
             // coverImage: {
-            //     type: DataTypes.STRING,
+            //     type: DataTypes.TE,
             // },
             albumType: {
                 type: DataTypes.ENUM(Object.values(AlbumTypes)),

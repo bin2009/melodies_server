@@ -113,7 +113,7 @@ db.SearchHistory.belongsTo(db.User, { foreignKey: 'userId', as: 'userOfSearch' }
 db.User.belongsToMany(db.Song, { through: db.Comment, foreignKey: 'userId', as: 'commentedSongs' });
 db.Song.belongsToMany(db.User, { through: db.Comment, foreignKey: 'songId', as: 'commentingUsers' });
 
-db.sequelize.sync({ alter: true });
-// db.sequelize.sync({ force: true });
+// db.sequelize.sync({ alter: true });
+db.sequelize.sync({ force: true });
 
 module.exports = db;
