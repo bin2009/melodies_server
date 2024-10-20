@@ -26,10 +26,29 @@ const createSong = async (req, res) => {
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
+const getWeeklyTopSongs = async (req, res) => {
+    const response = await songService.getWeeklyTopSongsService();
+    return res.status(statusCodes[response.errCode]).json(response);
+};
+
+const getTrendingSongs = async (req, res) => {
+    const response = await songService.getTrendingSongsService();
+    return res.status(statusCodes[response.errCode]).json(response);
+};
+
+const getNewReleaseSongs = async (req, res) => {
+    const response = await songService.getNewReleaseSongsService();
+    return res.status(statusCodes[response.errCode]).json(response);
+
+}
+
 module.exports = {
     getSong,
     deleteSong,
     updateSong,
     createSong,
     getAllSong,
+    getWeeklyTopSongs,
+    getTrendingSongs,
+    getNewReleaseSongs
 };

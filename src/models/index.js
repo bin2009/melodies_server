@@ -1,4 +1,4 @@
-const { Sequelize, DataTypes, Model } = require('sequelize');
+const { Sequelize, DataTypes, Model, Op } = require('sequelize');
 
 const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASSWORD, {
     host: process.env.DB_HOST,
@@ -33,6 +33,7 @@ try {
 const db = {};
 db.Sequelize = Sequelize;
 db.sequelize = sequelize;
+// db.Op = Op;
 
 db.User = require('./User')(sequelize, DataTypes, Model);
 db.Album = require('./Album')(sequelize, DataTypes, Model);
@@ -113,7 +114,18 @@ db.SearchHistory.belongsTo(db.User, { foreignKey: 'userId', as: 'userOfSearch' }
 db.User.belongsToMany(db.Song, { through: db.Comment, foreignKey: 'userId', as: 'commentedSongs' });
 db.Song.belongsToMany(db.User, { through: db.Comment, foreignKey: 'songId', as: 'commentingUsers' });
 
-// db.sequelize.sync({ alter: true });
-db.sequelize.sync({ force: true });
+// models/SongPlayHistory.js
+// models/Like.js
+db.SongPlayHistory.belongsTo(db.Song, { foreignKey: 'songId', as: 'songPlay' });
+db.Like.belongsTo(db.Song, { foreignKey: 'songId', as: 'likedSong' });
+
+// db.Song.hasMany(db.SongPlayHistory, { foreignKey: 'songId', as: 'playHistories' });
+// db.Song.hasMany(db.Like, { foreignKey: 'songId', as: 'likes' });
+
+// db.SongPlayHistory.belongsTo(db.Song, { foreignKey: 'songId', as: 'song' });
+// db.Like.belongsTo(db.Song, { foreignKey: 'songId', as: 'song' });
+
+db.sequelize.sync({ alter: true });
+// db.sequelize.sync({ force: true });
 
 module.exports = db;

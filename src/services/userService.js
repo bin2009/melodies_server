@@ -1,8 +1,12 @@
 const bcrypt = require('bcryptjs');
 const saltRounds = 10;
+const { v4: uuidv4 } = require('uuid');
 
 const db = require('../models');
 const User = db.User;
+const SongPlayHistory = db.SongPlayHistory;
+const Like = db.Like;
+const Follow = db.Follow;
 
 const getUsersService = async (userId) => {
     try {
@@ -95,9 +99,102 @@ const registerService = async (data) => {
     }
 };
 
+// ---------------------------HOME------------------------
+
+// ---------------------------WORKING WITH MUSIC------------------------
+
+const playTimeService = async (data) => {
+    try {
+        await SongPlayHistory.create({
+            historyId: uuidv4(), // Sử dụng UUID mới nếu không có
+            userId: data.userId,
+            songId: data.songId,
+            playtime: data.playtime,
+        });
+        return {
+            errCode: 0,
+            errMess: 'Successfully',
+        };
+    } catch (error) {
+        return {
+            errCode: 8,
+            errMess: `Internal Server Error: ${error.message}`,
+        };
+    }
+};
+
+const likedSongService = async (data) => {
+    try {
+        const like = await Like.findOne({
+            where: {
+                userId: data.userId,
+                songId: data.songId,
+            },
+        });
+        if (like) {
+            await Like.destroy({ where: { likeId: like.likeId } });
+            return {
+                errCode: 0,
+                errMess: 'Delete like successfully',
+            };
+        } else {
+            await Like.create({
+                likeId: uuidv4(), // Sử dụng UUID mới nếu không có
+                userId: data.userId,
+                songId: data.songId,
+            });
+            return {
+                errCode: 0,
+                errMess: 'Like Successfully',
+            };
+        }
+    } catch (error) {
+        return {
+            errCode: 8,
+            errMess: `Internal Server Error: ${error.message}`,
+        };
+    }
+};
+
+const followedArtistService = async (data) => {
+    try {
+        const follow = await Follow.findOne({
+            where: {
+                userId: data.userId,
+                artistId: data.artistId,
+            },
+        });
+        if (follow) {
+            await Follow.destroy({ where: { followerId: follow.followerId } });
+            return {
+                errCode: 0,
+                errMess: 'Delete follow successfully',
+            };
+        } else {
+            await Follow.create({
+                followerId: uuidv4(),
+                userId: data.userId,
+                artistId: data.artistId,
+            });
+            return {
+                errCode: 0,
+                errMess: 'Follow Successfully',
+            };
+        }
+    } catch (error) {
+        return {
+            errCode: 8,
+            errMess: `Internal Server Error: ${error.message}`,
+        };
+    }
+};
+
 module.exports = {
     getUsersService,
     deleteUserService,
     updateUserService,
     registerService,
+    playTimeService,
+    likedSongService,
+    followedArtistService,
 };
