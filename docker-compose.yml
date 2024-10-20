@@ -1,22 +1,64 @@
-# version: '3.9'
+# # version: '3.9'
+
+# services:
+#     db:
+#         image: postgres:14
+#         restart: always
+#         environment:
+#             POSTGRES_DB: ${DB_NAME}
+#             POSTGRES_USER: ${DB_USER}
+#             POSTGRES_PASSWORD: ${DB_PASSWORD}
+#         ports:
+#             - '5000:${DB_PORT}'
+#         expose:
+#             - ${DB_PORT}
+#         networks:
+#             - my_network
+#         volumes:
+#             - pg_data:/var/lib/postgresql/data # Dữ liệu được lưu trữ ở đây
+
+#     redis:
+#         image: redis:6.2
+#         restart: always
+#         ports:
+#             - '${REDIS_PORT}:${REDIS_PORT}'
+#         expose:
+#             - ${REDIS_PORT}
+#         networks:
+#             - my_network
+
+#     backend:
+#         build:
+#             context: ./
+#             dockerfile: Dockerfile
+#         restart: unless-stopped
+#         environment:
+#             # - DB_HOST=host.docker.internal
+#             - DB_PORT=${DB_PORT}
+#             - DB_HOST=db
+#             - REDIS_HOST=${REDIS_HOST}
+#             - REDIS_PORT=${REDIS_PORT}
+#         ports:
+#             - ${PORT}:${PORT}
+#         depends_on:
+#             - db
+#             - redis
+#         networks:
+#             - my_network
+#         volumes:
+#             - ./:/PBL6/node/app
+#             - /PBL6/node/app/node_modules
+#         command: npm run dev
+
+# volumes:
+#     pg_data:
+#     node_modules:
+
+# networks:
+#     my_network:
+#         driver: bridge
 
 services:
-    db:
-        image: postgres:14
-        restart: always
-        environment:
-            POSTGRES_DB: ${DB_NAME}
-            POSTGRES_USER: ${DB_USER}
-            POSTGRES_PASSWORD: ${DB_PASSWORD}
-        ports:
-            - '5000:${DB_PORT}'
-        expose:
-            - ${DB_PORT}
-        networks:
-            - my_network
-        volumes:
-            - pg_data:/var/lib/postgresql/data # Dữ liệu được lưu trữ ở đây
-
     redis:
         image: redis:6.2
         restart: always
@@ -35,13 +77,14 @@ services:
         environment:
             # - DB_HOST=host.docker.internal
             - DB_PORT=${DB_PORT}
-            - DB_HOST=db
+            - DB_HOST=${DB_HOST}
+            - DB_USER=${DB_USER} # Ensure this matches your PostgreSQL user
+            - DB_PASSWORD=${DB_PASSWORD} # Ensure this matches your PostgreSQL password
             - REDIS_HOST=${REDIS_HOST}
             - REDIS_PORT=${REDIS_PORT}
         ports:
             - ${PORT}:${PORT}
         depends_on:
-            - db
             - redis
         networks:
             - my_network
@@ -51,7 +94,6 @@ services:
         command: npm run dev
 
 volumes:
-    pg_data:
     node_modules:
 
 networks:

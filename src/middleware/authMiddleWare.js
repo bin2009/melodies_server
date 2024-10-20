@@ -52,7 +52,6 @@ const checkEmailExits = async (req, res, next) => {
                 errMess: 'Email already exists',
             });
         }
-        await emailController.sendOtp(email);
         next();
     } catch (error) {
         return res.status(500).json({
