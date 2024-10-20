@@ -8,7 +8,7 @@ const db = require('../models');
 const User = db.User;
 
 const generateOtp = () => {
-    return crypto.randomInt(100000, 999999);
+    return crypto.randomInt(10000, 99999);
 };
 
 const sendOtp = async (email, otp) => {
