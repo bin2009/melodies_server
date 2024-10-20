@@ -6,20 +6,25 @@ const emailController = require('../controllers/emailController');
 // middleware
 const authMiddleWare = require('../middleware/authMiddleWare');
 
+// ---------------------------WORKING WITH MUSIC------------------------
+router.post('/playtime', authMiddleWare.verifyToken, userController.playTime);
+router.post('/likedsong', authMiddleWare.verifyToken, userController.likedSong);
+router.post('/followed', authMiddleWare.verifyToken, userController.followedArtist);
+
 // ---------------------------USER------------------------
 // get
 router.get('/', authMiddleWare.verifyToken, userController.getUsers);
-router.get('/:id', userController.getUsers);
+router.get('/:id', authMiddleWare.verifyTokenAndAdmin, userController.getUsers);
 // delete
-router.delete('/:id', userController.deleteUser);
+router.delete('/:id', authMiddleWare.verifyTokenAndAdmin, userController.deleteUser);
 // update
-router.patch('/:id', userController.updateUser);
+router.patch('/:id', authMiddleWare.verifyTokenUserOrAdmin, userController.updateUser);
 // create
 router.post('/register', userController.register);
 
 // ---------------------------EMAIL------------------------
 router.post('/checkEmail', emailController.checkEmailExits);
-router.post('/otp', emailController.sendOtp);
+router.post('/otp', authMiddleWare.checkEmailExits, emailController.sendOtp);
 
 // ---------------------------HOME------------------------
 router.get('/home', (req, res) => {

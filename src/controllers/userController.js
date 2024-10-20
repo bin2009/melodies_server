@@ -34,9 +34,30 @@ const register = async (req, res) => {
     }
 };
 
+// ---------------------------HOME------------------------
+
+// ---------------------------WORKING WITH MUSIC------------------------
+const playTime = async (req, res) => {
+    const response = await userService.playTimeService(req.body);
+    return res.status(statusCodes[response.errCode]).json(response);
+};
+
+const likedSong = async (req, res) => {
+    const response = await userService.likedSongService(req.body);
+    return res.status(statusCodes[response.errCode]).json(response);
+};
+
+const followedArtist = async (req, res) => {
+    const response = await userService.followedArtistService(req.body);
+    return res.status(statusCodes[response.errCode]).json(response);
+};
+
 module.exports = {
     getUsers,
     deleteUser,
     updateUser,
     register,
+    playTime,
+    likedSong,
+    followedArtist,
 };

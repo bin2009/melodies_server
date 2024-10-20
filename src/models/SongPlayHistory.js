@@ -33,6 +33,12 @@ module.exports = (sequelize, DataTypes, Model, User, Song) => {
             sequelize,
             tableName: 'SongPlayHistory',
             modelName: 'SongPlayHistory',
+            indexes: [
+                {
+                    unique: false, // Set to true if you want to ensure unique combinations of userId and songId
+                    fields: ['userId', 'songId'],
+                },
+            ],
         },
     );
 

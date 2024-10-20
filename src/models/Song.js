@@ -6,7 +6,6 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
             id: {
                 type: DataTypes.UUID,
                 primaryKey: true,
-                allowNull: false,
                 defaultValue: DataTypes.UUIDV4,
             },
             albumId: {
