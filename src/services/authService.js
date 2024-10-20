@@ -3,25 +3,23 @@ const User = db.User;
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { client } = require('../services/redisService');
+const { Op } = require('sequelize');
 
 const generateAccessToken = (user) => {
-    return jwt.sign({ id: user.id, admin: user.role }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '30s' });
+    return jwt.sign({ id: user.id, role: user.role }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' });
 };
 
 const generateRefreshToken = (user) => {
-    return jwt.sign({ id: user.id, admin: user.role }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+    return jwt.sign({ id: user.id, role: user.role }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
 };
 
 const loginService = async (data) => {
     try {
-        // login bằng username hoặc email
-        let user;
-        if (data.username) {
-            user = await User.findOne({ where: { username: data.username } });
-        } else if (data.email) {
-            user = await User.findOne({ where: { email: data.email } });
-        }
-
+        const user = await User.findOne({
+            where: {
+                [Op.or]: [{ username: data.username }, { email: data.username }],
+            },
+        });
         if (!user) {
             return {
                 errCode: 6,

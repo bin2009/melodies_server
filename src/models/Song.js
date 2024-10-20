@@ -22,11 +22,11 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
             },
             duration: {
                 type: DataTypes.INTEGER,
-                allowNull: false,
+                allowNull: true,
             },
             lyric: {
                 type: DataTypes.TEXT,
-                allowNull: false,
+                allowNull: true,
             },
             filePathAudio: {
                 type: DataTypes.STRING,
@@ -35,6 +35,7 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
             privacy: {
                 type: DataTypes.BOOLEAN,
                 allowNull: false,
+                defaultValue: false,
             },
             uploadUserId: {
                 type: DataTypes.UUID,

@@ -58,9 +58,9 @@ db.Report = require('./Report')(sequelize, DataTypes, Model, db.Comment);
 db.Album.hasMany(db.AlbumImage, { foreignKey: 'albumId', as: 'albumImages' });
 db.AlbumImage.belongsTo(db.Album, { foreignKey: 'albumId', as: 'album' });
 
-// Song & Artist
-db.Song.belongsToMany(db.Artist, { through: db.ArtistSong, foreignKey: 'songId', as: 'artistsOfSong' });
-db.Artist.belongsToMany(db.Song, { through: db.ArtistSong, foreignKey: 'artistId', as: 'songsOfArtist' });
+// Song & Artist (ok)
+db.Song.belongsToMany(db.Artist, { through: db.ArtistSong, foreignKey: 'songId', as: 'artists' });
+db.Artist.belongsToMany(db.Song, { through: db.ArtistSong, foreignKey: 'artistId', as: 'songs' });
 
 // Song & User: upload
 db.User.hasMany(db.Song, { foreignKey: 'uploadUserId', as: 'uploadedSongs' }); // alias cho các bài hát mà người dùng đã tải lên
@@ -86,13 +86,13 @@ db.Playlist.belongsTo(db.User, { foreignKey: 'userId', as: 'userOfPlaylist' });
 db.Playlist.belongsToMany(db.Song, { through: db.PlaylistSong, foreignKey: 'playlistId', as: 'songsOfPlaylist' });
 db.Song.belongsToMany(db.Playlist, { through: db.PlaylistSong, foreignKey: 'songId', as: 'playlistsOfSong' });
 
-// User & Artist through Follow
-db.User.belongsToMany(db.Artist, { through: db.Follow, foreignKey: 'userId', as: 'followedArtists' });
-db.Artist.belongsToMany(db.User, { through: db.Follow, foreignKey: 'artistId', as: 'followers' });
+// User & Artist through Follow (ok)
+db.User.belongsToMany(db.Artist, { through: db.Follow, foreignKey: 'userId', as: 'artists' });
+db.Artist.belongsToMany(db.User, { through: db.Follow, foreignKey: 'artistId', as: 'users' });
 
 // Artist & Genre through ArtistGenre
-db.Artist.belongsToMany(db.Genre, { through: db.ArtistGenre, foreignKey: 'artistId', as: 'artistOfGenre' });
-db.Genre.belongsToMany(db.Artist, { through: db.ArtistGenre, foreignKey: 'genreId', as: 'genreOfArtist' });
+db.Artist.belongsToMany(db.Genre, { through: db.ArtistGenre, foreignKey: 'artistId', as: 'genres' });
+db.Genre.belongsToMany(db.Artist, { through: db.ArtistGenre, foreignKey: 'genreId', as: 'artists' });
 
 // User & SubscriptionPackage through Subscriptions
 db.User.belongsToMany(db.SubscriptionPackage, {
