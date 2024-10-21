@@ -90,6 +90,11 @@ const getAllAlbum = async (req, res) => {
     return res.status(statusCodes[response.errCode]).json(response);
 }
 
+const getAlbumPopular = async (req, res) => {
+    const response = await songService.getAlbumPopularService();
+    return res.status(statusCodes[response.errCode]).json(response);
+}
+
 module.exports = {
     getSong,
     deleteSong,
@@ -110,5 +115,6 @@ module.exports = {
     // ------------
     createGenre,
     // ---------
-    getAllAlbum
+    getAllAlbum,
+    getAlbumPopular
 };

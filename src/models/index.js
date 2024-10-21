@@ -128,50 +128,11 @@ db.Report = require('./Report')(sequelize, DataTypes, Model, db.Comment);
 // // -----------------------------associated--------------------------------
 // // db.Song.hasMany(db.SongPlayHistory, { foreignKey: 'songId', as: 'songPlayHistory' });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Object.keys(db).forEach(modelName => {
+Object.keys(db).forEach((modelName) => {
     if (db[modelName].associate) {
         db[modelName].associate(db);
     }
 });
-
-
-
-
-
-
 
 db.sequelize.sync({ alter: true });
 // db.sequelize.sync({ force: true });

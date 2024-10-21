@@ -45,6 +45,12 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
                 },
                 allowNull: true,
             },
+            releaseDate: {
+                type: DataTypes.DATE,
+            },
+            viewCount: {
+                type: DataTypes.INTEGER,
+            },
         },
         {
             sequelize,

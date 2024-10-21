@@ -20,6 +20,10 @@ module.exports = (sequelize, DataTypes, Model) => {
             bio: {
                 type: DataTypes.TEXT,
             },
+            followersCount: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+            },
         },
         {
             sequelize,
