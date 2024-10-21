@@ -37,6 +37,10 @@ module.exports = (sequelize, DataTypes, Model) => {
             foreignKey: 'albumId',
             as: 'songsAlbum',
         });
+        Album.hasMany(models.AlbumImage, {
+            foreignKey: 'albumId',
+            as: 'albumImages',
+        });
     };
 
     return Album;

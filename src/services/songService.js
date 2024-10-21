@@ -30,6 +30,12 @@ const getAllSongService = async () => {
                     model: db.Album,
                     as: 'album',
                     attributes: ['albumId', 'title'],
+                    include: [
+                        {
+                            model: db.AlbumImage,
+                            as: 'albumImages',
+                        },
+                    ],
                 },
                 {
                     model: db.Artist,
@@ -50,7 +56,7 @@ const getAllSongService = async () => {
                     attributes: [],
                 },
             ],
-            group: ['Song.id', 'album.albumId', 'artists.id', 'artists->ArtistSong.songId', 'artists->ArtistSong.artistId'], // Chỉ nhóm theo Song.id
+            group: ['Song.id', 'album.albumId', 'artists.id', 'artists->ArtistSong.songId', 'artists->ArtistSong.artistId', 'album->albumImages.id'], // Chỉ nhóm theo Song.id
         });
 
         return {

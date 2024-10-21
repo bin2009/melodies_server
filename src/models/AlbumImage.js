@@ -27,5 +27,12 @@ module.exports = (sequelize, DataTypes, Model, Album) => {
         },
     );
 
+    AlbumImage.associate = (models) => {
+        AlbumImage.belongsTo(models.Album, {
+            foreignKey: 'albumId',
+            as: 'album',
+        });
+    };
+
     return AlbumImage;
 };
