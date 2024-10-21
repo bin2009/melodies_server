@@ -27,5 +27,15 @@ module.exports = (sequelize, DataTypes, Model) => {
             modelName: 'Artist',
         },
     );
+
+    Artist.associate = (models) => {
+        Artist.belongsToMany(models.Song, {
+            through: 'ArtistSong',
+            as: 'songs',
+            foreignKey: 'artistId',
+            otherKey: 'songId',
+        });
+    };
+
     return Artist;
 };

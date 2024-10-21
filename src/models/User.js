@@ -63,5 +63,21 @@ module.exports = (sequelize, DataTypes, Model) => {
         },
     );
 
+    User.associate = (models) => {
+        User.hasMany(models.Like, { foreignKey: 'userId', as: 'likes' });
+        User.belongsToMany(models.Song, {
+            through: 'Like',
+            as: 'likedSongs',
+            foreignKey: 'userId',
+            otherKey: 'songId',
+        });
+        User.belongsToMany(models.Song, {
+            through: 'SongPlayHistory',
+            as: 'playedSongs',
+            foreignKey: 'userId',
+            otherKey: 'songId',
+        });
+    };
+
     return User;
 };

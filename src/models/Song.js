@@ -53,5 +53,38 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
         },
     );
 
+    Song.associate = (models) => {
+        Song.belongsTo(models.Album, {
+            foreignKey: 'albumId',
+            as: 'album',
+        });
+        Song.hasMany(models.SongPlayHistory, {
+            foreignKey: 'songId',
+            as: 'songPlayHistories',
+        });
+        Song.hasMany(models.Like, {
+            foreignKey: 'songId',
+            as: 'likesSong',
+        });
+        Song.belongsToMany(models.Artist, {
+            through: 'ArtistSong',
+            as: 'artists',
+            foreignKey: 'songId',
+            otherKey: 'artistId',
+        });
+        Song.belongsToMany(models.User, {
+            through: 'Like',
+            as: 'usersLike',
+            foreignKey: 'songId',
+            otherKey: 'userId',
+        });
+        Song.belongsToMany(models.User, {
+            through: 'SongPlayHistory',
+            as: 'usersHistory',
+            foreignKey: 'songId',
+            otherKey: 'userId',
+        });
+    };
+
     return Song;
 };

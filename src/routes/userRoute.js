@@ -7,13 +7,13 @@ const emailController = require('../controllers/emailController');
 const authMiddleWare = require('../middleware/authMiddleWare');
 
 // ---------------------------WORKING WITH MUSIC------------------------
-router.post('/playtime', authMiddleWare.verifyToken, userController.playTime);
+router.post('/actions/playtime', authMiddleWare.verifyToken, userController.playTime);
 router.post('/likedsong', authMiddleWare.verifyToken, userController.likedSong);
 router.post('/followed', authMiddleWare.verifyToken, userController.followedArtist);
 
 // ---------------------------USER------------------------
 // get
-router.get('/', authMiddleWare.verifyToken, userController.getUsers);
+router.get('/', userController.getUsers);
 router.get('/:id', authMiddleWare.verifyTokenAndAdmin, userController.getUsers);
 // delete
 router.delete('/:id', authMiddleWare.verifyTokenAndAdmin, userController.deleteUser);

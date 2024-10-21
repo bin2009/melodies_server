@@ -54,76 +54,124 @@ db.SearchHistory = require('./SearchHistory')(sequelize, DataTypes, Model, db.Us
 db.Comment = require('./Comment')(sequelize, DataTypes, Model, db.User, db.Song);
 db.Report = require('./Report')(sequelize, DataTypes, Model, db.Comment);
 
-// Album & AlbumImage
-db.Album.hasMany(db.AlbumImage, { foreignKey: 'albumId', as: 'albumImages' });
-db.AlbumImage.belongsTo(db.Album, { foreignKey: 'albumId', as: 'album' });
+// // // Album & AlbumImage
+// // db.Album.hasMany(db.AlbumImage, { foreignKey: 'albumId', as: 'albumImages' });
+// // db.AlbumImage.belongsTo(db.Album, { foreignKey: 'albumId', as: 'album' });
 
-// Song & Artist (ok)
-db.Song.belongsToMany(db.Artist, { through: db.ArtistSong, foreignKey: 'songId', as: 'artists' });
-db.Artist.belongsToMany(db.Song, { through: db.ArtistSong, foreignKey: 'artistId', as: 'songs' });
+// // Song & Artist (ok)
+// db.Song.belongsToMany(db.Artist, { through: db.ArtistSong, foreignKey: 'songId', as: 'artistsSong' });
+// db.Artist.belongsToMany(db.Song, { through: db.ArtistSong, foreignKey: 'artistId', as: 'songsArtist' });
 
-// Song & User: upload
-db.User.hasMany(db.Song, { foreignKey: 'uploadUserId', as: 'uploadedSongs' }); // alias cho các bài hát mà người dùng đã tải lên
-db.Song.belongsTo(db.User, { foreignKey: 'uploadUserId', as: 'uploader' }); // alias cho người dùng tải lên bài hát
+// // // Song & User: upload
+// // db.User.hasMany(db.Song, { foreignKey: 'uploadUserId', as: 'uploadedSongs' }); // alias cho các bài hát mà người dùng đã tải lên
+// // db.Song.belongsTo(db.User, { foreignKey: 'uploadUserId', as: 'uploader' }); // alias cho người dùng tải lên bài hát
 
-// Song & Album
-db.Album.hasMany(db.Song, { foreignKey: 'albumId', as: 'songsOfAlbum' });
-db.Song.belongsTo(db.Album, { foreignKey: 'albumId', as: 'albumOfSong' });
+// // Song & Album (ok)
+// db.Album.hasMany(db.Song, { foreignKey: 'albumId', as: 'songsAlbum' });
+// db.Song.belongsTo(db.Album, { foreignKey: 'albumId', as: 'albumSong' });
 
-// User & Song through Like
-db.User.belongsToMany(db.Song, { through: db.Like, foreignKey: 'userId', as: 'likedSongs' });
-db.Song.belongsToMany(db.User, { through: db.Like, foreignKey: 'songId', as: 'likedByUsers' });
+// // User & Song through Like (ok)
+// db.User.belongsToMany(db.Song, { through: db.Like, foreignKey: 'userId', as: 'songsLike' });
+// db.Song.belongsToMany(db.User, { through: db.Like, foreignKey: 'songId', as: 'usersLike' });
 
-// User & Song through SongPlayHistory
-db.User.belongsToMany(db.Song, { through: db.SongPlayHistory, foreignKey: 'userId', as: 'playedSongs' });
-db.Song.belongsToMany(db.User, { through: db.SongPlayHistory, foreignKey: 'songId', as: 'playedByUsers' });
+// // User & Song through SongPlayHistory (ok)
+// db.User.belongsToMany(db.Song, { through: db.SongPlayHistory, foreignKey: 'userId', as: 'songsHistory' });
+// db.Song.belongsToMany(db.User, { through: db.SongPlayHistory, foreignKey: 'songId', as: 'usersHistory' });
 
-// User & Playlist
-db.User.hasMany(db.Playlist, { foreignKey: 'userId', as: 'playlistsOfUser' });
-db.Playlist.belongsTo(db.User, { foreignKey: 'userId', as: 'userOfPlaylist' });
+// // // User & Playlist
+// // db.User.hasMany(db.Playlist, { foreignKey: 'userId', as: 'playlistsOfUser' });
+// // db.Playlist.belongsTo(db.User, { foreignKey: 'userId', as: 'userOfPlaylist' });
 
-// Playlist & Song through PlaylistSong
-db.Playlist.belongsToMany(db.Song, { through: db.PlaylistSong, foreignKey: 'playlistId', as: 'songsOfPlaylist' });
-db.Song.belongsToMany(db.Playlist, { through: db.PlaylistSong, foreignKey: 'songId', as: 'playlistsOfSong' });
+// // // Playlist & Song through PlaylistSong
+// // db.Playlist.belongsToMany(db.Song, { through: db.PlaylistSong, foreignKey: 'playlistId', as: 'songsOfPlaylist' });
+// // db.Song.belongsToMany(db.Playlist, { through: db.PlaylistSong, foreignKey: 'songId', as: 'playlistsOfSong' });
 
-// User & Artist through Follow (ok)
-db.User.belongsToMany(db.Artist, { through: db.Follow, foreignKey: 'userId', as: 'artists' });
-db.Artist.belongsToMany(db.User, { through: db.Follow, foreignKey: 'artistId', as: 'users' });
+// // User & Artist through Follow (ok)
+// db.User.belongsToMany(db.Artist, { through: db.Follow, foreignKey: 'userId', as: 'artistsUser' });
+// db.Artist.belongsToMany(db.User, { through: db.Follow, foreignKey: 'artistId', as: 'usersArtist' });
 
-// Artist & Genre through ArtistGenre
-db.Artist.belongsToMany(db.Genre, { through: db.ArtistGenre, foreignKey: 'artistId', as: 'genres' });
-db.Genre.belongsToMany(db.Artist, { through: db.ArtistGenre, foreignKey: 'genreId', as: 'artists' });
+// // Artist & Genre through ArtistGenre (OK)
+// db.Artist.belongsToMany(db.Genre, { through: db.ArtistGenre, foreignKey: 'artistId', as: 'genresArtist' });
+// db.Genre.belongsToMany(db.Artist, { through: db.ArtistGenre, foreignKey: 'genreId', as: 'artistsGenre' });
 
-// User & SubscriptionPackage through Subscriptions
-db.User.belongsToMany(db.SubscriptionPackage, {
-    through: db.Subscriptions,
-    foreignKey: 'userId',
-    as: 'subPackagesOfUser',
+// // // User & SubscriptionPackage through Subscriptions
+// // db.User.belongsToMany(db.SubscriptionPackage, {
+// //     through: db.Subscriptions,
+// //     foreignKey: 'userId',
+// //     as: 'subPackagesOfUser',
+// // });
+// // db.SubscriptionPackage.belongsToMany(db.User, {
+// //     through: db.Subscriptions,
+// //     foreignKey: 'packageId',
+// //     as: 'usersSubPackage',
+// // });
+
+// // // User & SearchHistory
+// // db.User.hasMany(db.SearchHistory, { foreignKey: 'userId', as: 'searchesOfUser' });
+// // db.SearchHistory.belongsTo(db.User, { foreignKey: 'userId', as: 'userOfSearch' });
+
+// // // User & Song through Comment
+// // db.User.belongsToMany(db.Song, { through: db.Comment, foreignKey: 'userId', as: 'commentedSongs' });
+// // db.Song.belongsToMany(db.User, { through: db.Comment, foreignKey: 'songId', as: 'commentingUsers' });
+
+// // // models/SongPlayHistory.js
+// // // models/Like.js
+// // db.SongPlayHistory.belongsTo(db.Song, { foreignKey: 'songId', as: 'songPlay' });
+// // db.Like.belongsTo(db.Song, { foreignKey: 'songId', as: 'likedSong' });
+
+// // db.Song.hasMany(db.SongPlayHistory, { foreignKey: 'songId', as: 'playHistories' });
+// // db.Song.hasMany(db.Like, { foreignKey: 'songId', as: 'likes' });
+
+// // db.SongPlayHistory.belongsTo(db.Song, { foreignKey: 'songId', as: 'song' });
+// // db.Like.belongsTo(db.Song, { foreignKey: 'songId', as: 'song' });
+
+// // -----------------------------associated--------------------------------
+// // db.Song.hasMany(db.SongPlayHistory, { foreignKey: 'songId', as: 'songPlayHistory' });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Object.keys(db).forEach(modelName => {
+    if (db[modelName].associate) {
+        db[modelName].associate(db);
+    }
 });
-db.SubscriptionPackage.belongsToMany(db.User, {
-    through: db.Subscriptions,
-    foreignKey: 'packageId',
-    as: 'usersSubPackage',
-});
 
-// User & SearchHistory
-db.User.hasMany(db.SearchHistory, { foreignKey: 'userId', as: 'searchesOfUser' });
-db.SearchHistory.belongsTo(db.User, { foreignKey: 'userId', as: 'userOfSearch' });
 
-// User & Song through Comment
-db.User.belongsToMany(db.Song, { through: db.Comment, foreignKey: 'userId', as: 'commentedSongs' });
-db.Song.belongsToMany(db.User, { through: db.Comment, foreignKey: 'songId', as: 'commentingUsers' });
 
-// models/SongPlayHistory.js
-// models/Like.js
-db.SongPlayHistory.belongsTo(db.Song, { foreignKey: 'songId', as: 'songPlay' });
-db.Like.belongsTo(db.Song, { foreignKey: 'songId', as: 'likedSong' });
 
-// db.Song.hasMany(db.SongPlayHistory, { foreignKey: 'songId', as: 'playHistories' });
-// db.Song.hasMany(db.Like, { foreignKey: 'songId', as: 'likes' });
 
-// db.SongPlayHistory.belongsTo(db.Song, { foreignKey: 'songId', as: 'song' });
-// db.Like.belongsTo(db.Song, { foreignKey: 'songId', as: 'song' });
+
 
 db.sequelize.sync({ alter: true });
 // db.sequelize.sync({ force: true });

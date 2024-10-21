@@ -5,15 +5,50 @@ const Like = db.Like;
 const Artist = db.Artist;
 const Sequelize = db.Sequelize;
 const sequelize = db.sequelize;
+const Genre = db.Genre;
 // const Op = db.Op;
 const { Op, where } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 
 // ---------------------------SONG------------------
-
 const getAllSongService = async () => {
     try {
-        const songs = await Song.findAll();
+        const songs = await db.Song.findAll({
+            attributes: {
+                include: [
+                    'id',
+                    [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likesSong.likeId'))), 'likeCount'],
+                    [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('songPlayHistories.historyId'))), 'viewCount'],
+                ],
+            },
+            include: [
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title'],
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: [],
+                    },
+                },
+                {
+                    model: db.Like,
+                    as: 'likesSong',
+                    attributes: [],
+                },
+                {
+                    model: db.SongPlayHistory,
+                    as: 'songPlayHistories',
+                    attributes: [],
+                },
+            ],
+            group: ['Song.id', 'album.albumId', 'artists.id', 'artists->ArtistSong.songId', 'artists->ArtistSong.artistId'], // Chỉ nhóm theo Song.id
+        });
+
         return {
             errCode: 0,
             errMess: 'Get all songs successfully',
@@ -29,8 +64,45 @@ const getAllSongService = async () => {
 
 const getSongService = async (songId) => {
     try {
-        const song = await Song.findOne({ where: { id: songId } });
-        if (song) {
+        const song = await db.Song.findAll({
+            where: { id: songId },
+            attributes: {
+                include: [
+                    'id',
+                    [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likesSong.likeId'))), 'likeCount'],
+                    [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('songPlayHistories.historyId'))), 'viewCount'],
+                ],
+            },
+            include: [
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title'],
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: [],
+                    },
+                },
+                {
+                    model: db.Like,
+                    as: 'likesSong',
+                    attributes: [],
+                },
+                {
+                    model: db.SongPlayHistory,
+                    as: 'songPlayHistories',
+                    attributes: [],
+                },
+            ],
+            group: ['Song.id', 'album.albumId', 'artists.id', 'artists->ArtistSong.songId', 'artists->ArtistSong.artistId'], // Chỉ nhóm theo Song.id
+        });
+
+        // const song = await Song.findOne({ where:});
+        if (song.length > 0) {
             return {
                 errCode: 0,
                 errMess: 'Get song by ID successfully',
@@ -341,7 +413,30 @@ const getPopularArtistService = async () => {
 
 const getAllArtistService = async () => {
     try {
-        const artists = await Artist.findAll();
+        const artists = await Artist.findAll({
+            attributes: {
+                include: [[db.sequelize.fn('COUNT', db.sequelize.col('users.id')), 'followCount']],
+            },
+            include: [
+                {
+                    model: db.Genre,
+                    as: 'genres',
+                    attributes: ['genreId', 'name'],
+                    through: {
+                        attributes: [],
+                    },
+                },
+                {
+                    model: db.User,
+                    as: 'users',
+                    attributes: [],
+                    through: {
+                        attributes: [],
+                    },
+                },
+            ],
+            group: ['Artist.id', 'genres.genreId'],
+        });
         return {
             errCode: 0,
             errMess: 'Get all artists',
@@ -357,7 +452,31 @@ const getAllArtistService = async () => {
 
 const getArtistService = async (artistId) => {
     try {
-        const artist = await Artist.findOne({ where: { id: artistId } });
+        const artist = await Artist.findAll({
+            where: { id: artistId },
+            attributes: {
+                include: [[db.sequelize.fn('COUNT', db.sequelize.col('users.id')), 'followCount']],
+            },
+            include: [
+                {
+                    model: db.Genre,
+                    as: 'genres',
+                    attributes: ['genreId', 'name'],
+                    through: {
+                        attributes: [],
+                    },
+                },
+                {
+                    model: db.User,
+                    as: 'users',
+                    attributes: [],
+                    through: {
+                        attributes: [],
+                    },
+                },
+            ],
+            group: ['Artist.id', 'genres.genreId'],
+        });
         return {
             errCode: 0,
             errMess: 'Get artist successfully',
@@ -508,6 +627,52 @@ const createGenreService = async (data) => {
     }
 };
 
+// ---------------------------ALBUM------------------
+
+const getAllAlbumService = async () => {
+    try {
+        const albums = await db.Album.findAll({
+            include: [
+                {
+                    model: db.Song,
+                    as: 'songsAlbum',
+                    attributes: {
+                        include: [
+                            [db.sequelize.fn('COUNT', db.sequelize.col('songsAlbum->likes.likeId')), 'likeCount'],
+                            [db.sequelize.fn('COUNT', db.sequelize.col('songsAlbum->songPlayHistories.historyId')), 'viewCount'],
+                        ],
+                    },
+                    include: [
+                        {
+                            model: db.SongPlayHistory,
+                            as: 'songPlayHistories',
+                            attributes: [],
+                        },
+                        {
+                            model: db.Like,
+                            as: 'likes',
+                            attributes: [],
+                        },
+                    ],
+                },
+            ],
+            group: ['Album.albumId', 'songsAlbum.id'],
+            // order: [[db.sequelize.fn('COUNT', db.sequelize.col('songsAlbum->songPlayHistories.historyId')), 'DESC']],
+        });
+
+        return {
+            errCode: 0,
+            errMess: 'Get all album successfully',
+            albums: albums,
+        };
+    } catch (error) {
+        return {
+            errCode: 8,
+            errMess: `Get all album failed: ${error}`,
+        };
+    }
+};
+
 module.exports = {
     getAllSongService,
     getSongService,
@@ -528,4 +693,6 @@ module.exports = {
     updateArtistService,
     // ----------------
     createGenreService,
+    // ----------------
+    getAllAlbumService,
 };

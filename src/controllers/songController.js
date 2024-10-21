@@ -83,6 +83,13 @@ const createGenre = async (req, res) => {
     return res.status(statusCodes[response.errCode]).json(response);
 }
 
+// ---------------------------ALBUM------------------
+
+const getAllAlbum = async (req, res) => {
+    const response = await songService.getAllAlbumService();
+    return res.status(statusCodes[response.errCode]).json(response);
+}
+
 module.exports = {
     getSong,
     deleteSong,
@@ -102,4 +109,6 @@ module.exports = {
     updateArtist,
     // ------------
     createGenre,
+    // ---------
+    getAllAlbum
 };

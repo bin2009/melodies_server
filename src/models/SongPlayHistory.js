@@ -35,12 +35,17 @@ module.exports = (sequelize, DataTypes, Model, User, Song) => {
             modelName: 'SongPlayHistory',
             indexes: [
                 {
-                    unique: false, // Set to true if you want to ensure unique combinations of userId and songId
+                    unique: false, // Đảm bảo rằng không có ràng buộc duy nhất
                     fields: ['userId', 'songId'],
                 },
             ],
         },
     );
+
+    SongPlayHistory.associate = (models) => {
+        SongPlayHistory.belongsTo(models.User, { foreignKey: 'userId', as: 'user' });
+        SongPlayHistory.belongsTo(models.Song, { foreignKey: 'songId', as: 'song' });
+    };
 
     return SongPlayHistory;
 };

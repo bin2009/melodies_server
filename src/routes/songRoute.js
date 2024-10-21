@@ -29,4 +29,10 @@ router.patch('/artists/update', authMiddleWare.verifyTokenAndAdmin, songControll
 // ---------------------------GENRE------------------
 
 router.post('/genre/create', authMiddleWare.verifyTokenAndAdmin, songController.createGenre);
+
+// ---------------------------ALBUM------------------
+
+router.get('/album/', songController.getAllAlbum)
+
+
 module.exports = router;
