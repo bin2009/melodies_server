@@ -77,6 +77,12 @@ module.exports = (sequelize, DataTypes, Model) => {
             foreignKey: 'userId',
             otherKey: 'songId',
         });
+        User.belongsToMany(models.Artist, {
+            through: 'Follow',
+            as: 'followedArtists',
+            foreignKey: 'userId',
+            otherKey: 'artistId',
+        });
     };
 
     return User;

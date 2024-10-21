@@ -35,6 +35,18 @@ module.exports = (sequelize, DataTypes, Model) => {
             foreignKey: 'artistId',
             otherKey: 'songId',
         });
+        Artist.belongsToMany(models.Genre, {
+            through: 'ArtistGenre',
+            as: 'genres',
+            foreignKey: 'artistId',
+            otherKey: 'genreId',
+        });
+        Artist.belongsToMany(models.User, {
+            through: 'Follow',
+            as: 'followers',
+            foreignKey: 'artistId',
+            otherKey: 'userId',
+        });
     };
 
     return Artist;

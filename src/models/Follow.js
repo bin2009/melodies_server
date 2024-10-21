@@ -29,7 +29,14 @@ module.exports = (sequelize, DataTypes, Model, User, Artist) => {
             sequelize,
             tableName: 'Follow',
             modelName: 'Follow',
+            indexes: [
+                {
+                    unique: false, // Đảm bảo rằng không có ràng buộc duy nhất
+                    fields: ['userId', 'artistId'],
+                },
+            ],
         },
     );
+
     return Follow;
 };

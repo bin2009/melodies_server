@@ -18,7 +18,11 @@ const getAllSongService = async () => {
                 include: [
                     'id',
                     [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likesSong.likeId'))), 'likeCount'],
-                    [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('songPlayHistories.historyId'))), 'viewCount'],
+                    // [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('songPlayHistories.historyId'))), 'viewCount'],
+                    [
+                        db.sequelize.literal(`COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 100 THEN "songPlayHistories"."historyId" END)`),
+                        'viewCount',
+                    ],
                 ],
             },
             include: [
@@ -70,7 +74,11 @@ const getSongService = async (songId) => {
                 include: [
                     'id',
                     [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likesSong.likeId'))), 'likeCount'],
-                    [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('songPlayHistories.historyId'))), 'viewCount'],
+                    // [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('songPlayHistories.historyId'))), 'viewCount'],
+                    [
+                        db.sequelize.literal(`COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 100 THEN "songPlayHistories"."historyId" END)`),
+                        'viewCount',
+                    ],
                 ],
             },
             include: [
@@ -242,26 +250,69 @@ const getWeeklyTopSongsService = async () => {
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-        const topSongs = await SongPlayHistory.findAll({
-            where: {
-                playtime: {
-                    [Op.gt]: 30,
-                },
-                createdAt: {
-                    [Op.gte]: oneWeekAgo,
-                },
+        const topSongs = await db.Song.findAll({
+            attributes: {
+                include: [
+                    'id',
+                    [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likesSong.likeId'))), 'likeCount'],
+                    [
+                        db.sequelize.literal(`COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END)`),
+                        'viewCount',
+                    ],
+                    [
+                        db.sequelize.literal(
+                            `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END) + COUNT(DISTINCT "likesSong"."likeId")`,
+                        ),
+                        'totalCount',
+                    ],
+                ],
             },
-            attributes: ['songId', [Sequelize.fn('COUNT', Sequelize.col('songId')), 'playCount']],
             include: [
                 {
-                    model: Song,
-                    as: 'songPlay',
-                    attributes: { exclude: [] },
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title'],
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: [],
+                    },
+                },
+                {
+                    model: db.Like,
+                    as: 'likesSong',
+                    attributes: [],
+                    where: {
+                        createdAt: {
+                            [db.Sequelize.Op.gte]: oneWeekAgo,
+                        },
+                    },
+                    required: false,
+                },
+                {
+                    model: db.SongPlayHistory,
+                    as: 'songPlayHistories',
+                    attributes: [],
+                    where: {
+                        createdAt: {
+                            [db.Sequelize.Op.gte]: oneWeekAgo,
+                        },
+                    },
+                    required: false,
                 },
             ],
-            group: ['songId', 'songPlay.id'],
-            order: [[Sequelize.fn('COUNT', Sequelize.col('songId')), 'DESC']],
-            limit: 10,
+            order: [
+                [
+                    db.sequelize.literal(
+                        `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END) + COUNT(DISTINCT "likesSong"."likeId")`,
+                    ),
+                    'DESC',
+                ],
+            ], // Order by total count (DESC)
+            group: ['Song.id', 'album.albumId', 'artists.id', 'artists->ArtistSong.songId', 'artists->ArtistSong.artistId'],
         });
 
         return {
@@ -279,20 +330,60 @@ const getWeeklyTopSongsService = async () => {
 
 const getTrendingSongsService = async () => {
     try {
-        const query = `
-            SELECT 
-                s.*,
-                COUNT(DISTINCT sph."historyId") AS play_count,
-                COUNT(DISTINCT l."likeId") AS like_count,
-                COUNT(DISTINCT sph."historyId") + COUNT(DISTINCT l."likeId") AS total_count
-            FROM "Song" s
-            LEFT JOIN "SongPlayHistory" sph ON sph."songId" = s.id
-            LEFT JOIN "Like" l ON l."songId" = s.id
-            GROUP BY s.id
-            ORDER BY total_count DESC
-            LIMIT 10;
-        `;
-        const [topSongs] = await sequelize.query(query);
+        const topSongs = await db.Song.findAll({
+            attributes: {
+                include: [
+                    'id',
+                    [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likesSong.likeId'))), 'likeCount'],
+                    [
+                        db.sequelize.literal(`COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END)`),
+                        'viewCount',
+                    ],
+                    [
+                        db.sequelize.literal(
+                            `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END) + COUNT(DISTINCT "likesSong"."likeId")`,
+                        ),
+                        'totalCount',
+                    ],
+                ],
+            },
+            include: [
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title'],
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: [],
+                    },
+                },
+                {
+                    model: db.Like,
+                    as: 'likesSong',
+                    attributes: [],
+                    required: false,
+                },
+                {
+                    model: db.SongPlayHistory,
+                    as: 'songPlayHistories',
+                    attributes: [],
+                    required: false,
+                },
+            ],
+            order: [
+                [
+                    db.sequelize.literal(
+                        `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END) + COUNT(DISTINCT "likesSong"."likeId")`,
+                    ),
+                    'DESC',
+                ],
+            ], // Order by total count (DESC)
+            group: ['Song.id', 'album.albumId', 'artists.id', 'artists->ArtistSong.songId', 'artists->ArtistSong.artistId'],
+        });
         return {
             errCode: 0,
             errMess: 'Successfully',
@@ -306,61 +397,48 @@ const getTrendingSongsService = async () => {
     }
 };
 
-// const getTopSongsService = async () => {
-//     try {
-//         const topSongs = await db.Song.findAll({
-//             attributes: {
-//                 include: [
-//                     [
-//                         db.sequelize.fn(
-//                             'COUNT',
-//                             db.sequelize.fn('DISTINCT', db.sequelize.col('SongPlayHistory.historyId')),
-//                         ),
-//                         'play_count',
-//                     ],
-//                     [
-//                         db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('Like.likeId'))),
-//                         'like_count',
-//                     ],
-//                     [
-//                         db.sequelize.fn(
-//                             'COUNT',
-//                             db.sequelize.fn('DISTINCT', db.sequelize.col('SongPlayHistory.historyId')),
-//                         ) + db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('Like.likeId'))),
-//                         'total_count',
-//                     ],
-//                 ],
-//             },
-//             include: [
-//                 { model: db.SongPlayHistory, as: 'playHistories', required: false },
-//                 { model: db.Like, as: 'likes', required: false },
-//             ],
-//             group: ['Song.id'],
-//             order: [[db.sequelize.col('total_count'), 'DESC']],
-//             limit: 10,
-//         });
-
-//         return {
-//             errCode: 0,
-//             errMess: 'Top songs retrieved successfully',
-//             songs: topSongs,
-//         };
-//     } catch (error) {
-//         return {
-//             errCode: 8,
-//             errMess: `Internal Server Error ${error.message}`,
-//         };
-//     }
-// };
-
 const getNewReleaseSongsService = async () => {
     try {
-        const query = `
-            select s.*
-            from "Song" s
-            order by "createdAt" desc 
-        `;
-        const [newReleaseSongs] = await sequelize.query(query);
+        const newReleaseSongs = await db.Song.findAll({
+            attributes: {
+                include: [
+                    'id',
+                    [db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likesSong.likeId'))), 'likeCount'],
+                    [
+                        db.sequelize.literal(`COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 100 THEN "songPlayHistories"."historyId" END)`),
+                        'viewCount',
+                    ],
+                ],
+            },
+            include: [
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title'],
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: [],
+                    },
+                },
+                {
+                    model: db.Like,
+                    as: 'likesSong',
+                    attributes: [],
+                },
+                {
+                    model: db.SongPlayHistory,
+                    as: 'songPlayHistories',
+                    attributes: [],
+                },
+            ],
+            order: [['createdAt', 'DESC']],
+            group: ['Song.id', 'album.albumId', 'artists.id', 'artists->ArtistSong.songId', 'artists->ArtistSong.artistId'], // Chỉ nhóm theo Song.id
+        });
+
         return {
             errCode: 0,
             errMess: 'Get release song successfully',
@@ -380,13 +458,13 @@ const getPopularArtistService = async () => {
             attributes: {
                 include: [
                     // Đếm số lượng người theo dõi thông qua bảng Follow
-                    [Sequelize.fn('COUNT', Sequelize.col('users.id')), 'followerCount'],
+                    [Sequelize.fn('COUNT', Sequelize.col('followers.id')), 'followerCount'],
                 ],
             },
             include: [
                 {
                     model: db.User,
-                    as: 'users',
+                    as: 'followers',
                     attributes: [],
                     through: {
                         attributes: [],
@@ -394,7 +472,7 @@ const getPopularArtistService = async () => {
                 },
             ],
             group: ['Artist.id'],
-            order: [[Sequelize.fn('COUNT', Sequelize.col('users.id')), 'DESC']],
+            order: [[Sequelize.fn('COUNT', Sequelize.col('followers.id')), 'DESC']],
         });
         return {
             errCode: 0,
@@ -415,7 +493,7 @@ const getAllArtistService = async () => {
     try {
         const artists = await Artist.findAll({
             attributes: {
-                include: [[db.sequelize.fn('COUNT', db.sequelize.col('users.id')), 'followCount']],
+                include: [[db.sequelize.fn('COUNT', db.sequelize.col('followers.id')), 'followCount']],
             },
             include: [
                 {
@@ -428,14 +506,14 @@ const getAllArtistService = async () => {
                 },
                 {
                     model: db.User,
-                    as: 'users',
+                    as: 'followers',
                     attributes: [],
                     through: {
                         attributes: [],
                     },
                 },
             ],
-            group: ['Artist.id', 'genres.genreId'],
+            group: ['Artist.id', 'genres.genreId', 'followers.id'],
         });
         return {
             errCode: 0,
@@ -455,7 +533,7 @@ const getArtistService = async (artistId) => {
         const artist = await Artist.findAll({
             where: { id: artistId },
             attributes: {
-                include: [[db.sequelize.fn('COUNT', db.sequelize.col('users.id')), 'followCount']],
+                include: [[db.sequelize.fn('COUNT', db.sequelize.col('followers.id')), 'followCount']],
             },
             include: [
                 {
@@ -468,14 +546,14 @@ const getArtistService = async (artistId) => {
                 },
                 {
                     model: db.User,
-                    as: 'users',
+                    as: 'followers',
                     attributes: [],
                     through: {
                         attributes: [],
                     },
                 },
             ],
-            group: ['Artist.id', 'genres.genreId'],
+            group: ['Artist.id', 'genres.genreId', 'followers.id'],
         });
         return {
             errCode: 0,

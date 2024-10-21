@@ -20,5 +20,14 @@ module.exports = (sequelize, DataTypes, Model) => {
         },
     );
 
+    Genre.associate = (models) => {
+        Genre.belongsToMany(models.Artist, {
+            through: 'ArtistGenre',
+            as: 'artists',
+            foreignKey: 'genreId',
+            otherKey: 'artistId',
+        });
+    };
+
     return Genre;
 };

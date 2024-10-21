@@ -6,10 +6,10 @@ const authMiddleWare = require('../middleware/authMiddleWare');
 // ---------------------THEME MUSIC------------------
 // kh cần phân quyền: dùng đc cho user và guest
 
-router.get('/songs/weeklytopsongs', songController.getWeeklyTopSongs);
-router.get('/songs/trending', songController.getTrendingSongs);
-router.get('/songs/newRaleaseSong', songController.getNewReleaseSongs);
-router.get('/songs/popularArtist', songController.getPopularArtist);
+router.get('/songs/weeklytopsongs', authMiddleWare.verifyToken, songController.getWeeklyTopSongs);
+router.get('/songs/trending', authMiddleWare.verifyToken, songController.getTrendingSongs);
+router.get('/songs/newRaleaseSong', authMiddleWare.verifyToken, songController.getNewReleaseSongs);
+router.get('/songs/popularArtist', authMiddleWare.verifyToken, songController.getPopularArtist);
 
 // ---------------------------SONG------------------
 router.get('/songs/', authMiddleWare.verifyToken, songController.getAllSong);
@@ -32,7 +32,6 @@ router.post('/genre/create', authMiddleWare.verifyTokenAndAdmin, songController.
 
 // ---------------------------ALBUM------------------
 
-router.get('/album/', songController.getAllAlbum)
-
+router.get('/album/', songController.getAllAlbum);
 
 module.exports = router;
