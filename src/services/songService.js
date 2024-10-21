@@ -34,7 +34,7 @@ const getAllSongService = async () => {
                 {
                     model: db.Artist,
                     as: 'artists',
-                    attributes: ['id', 'name'],
+                    attributes: ['id', 'name', 'avatar'],
                     through: {
                         attributes: [],
                     },
@@ -90,7 +90,7 @@ const getSongService = async (songId) => {
                 {
                     model: db.Artist,
                     as: 'artists',
-                    attributes: ['id', 'name'],
+                    attributes: ['id', 'name', 'avatar'],
                     through: {
                         attributes: [],
                     },
@@ -276,7 +276,7 @@ const getWeeklyTopSongsService = async () => {
                 {
                     model: db.Artist,
                     as: 'artists',
-                    attributes: ['id', 'name'],
+                    attributes: ['id', 'name', 'avatar'],
                     through: {
                         attributes: [],
                     },
@@ -356,7 +356,7 @@ const getTrendingSongsService = async () => {
                 {
                     model: db.Artist,
                     as: 'artists',
-                    attributes: ['id', 'name'],
+                    attributes: ['id', 'name', 'avatar'],
                     through: {
                         attributes: [],
                     },
@@ -419,7 +419,7 @@ const getNewReleaseSongsService = async () => {
                 {
                     model: db.Artist,
                     as: 'artists',
-                    attributes: ['id', 'name'],
+                    attributes: ['id', 'name', 'avatar'],
                     through: {
                         attributes: [],
                     },
