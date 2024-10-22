@@ -302,22 +302,23 @@ const getWeeklyTopSongsService = async (offset) => {
             attributes: {
                 include: [
                     'id',
+                    'viewCount',
                     [
                         db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likesSong.likeId'))),
                         'likeCount',
                     ],
-                    [
-                        db.sequelize.literal(
-                            `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END)`,
-                        ),
-                        'viewCount',
-                    ],
-                    [
-                        db.sequelize.literal(
-                            `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END) + COUNT(DISTINCT "likesSong"."likeId")`,
-                        ),
-                        'totalCount',
-                    ],
+                    // [
+                    //     db.sequelize.literal(
+                    //         `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END)`,
+                    //     ),
+                    //     'viewCount',
+                    // ],
+                    // [
+                    //     db.sequelize.literal(
+                    //         `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END) + COUNT(DISTINCT "likesSong"."likeId")`,
+                    //     ),
+                    //     'totalCount',
+                    // ],
                 ],
             },
             include: [
@@ -366,12 +367,15 @@ const getWeeklyTopSongsService = async (offset) => {
             ],
             subQuery: false,
             order: [
-                [
-                    db.sequelize.literal(
-                        `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END) + COUNT(DISTINCT "likesSong"."likeId")`,
-                    ),
-                    'DESC',
-                ],
+                // [
+                //     db.sequelize.literal(
+                //         `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END) + COUNT(DISTINCT "likesSong"."likeId")`,
+                //     ),
+                //     'DESC',
+                // ],
+                // ['viewCount', 'DESC']
+                // [db.sequelize.literal('"viewCount"'), 'DESC'],
+                [db.sequelize.literal('"viewCount" DESC NULLS LAST')],
             ], // Order by total count (DESC)
             group: [
                 'Song.id',
@@ -381,8 +385,8 @@ const getWeeklyTopSongsService = async (offset) => {
                 'artists->ArtistSong.artistId',
                 'album->albumImages.id',
             ],
-            limit: limit,
-            offet: offset,
+            // limit: limit,
+            // offet: offset,
         });
 
         return {
