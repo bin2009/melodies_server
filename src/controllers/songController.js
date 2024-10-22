@@ -30,7 +30,7 @@ const createSong = async (req, res) => {
 // ---------------------------THEME MUSIC------------------
 
 const getWeeklyTopSongs = async (req, res) => {
-    const response = await songService.getWeeklyTopSongsService();
+    const response = await songService.getWeeklyTopSongsService(req.query.offset);
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
@@ -40,12 +40,12 @@ const getTrendingSongs = async (req, res) => {
 };
 
 const getNewReleaseSongs = async (req, res) => {
-    const response = await songService.getNewReleaseSongsService();
+    const response = await songService.getNewReleaseSongsService(req.query.offset);
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
 const getPopularArtist = async (req, res) => {
-    const response = await songService.getPopularArtistService();
+    const response = await songService.getPopularArtistService(req.query.offset);
     return res.status(statusCodes[response.errCode]).json(response);
 };
 

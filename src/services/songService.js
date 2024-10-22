@@ -61,7 +61,8 @@ const getAllSongService = async () => {
                     attributes: [],
                 },
             ],
-            // limit: 10,
+            limit: 10,
+            // offset: 2 * offset,
             subQuery: false,
             group: [
                 'Song.id',
@@ -287,8 +288,12 @@ const createSongService = async (data) => {
 
 // ---------------------------THEME MUSIC------------------
 
-const getWeeklyTopSongsService = async () => {
+const getWeeklyTopSongsService = async (offset) => {
     try {
+        const limit = 2;
+        const page = 2;
+        const offset = (page - 1) * limit;
+
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
@@ -358,6 +363,7 @@ const getWeeklyTopSongsService = async () => {
                     required: false,
                 },
             ],
+            subQuery: false,
             order: [
                 [
                     db.sequelize.literal(
@@ -374,6 +380,8 @@ const getWeeklyTopSongsService = async () => {
                 'artists->ArtistSong.artistId',
                 'album->albumImages.id',
             ],
+            limit: limit,
+            offet: offset,
         });
 
         return {
@@ -477,8 +485,9 @@ const getTrendingSongsService = async () => {
     }
 };
 
-const getNewReleaseSongsService = async () => {
+const getNewReleaseSongsService = async (offset) => {
     try {
+        const limit = 10;
         const newReleaseSongs = await db.Song.findAll({
             attributes: {
                 include: [
@@ -520,6 +529,7 @@ const getNewReleaseSongsService = async () => {
                     attributes: [],
                 },
             ],
+            subQuery: false,
             order: [['releaseDate', 'DESC']],
             group: [
                 'Song.id',
@@ -527,7 +537,9 @@ const getNewReleaseSongsService = async () => {
                 'artists.id',
                 'artists->ArtistSong.songId',
                 'artists->ArtistSong.artistId',
-            ], // Chỉ nhóm theo Song.id
+            ], // Chỉ nhóm theo Son
+            limit: limit,
+            offset: limit * offset,
         });
 
         return {
@@ -543,8 +555,9 @@ const getNewReleaseSongsService = async () => {
     }
 };
 
-const getPopularArtistService = async () => {
+const getPopularArtistService = async (offset) => {
     try {
+        const limit = 10;
         const popArtist = await Artist.findAll({
             attributes: {
                 include: [[Sequelize.literal(`COUNT(followers.id) + "Artist"."followersCount"`), 'folCount']],
@@ -559,8 +572,11 @@ const getPopularArtistService = async () => {
                     },
                 },
             ],
+            subQuery: false,
             order: [[Sequelize.literal(`COUNT(followers.id) + "Artist"."followersCount"`), 'DESC']],
             group: ['Artist.id'],
+            limit: limit,
+            offset: limit * offset,
         });
         return {
             errCode: 0,

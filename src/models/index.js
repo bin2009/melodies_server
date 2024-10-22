@@ -21,6 +21,12 @@ const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, proces
             rejectUnauthorized: false,
         },
     },
+    pool: {
+        max: 20, // Số kết nối tối đa trong pool
+        min: 5,  // Số kết nối tối thiểu trong pool
+        acquire: 30000, // Thời gian tối đa (ms) mà pool sẽ cố gắng kết nối trước khi ném lỗi
+        idle: 10000 // Thời gian tối đa (ms) mà một kết nối có thể ở trạng thái nhàn rỗi trước khi bị giải phóng
+    }
 });
 
 try {

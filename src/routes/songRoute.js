@@ -12,8 +12,8 @@ router.get('/songs/newRaleaseSong', songController.getNewReleaseSongs);
 router.get('/songs/popularArtist', songController.getPopularArtist);
 
 // ---------------------------SONG------------------
-router.get('/songs/', authMiddleWare.verifyToken, songController.getAllSong);
-router.get('/songs/:id', authMiddleWare.verifyToken, songController.getSong);
+router.get('/songs/', songController.getAllSong);
+router.get('/songs/:id', songController.getSong);
 router.post('/songs/create', authMiddleWare.verifyTokenAndAdmin, songController.createSong);
 router.delete('/songs/delete/:id', authMiddleWare.verifyTokenAndAdmin, songController.deleteSong);
 router.patch('/songs/update', authMiddleWare.verifyTokenAndAdmin, songController.updateSong);
