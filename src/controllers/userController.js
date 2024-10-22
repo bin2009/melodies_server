@@ -1,5 +1,6 @@
 const userService = require('../services/userService');
 const statusCodes = require('../utils/statusCodes');
+const playlistService = require('../services/playlistService');
 
 const emailController = require('./emailController');
 
@@ -43,7 +44,20 @@ const playTime = async (req, res) => {
 };
 
 const likedSong = async (req, res) => {
-    const response = await userService.likedSongService(req.body);
+    const { songId } = req.body;
+    const userId = req.user.id;
+    
+    const response = await userService.likedSongService({ userId, songId });
+
+    if (response.errCode === 200) {
+        try {
+            const likedPlaylist = await playlistService.findOrCreateLikedPlaylist(userId);
+            await playlistService.addSongToPlaylistService(likedPlaylist.id, songId);
+        } catch (error) {
+            console.error("Failed to add liked song to playlist:", error);
+        }
+    }
+
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
