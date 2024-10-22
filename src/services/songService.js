@@ -11,8 +11,9 @@ const { Op, where } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 
 // ---------------------------SONG------------------
-const getAllSongService = async () => {
+const getAllSongService = async (offset) => {
     try {
+        const limit = 10;
         const songs = await db.Song.findAll({
             attributes: {
                 include: [
@@ -61,8 +62,6 @@ const getAllSongService = async () => {
                     attributes: [],
                 },
             ],
-            limit: 10,
-            // offset: 2 * offset,
             subQuery: false,
             group: [
                 'Song.id',
@@ -73,6 +72,8 @@ const getAllSongService = async () => {
                 'artists->ArtistSong.artistId',
                 // 'artists->ArtistSong.main',
             ],
+            limit: 10,
+            offset: 2 * offset,
         });
 
         return {
@@ -397,8 +398,9 @@ const getWeeklyTopSongsService = async (offset) => {
     }
 };
 
-const getTrendingSongsService = async () => {
+const getTrendingSongsService = async (offset) => {
     try {
+        const limit = 10;
         const topSongs = await db.Song.findAll({
             attributes: {
                 include: [
@@ -455,6 +457,7 @@ const getTrendingSongsService = async () => {
                     required: false,
                 },
             ],
+            subQuery: false,
             order: [
                 [
                     db.sequelize.literal(
@@ -471,6 +474,8 @@ const getTrendingSongsService = async () => {
                 'artists->ArtistSong.artistId',
                 'album->albumImages.id',
             ],
+            limit: limit,
+            offset: limit * offset,
         });
         return {
             errCode: 0,
@@ -509,6 +514,13 @@ const getNewReleaseSongsService = async (offset) => {
                     model: db.Album,
                     as: 'album',
                     attributes: ['albumId', 'title'],
+                    include: [
+                        {
+                            model: db.AlbumImage,
+                            as: 'albumImages',
+                            attributes: ['image', 'size'],
+                        },
+                    ],
                 },
                 {
                     model: db.Artist,
@@ -537,6 +549,7 @@ const getNewReleaseSongsService = async (offset) => {
                 'artists.id',
                 'artists->ArtistSong.songId',
                 'artists->ArtistSong.artistId',
+                'album->albumImages.id'
             ], // Chỉ nhóm theo Son
             limit: limit,
             offset: limit * offset,
