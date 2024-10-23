@@ -1,6 +1,47 @@
-module.exports = (sequelize, DataTypes, Model, Album, User) => {
-    class Song extends Model {}
-
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+    class Song extends Model {
+        /**
+         * Helper method for defining associations.
+         * This method is not a part of Sequelize lifecycle.
+         * The `models/index` file will call this method automatically.
+         */
+        static associate(models) {
+            // define association here
+            Song.belongsTo(models.Album, { foreignKey: 'albumId', as: 'album' });
+            Song.belongsToMany(models.Artist, {
+                through: 'ArtistSong',
+                as: 'artists',
+                foreignKey: 'songId',
+                otherKey: 'artistId',
+            });
+            Song.belongsToMany(models.Playlist, {
+                through: 'PlaylistSong',
+                as: 'playlists',
+                foreignKey: 'songId',
+                otherKey: 'playlistId',
+            });
+            Song.belongsToMany(models.User, {
+                through: 'SongPlayHistory',
+                as: 'playedByUsers',
+                foreignKey: 'songId',
+                otherKey: 'userId',
+            });
+            Song.belongsToMany(models.User, {
+                through: 'Like',
+                as: 'likedByUsers',
+                foreignKey: 'songId',
+                otherKey: 'userId',
+            });
+            Song.belongsToMany(models.User, {
+                through: 'Comment',
+                as: 'commentedByUsers',
+                foreignKey: 'songId',
+                otherKey: 'userId',
+            });
+        }
+    }
     Song.init(
         {
             id: {
@@ -11,7 +52,7 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
             albumId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: Album,
+                    model: 'Album',
                     key: 'albumId',
                 },
                 allowNull: true,
@@ -40,7 +81,7 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
             uploadUserId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: User,
+                    model: 'User',
                     key: 'id',
                 },
                 allowNull: true,
@@ -54,43 +95,8 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
         },
         {
             sequelize,
-            tableName: 'Song',
             modelName: 'Song',
         },
     );
-
-    Song.associate = (models) => {
-        Song.belongsTo(models.Album, {
-            foreignKey: 'albumId',
-            as: 'album',
-        });
-        Song.hasMany(models.SongPlayHistory, {
-            foreignKey: 'songId',
-            as: 'songPlayHistories',
-        });
-        Song.hasMany(models.Like, {
-            foreignKey: 'songId',
-            as: 'likesSong',
-        });
-        Song.belongsToMany(models.Artist, {
-            through: 'ArtistSong',
-            as: 'artists',
-            foreignKey: 'songId',
-            otherKey: 'artistId',
-        });
-        Song.belongsToMany(models.User, {
-            through: 'Like',
-            as: 'usersLike',
-            foreignKey: 'songId',
-            otherKey: 'userId',
-        });
-        Song.belongsToMany(models.User, {
-            through: 'SongPlayHistory',
-            as: 'usersHistory',
-            foreignKey: 'songId',
-            otherKey: 'userId',
-        });
-    };
-
     return Song;
 };

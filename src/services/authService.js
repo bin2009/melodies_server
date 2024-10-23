@@ -123,7 +123,7 @@ const logoutService = async (refreshToken) => {
     } catch (err) {
         return {
             errCode: 8,
-            errMess: `Internal Server Error: ${error.message}`,
+            errMess: `Internal Server Error: ${err}`,
         };
     }
 };

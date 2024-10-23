@@ -1,12 +1,29 @@
-module.exports = (sequelize, DataTypes, Model, Album) => {
-    class AlbumImage extends Model {}
-
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+    class AlbumImage extends Model {
+        /**
+         * Helper method for defining associations.
+         * This method is not a part of Sequelize lifecycle.
+         * The `models/index` file will call this method automatically.
+         */
+        static associate(models) {
+            // define association here
+            AlbumImage.belongsTo(models.Album, { foreignKey: 'albumId', as: 'album' });
+        }
+    }
     AlbumImage.init(
         {
+            albumImageId: {
+                type: DataTypes.UUID,
+                primaryKey: true,
+                allowNull: false,
+                defaultValue: DataTypes.UUIDV4,
+            },
             albumId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: Album,
+                    model: 'Album',
                     key: 'albumId',
                 },
                 allowNull: false,
@@ -22,17 +39,8 @@ module.exports = (sequelize, DataTypes, Model, Album) => {
         },
         {
             sequelize,
-            tableName: 'AlbumImage',
             modelName: 'AlbumImage',
         },
     );
-
-    AlbumImage.associate = (models) => {
-        AlbumImage.belongsTo(models.Album, {
-            foreignKey: 'albumId',
-            as: 'album',
-        });
-    };
-
     return AlbumImage;
 };

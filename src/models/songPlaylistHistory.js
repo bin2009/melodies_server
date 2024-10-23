@@ -1,6 +1,16 @@
-module.exports = (sequelize, DataTypes, Model, User, Song) => {
-    class SongPlayHistory extends Model {}
-
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+    class SongPlayHistory extends Model {
+        /**
+         * Helper method for defining associations.
+         * This method is not a part of Sequelize lifecycle.
+         * The `models/index` file will call this method automatically.
+         */
+        static associate(models) {
+            // define association here
+        }
+    }
     SongPlayHistory.init(
         {
             historyId: {
@@ -11,7 +21,7 @@ module.exports = (sequelize, DataTypes, Model, User, Song) => {
             userId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: User,
+                    model: 'User',
                     key: 'id',
                 },
                 allowNull: false,
@@ -19,7 +29,7 @@ module.exports = (sequelize, DataTypes, Model, User, Song) => {
             songId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: Song,
+                    model: 'Song',
                     key: 'id',
                 },
                 allowNull: false,
@@ -31,21 +41,14 @@ module.exports = (sequelize, DataTypes, Model, User, Song) => {
         },
         {
             sequelize,
-            tableName: 'SongPlayHistory',
             modelName: 'SongPlayHistory',
             indexes: [
                 {
-                    unique: false, // Đảm bảo rằng không có ràng buộc duy nhất
+                    unique: false, // Ensure no unique constraint
                     fields: ['userId', 'songId'],
                 },
             ],
         },
     );
-
-    SongPlayHistory.associate = (models) => {
-        SongPlayHistory.belongsTo(models.User, { foreignKey: 'userId', as: 'user' });
-        SongPlayHistory.belongsTo(models.Song, { foreignKey: 'songId', as: 'song' });
-    };
-
     return SongPlayHistory;
 };

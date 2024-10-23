@@ -1,6 +1,16 @@
-module.exports = (sequelize, DataTypes, Model, Comment) => {
-    class Report extends Model {}
-
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+    class Report extends Model {
+        /**
+         * Helper method for defining associations.
+         * This method is not a part of Sequelize lifecycle.
+         * The `models/index` file will call this method automatically.
+         */
+        static associate(models) {
+            // define association here
+        }
+    }
     Report.init(
         {
             id: {
@@ -8,10 +18,18 @@ module.exports = (sequelize, DataTypes, Model, Comment) => {
                 primaryKey: true,
                 defaultValue: DataTypes.UUIDV4,
             },
+            userId: {
+                type: DataTypes.UUID,
+                references: {
+                    model: 'User',
+                    key: 'id',
+                },
+                allowNull: false,
+            },
             commentId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: Comment,
+                    model: 'Comment',
                     key: 'id',
                 },
                 allowNull: false,
@@ -23,10 +41,14 @@ module.exports = (sequelize, DataTypes, Model, Comment) => {
         },
         {
             sequelize,
-            tableName: 'Report',
             modelName: 'Report',
+            indexes: [
+                {
+                    unique: false, // Set to true if you want to ensure unique combinations of userId and songId
+                    fields: ['userId', 'commentId'],
+                },
+            ],
         },
     );
-
     return Report;
 };

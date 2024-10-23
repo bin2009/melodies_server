@@ -11,7 +11,7 @@ const { Op, where } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 
 // ---------------------------SONG------------------
-const getAllSongService = async (offset) => {
+const getAllSongService = async () => {
     try {
         const limit = 10;
         const songs = await db.Song.findAll({
@@ -72,8 +72,8 @@ const getAllSongService = async (offset) => {
                 'artists->ArtistSong.artistId',
                 // 'artists->ArtistSong.main',
             ],
-            limit: 10,
-            offset: 2 * offset,
+            // limit: 10,
+            // offset: 2 * offset,
         });
 
         return {
@@ -289,7 +289,7 @@ const createSongService = async (data) => {
 
 // ---------------------------THEME MUSIC------------------
 
-const getWeeklyTopSongsService = async (offset) => {
+const getWeeklyTopSongsService = async () => {
     try {
         const limit = 2;
         const page = 2;
@@ -402,7 +402,7 @@ const getWeeklyTopSongsService = async (offset) => {
     }
 };
 
-const getTrendingSongsService = async (offset) => {
+const getTrendingSongsService = async () => {
     try {
         const limit = 10;
         const topSongs = await db.Song.findAll({
@@ -478,8 +478,8 @@ const getTrendingSongsService = async (offset) => {
                 'artists->ArtistSong.artistId',
                 'album->albumImages.id',
             ],
-            limit: limit,
-            offset: limit * offset,
+            // limit: limit,
+            // offset: limit * offset,
         });
         return {
             errCode: 0,
@@ -494,7 +494,7 @@ const getTrendingSongsService = async (offset) => {
     }
 };
 
-const getNewReleaseSongsService = async (offset) => {
+const getNewReleaseSongsService = async () => {
     try {
         const limit = 10;
         const newReleaseSongs = await db.Song.findAll({
@@ -553,10 +553,10 @@ const getNewReleaseSongsService = async (offset) => {
                 'artists.id',
                 'artists->ArtistSong.songId',
                 'artists->ArtistSong.artistId',
-                'album->albumImages.id'
+                'album->albumImages.id',
             ], // Chỉ nhóm theo Son
-            limit: limit,
-            offset: limit * offset,
+            // limit: limit,
+            // offset: limit * offset,
         });
 
         return {
@@ -572,7 +572,7 @@ const getNewReleaseSongsService = async (offset) => {
     }
 };
 
-const getPopularArtistService = async (offset) => {
+const getPopularArtistService = async () => {
     try {
         const limit = 10;
         const popArtist = await Artist.findAll({
@@ -592,8 +592,8 @@ const getPopularArtistService = async (offset) => {
             subQuery: false,
             order: [[Sequelize.literal(`COUNT(followers.id) + "Artist"."followersCount"`), 'DESC']],
             group: ['Artist.id'],
-            limit: limit,
-            offset: limit * offset,
+            // limit: limit,
+            // offset: limit * offset,
         });
         return {
             errCode: 0,

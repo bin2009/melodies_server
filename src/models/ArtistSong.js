@@ -1,12 +1,28 @@
-module.exports = (sequelize, DataTypes, Model, Song, Artist) => {
-    class ArtistSong extends Model {}
-
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+    class ArtistSong extends Model {
+        /**
+         * Helper method for defining associations.
+         * This method is not a part of Sequelize lifecycle.
+         * The `models/index` file will call this method automatically.
+         */
+        static associate(models) {
+            // define association here
+        }
+    }
     ArtistSong.init(
         {
+            artistSongId: {
+                type: DataTypes.UUID,
+                primaryKey: true,
+                allowNull: false,
+                defaultValue: DataTypes.UUIDV4,
+            },
             songId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: Song,
+                    model: 'Song',
                     key: 'id',
                 },
                 allowNull: false,
@@ -14,7 +30,7 @@ module.exports = (sequelize, DataTypes, Model, Song, Artist) => {
             artistId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: Artist,
+                    model: 'Artist',
                     key: 'id',
                 },
                 allowNull: false,
@@ -26,10 +42,8 @@ module.exports = (sequelize, DataTypes, Model, Song, Artist) => {
         },
         {
             sequelize,
-            tableName: 'ArtistSong',
             modelName: 'ArtistSong',
         },
     );
-
     return ArtistSong;
 };

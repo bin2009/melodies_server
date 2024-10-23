@@ -3,7 +3,7 @@ const statusCodes = require('../utils/statusCodes');
 
 // ---------------------------SONG------------------
 const getAllSong = async (req, res) => {
-    const response = await songService.getAllSongService(req.query.offset);
+    const response = await songService.getAllSongService();
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
@@ -30,22 +30,22 @@ const createSong = async (req, res) => {
 // ---------------------------THEME MUSIC------------------
 
 const getWeeklyTopSongs = async (req, res) => {
-    const response = await songService.getWeeklyTopSongsService(req.query.offset);
+    const response = await songService.getWeeklyTopSongsService();
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
 const getTrendingSongs = async (req, res) => {
-    const response = await songService.getTrendingSongsService(req.query.offset);
+    const response = await songService.getTrendingSongsService();
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
 const getNewReleaseSongs = async (req, res) => {
-    const response = await songService.getNewReleaseSongsService(req.query.offset);
+    const response = await songService.getNewReleaseSongsService();
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
 const getPopularArtist = async (req, res) => {
-    const response = await songService.getPopularArtistService(req.query.offset);
+    const response = await songService.getPopularArtistService();
     return res.status(statusCodes[response.errCode]).json(response);
 };
 

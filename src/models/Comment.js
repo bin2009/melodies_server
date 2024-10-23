@@ -1,11 +1,28 @@
-module.exports = (sequelize, DataTypes, Model, User, Song) => {
-    class Comment extends Model {}
-
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+    class Comment extends Model {
+        /**
+         * Helper method for defining associations.
+         * This method is not a part of Sequelize lifecycle.
+         * The `models/index` file will call this method automatically.
+         */
+        static associate(models) {
+            // define association here
+            Comment.belongsToMany(models.User, {
+                through: 'Report',
+                as: 'reportedByUsers',
+                foreignKey: 'commentId',
+                otherKey: 'userId',
+            });
+        }
+    }
     Comment.init(
         {
             id: {
                 type: DataTypes.UUID,
                 primaryKey: true,
+                allowNull: false,
                 defaultValue: DataTypes.UUIDV4,
             },
             commentParentId: {
@@ -16,7 +33,7 @@ module.exports = (sequelize, DataTypes, Model, User, Song) => {
             userId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: User,
+                    model: 'User',
                     key: 'id',
                 },
                 allowNull: false,
@@ -24,26 +41,31 @@ module.exports = (sequelize, DataTypes, Model, User, Song) => {
             songId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: Song,
+                    model: 'Song',
                     key: 'id',
                 },
                 allowNull: false,
             },
             content: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.TEXT,
                 allowNull: false,
             },
             hide: {
                 type: DataTypes.BOOLEAN,
                 allowNull: false,
+                defaultValue: false,
             },
         },
         {
             sequelize,
-            tableName: 'Comment',
             modelName: 'Comment',
+            indexes: [
+                {
+                    unique: false, // Set to true if you want to ensure unique combinations of userId and songId
+                    fields: ['userId', 'songId'],
+                },
+            ],
         },
     );
-
     return Comment;
 };

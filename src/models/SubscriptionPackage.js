@@ -1,8 +1,22 @@
-const { TimePackageTypes, PremiumTypes } = require('./enum');
-
-module.exports = (sequelize, DataTypes, Model) => {
-    class SubscriptionPackage extends Model {}
-
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+    class SubscriptionPackage extends Model {
+        /**
+         * Helper method for defining associations.
+         * This method is not a part of Sequelize lifecycle.
+         * The `models/index` file will call this method automatically.
+         */
+        static associate(models) {
+            // define association here
+            SubscriptionPackage.belongsToMany(models.User, {
+                through: 'Subscription',
+                as: 'users',
+                foreignKey: 'packageId',
+                otherKey: 'userId',
+            });
+        }
+    }
     SubscriptionPackage.init(
         {
             id: {
@@ -11,7 +25,7 @@ module.exports = (sequelize, DataTypes, Model) => {
                 defaultValue: DataTypes.UUIDV4,
             },
             time: {
-                type: DataTypes.ENUM(Object.values(TimePackageTypes)),
+                type: DataTypes.ENUM('Monthly', 'Yearly'),
                 allowNull: false,
             },
             fare: {
@@ -23,16 +37,14 @@ module.exports = (sequelize, DataTypes, Model) => {
                 allowNull: false,
             },
             type: {
-                type: DataTypes.ENUM(Object.values(PremiumTypes)),
+                type: DataTypes.ENUM('Basic', 'Premium'),
                 allowNull: false,
             },
         },
         {
             sequelize,
-            tableName: 'SubscriptionPackage',
             modelName: 'SubscriptionPackage',
         },
     );
-
     return SubscriptionPackage;
 };
