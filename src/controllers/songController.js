@@ -30,8 +30,8 @@ const createSong = async (req, res) => {
 // ---------------------------THEME MUSIC------------------
 
 const getWeeklyTopSongs = async (req, res) => {
-    const response = await songService.getWeeklyTopSongsService();
-    return res.status(statusCodes[response.errCode]).json(response);
+    const response = await songService.getWeeklyTopSongsService(req.query.offset);
+    return res.status(response.errCode).json(response);
 };
 
 const getTrendingSongs = async (req, res) => {
@@ -94,6 +94,9 @@ const getAlbumPopular = async (req, res) => {
     const response = await songService.getAlbumPopularService();
     return res.status(statusCodes[response.errCode]).json(response);
 }
+
+
+
 
 module.exports = {
     getSong,

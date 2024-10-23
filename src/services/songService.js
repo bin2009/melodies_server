@@ -21,12 +21,12 @@ const getAllSongService = async () => {
                 include: [
                     'id',
                     [
-                        db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likesSong.likeId'))),
+                        db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likes.likeId'))),
                         'likeCount',
                     ],
                     [
                         db.sequelize.literal(
-                            `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 100 THEN "songPlayHistories"."historyId" END)`,
+                            `COUNT(DISTINCT CASE WHEN "playHistory"."playtime" > 100 THEN "playHistory"."historyId" END)`,
                         ),
                         'viewCount',
                     ],
@@ -55,12 +55,12 @@ const getAllSongService = async () => {
                 },
                 {
                     model: db.Like,
-                    as: 'likesSong',
+                    as: 'likes',
                     attributes: [],
                 },
                 {
                     model: db.SongPlayHistory,
-                    as: 'songPlayHistories',
+                    as: 'playHistory',
                     attributes: [],
                 },
             ],
@@ -68,7 +68,7 @@ const getAllSongService = async () => {
             group: [
                 'Song.id',
                 'album.albumId',
-                'album->albumImages.id',
+                'album->albumImages.albumId',
                 'artists.id',
                 'artists->ArtistSong.songId',
                 'artists->ArtistSong.artistId',
@@ -291,44 +291,31 @@ const createSongService = async (data) => {
 
 // ---------------------------THEME MUSIC------------------
 
-const getWeeklyTopSongsService = async () => {
+const getWeeklyTopSongsService = async (offset) => {
     try {
-        const sevenDaysAgo = new Date(); // Lấy ngày hiện tại
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7); // Giảm 7 ngày
+        const topSongIds = await db.SongPlayHistory.findAll({
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'playCount']],
+            where: {
+                createdAt: {
+                    [Op.gt]: db.Sequelize.literal("CURRENT_TIMESTAMP - INTERVAL '7 DAY'"),
+                },
+            },
+            group: ['songId'],
+            order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'DESC']],
+            limit: 10,
+            offset: 10 * offset,
+            raw: true,
+        });
+
+        const songIds = topSongIds.map((record) => record.songId);
+
         const weeklyTopSongs = await db.Song.findAll({
-            attributes: [
-                'id',
-                'title',
-                [db.Sequelize.literal('COUNT(DISTINCT "likes"."likeId")'), 'likeCount'],
-                [db.Sequelize.literal('COUNT(DISTINCT "playHistory"."historyId")'), 'playCount'],
-                [
-                    db.Sequelize.literal(
-                        'COUNT(DISTINCT "likes"."likeId") + COUNT(DISTINCT "playHistory"."historyId")',
-                    ),
-                    'totalCount',
-                ],
-            ],
+            where: {
+                id: {
+                    [Op.in]: songIds,
+                },
+            },
             include: [
-                {
-                    model: db.Like,
-                    as: 'likes',
-                    attributes: [],
-                    where: {
-                        createdAt: {
-                            [Op.gte]: sevenDaysAgo,
-                        },
-                    },
-                },
-                {
-                    model: db.SongPlayHistory,
-                    as: 'playHistory',
-                    attributes: [],
-                    where: {
-                        createdAt: {
-                            [Op.gte]: sevenDaysAgo,
-                        },
-                    },
-                },
                 {
                     model: db.Album,
                     as: 'album',
@@ -341,20 +328,45 @@ const getWeeklyTopSongsService = async () => {
                         },
                     ],
                 },
+                {
+                    model: db.SongPlayHistory,
+                    as: 'playHistory',
+                    attributes: [],
+                    where: {
+                        createdAt: {
+                            [Op.gt]: db.Sequelize.literal("CURRENT_TIMESTAMP - INTERVAL '7 DAY'"),
+                        },
+                    },
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: [],
+                    },
+                },
             ],
-            group: ['Song.id', 'album.albumId', 'album->albumImages.albumImageId'],
-            order: [[db.Sequelize.literal('totalCount'), 'DESC']],
+            attributes: [
+                'id',
+                'title',
+                'albumId',
+                [db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'playCount'],
+            ],
+            group: ['Song.id', 'album.albumId', 'album->albumImages.albumImageId', 'artists.id'],
+            order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'DESC']],
+            subQuery: false,
         });
 
         return {
-            errCode: 0,
+            errCode: 200,
             message: 'Get weekly top song successfully',
             weeklyTopSongs: weeklyTopSongs,
         };
     } catch (error) {
         return {
-            errCode: 8,
-            errMess: `User creation failed: ${error.message}`,
+            errCode: 500,
+            message: `Get weekly top song failed: ${error.message}`,
         };
     }
 };
