@@ -1,4 +1,6 @@
 const db = require('../models');
+const { Op } = require('sequelize');
+
 const Song = db.Song;
 const SongPlayHistory = db.SongPlayHistory;
 const Like = db.Like;
@@ -7,7 +9,7 @@ const Sequelize = db.Sequelize;
 const sequelize = db.sequelize;
 const Genre = db.Genre;
 // const Op = db.Op;
-const { Op, where } = require('sequelize');
+// const { Op, where } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 
 // ---------------------------SONG------------------
@@ -291,37 +293,42 @@ const createSongService = async (data) => {
 
 const getWeeklyTopSongsService = async () => {
     try {
-        const limit = 2;
-        const page = 2;
-        const offset = (page - 1) * limit;
-
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-        const topSongs = await db.Song.findAll({
-            attributes: {
-                include: [
-                    'id',
-                    'viewCount',
-                    [
-                        db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likesSong.likeId'))),
-                        'likeCount',
-                    ],
-                    // [
-                    //     db.sequelize.literal(
-                    //         `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END)`,
-                    //     ),
-                    //     'viewCount',
-                    // ],
-                    // [
-                    //     db.sequelize.literal(
-                    //         `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END) + COUNT(DISTINCT "likesSong"."likeId")`,
-                    //     ),
-                    //     'totalCount',
-                    // ],
+        const sevenDaysAgo = new Date(); // Lấy ngày hiện tại
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7); // Giảm 7 ngày
+        const weeklyTopSongs = await db.Song.findAll({
+            attributes: [
+                'id',
+                'title',
+                [db.Sequelize.literal('COUNT(DISTINCT "likes"."likeId")'), 'likeCount'],
+                [db.Sequelize.literal('COUNT(DISTINCT "playHistory"."historyId")'), 'playCount'],
+                [
+                    db.Sequelize.literal(
+                        'COUNT(DISTINCT "likes"."likeId") + COUNT(DISTINCT "playHistory"."historyId")',
+                    ),
+                    'totalCount',
                 ],
-            },
+            ],
             include: [
+                {
+                    model: db.Like,
+                    as: 'likes',
+                    attributes: [],
+                    where: {
+                        createdAt: {
+                            [Op.gte]: sevenDaysAgo,
+                        },
+                    },
+                },
+                {
+                    model: db.SongPlayHistory,
+                    as: 'playHistory',
+                    attributes: [],
+                    where: {
+                        createdAt: {
+                            [Op.gte]: sevenDaysAgo,
+                        },
+                    },
+                },
                 {
                     model: db.Album,
                     as: 'album',
@@ -334,65 +341,15 @@ const getWeeklyTopSongsService = async () => {
                         },
                     ],
                 },
-                {
-                    model: db.Artist,
-                    as: 'artists',
-                    attributes: ['id', 'name', 'avatar'],
-                    through: {
-                        attributes: ['main'],
-                    },
-                },
-                {
-                    model: db.Like,
-                    as: 'likesSong',
-                    attributes: [],
-                    where: {
-                        createdAt: {
-                            [db.Sequelize.Op.gte]: oneWeekAgo,
-                        },
-                    },
-                    required: false,
-                },
-                {
-                    model: db.SongPlayHistory,
-                    as: 'songPlayHistories',
-                    attributes: [],
-                    where: {
-                        createdAt: {
-                            [db.Sequelize.Op.gte]: oneWeekAgo,
-                        },
-                    },
-                    required: false,
-                },
             ],
-            subQuery: false,
-            order: [
-                // [
-                //     db.sequelize.literal(
-                //         `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END) + COUNT(DISTINCT "likesSong"."likeId")`,
-                //     ),
-                //     'DESC',
-                // ],
-                // ['viewCount', 'DESC']
-                // [db.sequelize.literal('"viewCount"'), 'DESC'],
-                [db.sequelize.literal('"viewCount" DESC NULLS LAST')],
-            ], // Order by total count (DESC)
-            group: [
-                'Song.id',
-                'album.albumId',
-                'artists.id',
-                'artists->ArtistSong.songId',
-                'artists->ArtistSong.artistId',
-                'album->albumImages.id',
-            ],
-            // limit: limit,
-            // offet: offset,
+            group: ['Song.id', 'album.albumId', 'album->albumImages.albumImageId'],
+            order: [[db.Sequelize.literal('totalCount'), 'DESC']],
         });
 
         return {
             errCode: 0,
-            errMess: 'Successfully',
-            weeklyTopSongs: topSongs,
+            message: 'Get weekly top song successfully',
+            weeklyTopSongs: weeklyTopSongs,
         };
     } catch (error) {
         return {

@@ -28,7 +28,7 @@ router.patch('/artists/update', authMiddleWare.verifyTokenAndAdmin, songControll
 
 // ---------------------------GENRE------------------
 
-router.post('/genre/create', authMiddleWare.verifyTokenAndAdmin, songController.createGenre);
+router.post('/genre/create',songController.createGenre);
 
 // ---------------------------ALBUM------------------
 

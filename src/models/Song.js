@@ -40,6 +40,14 @@ module.exports = (sequelize, DataTypes) => {
                 foreignKey: 'songId',
                 otherKey: 'userId',
             });
+            Song.hasMany(models.Like, {
+                foreignKey: 'songId',
+                as: 'likes',
+            });
+            Song.hasMany(models.SongPlayHistory, {
+                foreignKey: 'songId',
+                as: 'playHistory'
+            })
         }
     }
     Song.init(

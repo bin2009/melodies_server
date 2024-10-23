@@ -7,9 +7,9 @@ const emailController = require('../controllers/emailController');
 const authMiddleWare = require('../middleware/authMiddleWare');
 
 // ---------------------------WORKING WITH MUSIC------------------------
-router.post('/actions/playtime', authMiddleWare.verifyToken, userController.playTime);
-router.post('/likedsong', authMiddleWare.verifyToken, userController.likedSong);
-router.post('/followed', authMiddleWare.verifyToken, userController.followedArtist);
+router.post('/actions/playtime',  userController.playTime);
+router.post('/likedsong',  userController.likedSong);
+router.post('/followed',  userController.followedArtist);
 
 // ---------------------------USER------------------------
 // get
