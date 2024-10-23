@@ -40,7 +40,7 @@ const getTrendingSongs = async (req, res) => {
 };
 
 const getNewReleaseSongs = async (req, res) => {
-    const response = await songService.getNewReleaseSongsService();
+    const response = await songService.getNewReleaseSongsService(req.query.offset);
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
