@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Op } = require('sequelize');
+const { Op, INTEGER } = require('sequelize');
 
 const Song = db.Song;
 const SongPlayHistory = db.SongPlayHistory;
@@ -371,30 +371,103 @@ const getWeeklyTopSongsService = async (offset) => {
     }
 };
 
-const getTrendingSongsService = async () => {
+const getTrendingSongsService = async (offset) => {
     try {
-        const limit = 10;
-        const topSongs = await db.Song.findAll({
-            attributes: {
-                include: [
-                    'id',
-                    [
-                        db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likesSong.likeId'))),
-                        'likeCount',
-                    ],
-                    [
-                        db.sequelize.literal(
-                            `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END)`,
-                        ),
-                        'viewCount',
-                    ],
-                    [
-                        db.sequelize.literal(
-                            `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END) + COUNT(DISTINCT "likesSong"."likeId")`,
-                        ),
-                        'totalCount',
-                    ],
-                ],
+        const topPlaySongIds = await db.SongPlayHistory.findAll({
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'playCount']],
+            // where: {
+            //     createdAt: {
+            //         [Op.gt]: db.Sequelize.literal("CURRENT_TIMESTAMP - INTERVAL '7 DAY'"),
+            //     },
+            // },
+            group: ['songId'],
+            raw: true,
+        });
+        console.log(topPlaySongIds);
+
+        const topLikeSongIds = await db.Like.findAll({
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'likeCount']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        // Kết hợp danh sách các songId từ hai truy vấn trên và tính tổng likeCount và playCount
+        const songStats = {};
+        const BINBIN = new Set();
+
+        topPlaySongIds.forEach((record) => {
+            if (!songStats[record.songId]) {
+                songStats[record.songId] = { playCount: 0, likeCount: 0 };
+            }
+            songStats[record.songId].playCount = record.playCount;
+            BINBIN.add(
+                JSON.stringify({
+                    songId: record.songId,
+                    playCount: record.playCount,
+                    likeCount: songStats[record.songId].likeCount,
+                }),
+            );
+        });
+
+        topLikeSongIds.forEach((record) => {
+            if (!songStats[record.songId]) {
+                songStats[record.songId] = { playCount: 0, likeCount: 0 };
+            }
+            songStats[record.songId].likeCount = record.likeCount;
+            BINBIN.add(
+                JSON.stringify({
+                    songId: record.songId,
+                    playCount: songStats[record.songId].playCount,
+                    likeCount: record.likeCount,
+                }),
+            );
+        });
+
+        // const BINBIN = [...new Set([
+        //     ...topPlaySongIds.map(record => record.songId),
+        //     ...topLikeSongIds.map(record => record.songId)
+        // ])];
+
+        // // Tính tổng likeCount và playCount cho mỗi bài hát
+        // const songIds = Object.keys(songStats).map((songId) => ({
+        //     songId,
+        //     totalCount: songStats[songId].playCount + songStats[songId].likeCount,
+        // }));
+
+        // Sắp xếp theo tổng likeCount và playCount
+        // songIds.sort((a, b) => b.totalCount - a.totalCount);
+
+        // Lấy top 5 bài hát
+        // const topSongIds = songIds.slice(0, 5).map((record) => record.songId);
+
+        // Chuyển đổi Set thành mảng và parse lại các đối tượng
+        const BINBINArray = Array.from(BINBIN).map((item) => JSON.parse(item));
+
+        // Tính tổng likeCount và playCount cho mỗi bài hát
+        const songIds2 = BINBINArray.map((record) => ({
+            songId: record.songId,
+            playCount: record.playCount,
+            likeCount: record.likeCount,
+            totalCount: parseInt(record.playCount) + parseInt(record.likeCount),
+        }));
+
+        // Sắp xếp theo tổng likeCount và playCount
+        songIds2.sort((a, b) => b.totalCount - a.totalCount);
+
+        // Lấy top 5 bài hát
+        // const topSongIds = songIds2.slice(0, 5).map((record) => record.songId);
+        const topSongIds = songIds2.slice(0, 5).map((record) => ({
+            songId: record.songId,
+            likeCount: record.likeCount,
+            playCount: record.playCount,
+        }));
+
+        // Truy vấn chính để lấy thông tin chi tiết của các bài hát
+        const trendingSongs = await db.Song.findAll({
+            where: {
+                id: {
+                    [Op.in]: topSongIds.map((song) => song.songId),
+                },
             },
             include: [
                 {
@@ -410,50 +483,38 @@ const getTrendingSongsService = async () => {
                     ],
                 },
                 {
-                    model: db.Artist,
-                    as: 'artists',
-                    attributes: ['id', 'name', 'avatar'],
-                    through: {
-                        attributes: ['main'],
-                    },
+                    model: db.SongPlayHistory,
+                    as: 'playHistory',
+                    attributes: [],
                 },
                 {
                     model: db.Like,
-                    as: 'likesSong',
+                    as: 'likes',
                     attributes: [],
-                    required: false,
-                },
-                {
-                    model: db.SongPlayHistory,
-                    as: 'songPlayHistories',
-                    attributes: [],
-                    required: false,
                 },
             ],
+            attributes: ['id', 'title', 'albumId'],
+            group: ['Song.id', 'album.albumId', 'album->albumImages.albumImageId'],
             subQuery: false,
-            order: [
-                [
-                    db.sequelize.literal(
-                        `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 30 THEN "songPlayHistories"."historyId" END) + COUNT(DISTINCT "likesSong"."likeId")`,
-                    ),
-                    'DESC',
-                ],
-            ], // Order by total count (DESC)
-            group: [
-                'Song.id',
-                'album.albumId',
-                'artists.id',
-                'artists->ArtistSong.songId',
-                'artists->ArtistSong.artistId',
-                'album->albumImages.id',
-            ],
-            // limit: limit,
-            // offset: limit * offset,
         });
+
+        // Kết hợp dữ liệu likeCount và playCount từ topSongIds vào kết quả truy vấn
+        const trendingSongsWithCounts = trendingSongs.map((song) => {
+            const songData = topSongIds.find((s) => s.songId === song.id);
+            return {
+                ...song.toJSON(),
+                likeCount: songData ? songData.likeCount : 0,
+                playCount: songData ? songData.playCount : 0,
+            };
+        });
+
         return {
             errCode: 0,
             errMess: 'Successfully',
-            topSongs: topSongs,
+            // topPlaySongIds: topPlaySongIds,
+            // topSongs2: topLikeSongIds,
+            // topSongs3: songIds,
+            trendingSongs: trendingSongsWithCounts,
         };
     } catch (error) {
         return {

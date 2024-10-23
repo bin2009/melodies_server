@@ -35,7 +35,7 @@ const getWeeklyTopSongs = async (req, res) => {
 };
 
 const getTrendingSongs = async (req, res) => {
-    const response = await songService.getTrendingSongsService();
+    const response = await songService.getTrendingSongsService(req.query.offset);
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
