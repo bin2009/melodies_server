@@ -22,18 +22,28 @@ const loginService = async (data) => {
         });
         if (!user) {
             return {
-                errCode: 6,
-                errMess: 'Wrong username or email',
+                errCode: 404,
+                message: 'Wrong username or email',
             };
         }
         const validPass = await bcrypt.compare(data.password, user.password);
         if (!validPass) {
             return {
-                errCode: 6,
-                errMess: 'Wrong password',
+                errCode: 401,
+                message: 'Wrong password',
             };
         }
         if (user && validPass) {
+            // kiểm tra đã login chưa
+            const checkLogin = await client.get(String(user.id));
+            if (checkLogin) {
+                return {
+                    errCode: 409,
+                    message: 'User is already logged in',
+                };
+            }
+
+            // nếu chưa login
             const accessToken = generateAccessToken(user);
             const refreshToken = generateRefreshToken(user);
 
@@ -48,8 +58,8 @@ const loginService = async (data) => {
             }
 
             return {
-                errCode: 0,
-                errMess: 'Login successful',
+                errCode: 200,
+                message: 'Login successful',
                 role: user.role,
                 direct: direct,
                 accessToken: accessToken,
@@ -58,72 +68,99 @@ const loginService = async (data) => {
         }
     } catch (error) {
         return {
-            errCode: 8,
-            errMess: `Internal Server Error: ${error.message}`,
+            errCode: 500,
+            message: `Internal Server Error: ${error.message}`,
         };
     }
     return data;
 };
 
-const refreshService = async (refreshToken) => {
+const refreshService = async (authorization) => {
     try {
-        if (!refreshToken) {
+        // truyền vào refreshtoken
+        if (!authorization) {
             return {
-                errCode: 3,
-                errMess: 'Refresh token is required',
+                errCode: 401,
+                message: 'Refresh token is required',
             };
         }
 
+        const refreshToken = authorization.split(' ')[1];
+        // console.log('refreshToken', refreshToken);
+
         const user = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+        // console.log('user: ', user);
 
         if (!user) {
             return {
-                errCode: 3,
-                errMess: 'Invalid refresh token',
+                errCode: 403,
+                message: 'Invalid refresh token',
             };
         }
 
-        // Kiểm tra refreshToken trong Redis
+        // kiểm tra trong redis
         const storedRefreshToken = await client.get(String(user.id));
         if (storedRefreshToken !== refreshToken) {
             return {
-                errCode: 4,
-                errMess: 'Token is not valid',
+                errCode: 403,
+                message: 'Token is not valid',
             };
         }
 
+        // tạo mới
         const newAccessToken = generateAccessToken(user);
-        const newRefreshToken = generateRefreshToken(user);
-
-        // Lưu refresh token vào redis
-        await client.setEx(String(user.id), 7 * 24 * 60 * 60, newRefreshToken);
 
         return {
-            errCode: 0,
-            errMess: 'Refresh token successful',
+            errCode: 200,
+            message: 'Refresh token successful',
             accessToken: newAccessToken,
-            newRefreshToken,
         };
     } catch (error) {
         return {
-            errCode: 8,
-            errMess: `Internal Server Error: ${error.message}`,
+            errCode: 500,
+            message: `Internal Server Error: ${error.message}`,
         };
     }
 };
 
-const logoutService = async (refreshToken) => {
+const logoutService = async (authorization) => {
     try {
-        const user = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-        await client.del(String(user.id));
+        // truyền vào accesstoken
+        if (!authorization) {
+            return {
+                errCode: 401,
+                message: 'Access token is required',
+            };
+        }
+        const accesstoken = authorization.split(' ')[1];
+        // console.log('refreshToken', accesstoken);
+
+        // lấy ra id từ accesstoken
+        const user = jwt.verify(accesstoken, process.env.ACCESS_TOKEN_SECRET);
+
+        // kiểm tra có refreshtoken không
+        const storedRefreshToken = await client.get(String(user.id));
+        if (!storedRefreshToken) {
+            return {
+                errCode: 404,
+                message: 'No refresh token found for user',
+            };
+        } else {
+            // xóa refreshtoken
+            await client.del(String(user.id));
+
+            // hủy accesstoken -> accesstoken hết hạn
+        }
+
         return {
-            errCode: 0,
-            errMess: 'Loggout successful',
+            errCode: 200,
+            message: 'Loggout successful',
+            data: storedRefreshToken,
         };
     } catch (err) {
         return {
-            errCode: 8,
-            errMess: `Internal Server Error: ${err}`,
+            errCode: 500,
+            message: `Internal Server Error: ${err}`,
         };
     }
 };

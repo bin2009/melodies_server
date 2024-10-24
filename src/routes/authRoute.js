@@ -10,7 +10,7 @@ router.get('', (req, res) => {
 });
 
 router.post('/login', authController.login);
-router.post('/logout', authMiddleWare.verifyToken, authController.logout);
+router.post('/logout', authController.logout);
 router.post('/refresh', authController.refresh);
 
 module.exports = router;
