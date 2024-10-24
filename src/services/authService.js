@@ -155,7 +155,6 @@ const logoutService = async (authorization) => {
         return {
             errCode: 200,
             message: 'Loggout successful',
-            data: storedRefreshToken,
         };
     } catch (err) {
         return {

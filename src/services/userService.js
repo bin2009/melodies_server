@@ -7,74 +7,97 @@ const User = db.User;
 const SongPlayHistory = db.SongPlayHistory;
 const Like = db.Like;
 const Follow = db.Follow;
-const sequelize = db.sequelize
+const sequelize = db.sequelize;
 
-const getUsersService = async (userId) => {
+const getUsersService = async (offset) => {
     try {
-        if (userId) {
-            const user = await User.findOne({ where: { id: userId } });
-            return {
-                errCode: user ? 0 : 6,
-                errMess: user ? 'Get user by id' : 'User not found',
-                data: user,
-            };
-        } else {
-            const users = await User.findAll();
-            return {
-                errCode: users.length > 0 ? 0 : 6,
-                errMess: users.length > 0 ? 'Get All users' : 'No user',
-                data: users,
-            };
-        }
+        const users = await db.User.findAll({
+            attributes: ['id', 'name', 'email', 'image', 'accountType', 'status'],
+            order: [['createdAt', 'DESC']],
+            limit: 10,
+            offset: 10 * offset,
+        });
+        return {
+            errCode: 200,
+            message: 'Get all user successfully',
+            users: users,
+        };
     } catch (error) {
         return {
-            errCode: 8,
-            errMess: 'Cannot get user',
+            errCode: 500,
+            message: `Get all users failed: ${error}`,
+        };
+    }
+};
+
+const getUserService = async (userId) => {
+    try {
+        const user = await db.User.findByPk(userId, {
+            raw: true,
+            attributes: ['id', 'name', 'email', 'image', 'accountType', 'status'],
+        });
+        return {
+            errCode: 200,
+            message: 'Get user successfully',
+            user: user,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Get user failed: ${error}`,
         };
     }
 };
 
 const deleteUserService = async (userId) => {
     try {
-        const data = await User.destroy({ where: { id: userId } });
+        const user = await db.User.findByPk(userId);
+        if (!user) {
+            return {
+                errCode: 404,
+                message: 'User not found',
+            };
+        }
+
+        await db.User.destroy({ where: { id: userId } });
+
         return {
-            errCode: data ? 0 : 6,
-            errMess: data ? 'User deleted successfully' : 'User not found',
+            errCode: 200,
+            message: 'User deleted successfully',
         };
     } catch (error) {
         return {
-            errCode: 8,
-            errMess: 'Delete user failed',
+            errCode: 500,
+            message: `Delete user failed: ${error}`,
         };
     }
 };
 
-const updateUserService = async (userId, updateData) => {
+const updateUserService = async (data) => {
     try {
-        if (Object.keys(updateData).length === 0) {
+        if (!data.id) {
             return {
-                errCode: 3,
-                errMess: 'Missing data',
+                errCode: 400,
+                message: 'User id required',
             };
-        } else {
-            const user = await User.findOne({ where: { id: userId } });
-            if (user) {
-                const update = await User.update(updateData, { where: { id: userId } });
-                return {
-                    errCode: update ? 0 : 3,
-                    errMess: update ? 'User updated successfully' : 'Bad Request',
-                };
-            } else {
-                return {
-                    errCode: 6,
-                    errMess: 'User not found',
-                };
-            }
         }
+        const user = await db.User.findByPk(data.id);
+        if (!user) {
+            return {
+                errCode: 404,
+                message: 'User not found',
+            };
+        }
+
+        await db.User.update(data, { where: { id: data.id } });
+        return {
+            errCode: 200,
+            message: 'User updated successfully',
+        };
     } catch (error) {
         return {
-            errCode: 8,
-            errMess: 'Error server',
+            errCode: 500,
+            message: `Update user failed: ${error.message}`,
         };
     }
 };
@@ -129,18 +152,21 @@ const playTimeService = async (data) => {
         // Sử dụng transaction để đảm bảo tính toàn vẹn dữ liệu
         await sequelize.transaction(async (t) => {
             // Tạo mới thời gian phát bài hát
-            await SongPlayHistory.create({
-                userId: data.userId,
-                songId: data.songId,
-                playtime: data.playtime,
-            }, { transaction: t });
+            await SongPlayHistory.create(
+                {
+                    userId: data.userId,
+                    songId: data.songId,
+                    playtime: data.playtime,
+                },
+                { transaction: t },
+            );
         });
         return {
             errCode: 0,
             errMess: 'Successfully',
         };
     } catch (error) {
-        console.log(error)
+        console.log(error);
         return {
             errCode: 8,
             errMess: `Internal Server Error: ${error.message}`,
@@ -216,6 +242,7 @@ const followedArtistService = async (data) => {
 
 module.exports = {
     getUsersService,
+    getUserService,
     deleteUserService,
     updateUserService,
     registerService,
