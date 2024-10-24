@@ -1,6 +1,16 @@
-module.exports = (sequelize, DataTypes, Model, User, Artist) => {
-    class Follow extends Model {}
-
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+    class Follow extends Model {
+        /**
+         * Helper method for defining associations.
+         * This method is not a part of Sequelize lifecycle.
+         * The `models/index` file will call this method automatically.
+         */
+        static associate(models) {
+            // define association here
+        }
+    }
     Follow.init(
         {
             followerId: {
@@ -11,7 +21,7 @@ module.exports = (sequelize, DataTypes, Model, User, Artist) => {
             userId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: User,
+                    model: 'User',
                     key: 'id',
                 },
                 allowNull: false,
@@ -19,7 +29,7 @@ module.exports = (sequelize, DataTypes, Model, User, Artist) => {
             artistId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: Artist,
+                    model: 'Artist',
                     key: 'id',
                 },
                 allowNull: false,
@@ -27,8 +37,13 @@ module.exports = (sequelize, DataTypes, Model, User, Artist) => {
         },
         {
             sequelize,
-            tableName: 'Follow',
             modelName: 'Follow',
+            indexes: [
+                {
+                    unique: false,
+                    fields: ['userId', 'artistId'],
+                },
+            ],
         },
     );
     return Follow;

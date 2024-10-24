@@ -1,8 +1,18 @@
-const { AlbumTypes } = require('./enum');
-
-module.exports = (sequelize, DataTypes, Model) => {
-    class Album extends Model {}
-
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+    class Album extends Model {
+        /**
+         * Helper method for defining associations.
+         * This method is not a part of Sequelize lifecycle.
+         * The `models/index` file will call this method automatically.
+         */
+        static associate(models) {
+            // define association here
+            Album.hasMany(models.AlbumImage, { foreignKey: 'albumId', as: 'albumImages' });
+            Album.hasMany(models.Song, { foreignKey: 'albumId', as: 'songs' });
+        }
+    }
     Album.init(
         {
             albumId: {
@@ -18,16 +28,12 @@ module.exports = (sequelize, DataTypes, Model) => {
             releaseDate: {
                 type: DataTypes.DATE,
             },
-            // coverImage: {
-            //     type: DataTypes.TE,
-            // },
             albumType: {
-                type: DataTypes.ENUM(Object.values(AlbumTypes)),
+                type: DataTypes.ENUM('album', 'single', 'ep'),
             },
         },
         {
             sequelize,
-            tableName: 'Album',
             modelName: 'Album',
         },
     );

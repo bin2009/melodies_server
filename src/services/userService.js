@@ -7,6 +7,7 @@ const User = db.User;
 const SongPlayHistory = db.SongPlayHistory;
 const Like = db.Like;
 const Follow = db.Follow;
+const sequelize = db.sequelize
 
 const getUsersService = async (userId) => {
     try {
@@ -105,17 +106,41 @@ const registerService = async (data) => {
 
 const playTimeService = async (data) => {
     try {
-        await SongPlayHistory.create({
-            historyId: uuidv4(), // Sử dụng UUID mới nếu không có
-            userId: data.userId,
-            songId: data.songId,
-            playtime: data.playtime,
+        // data.historyId = uuidv4(); // Sử dụng UUID mới nếu không có
+        // await SongPlayHistory.create(data);
+
+        // Kiểm tra xem người dùng và bài hát có tồn tại không
+        const user = await User.findByPk(data.userId);
+        const song = await db.Song.findByPk(data.songId);
+
+        if (!user) {
+            return {
+                errCode: 1,
+                errMess: 'User not found',
+            };
+        }
+
+        if (!song) {
+            return {
+                errCode: 2,
+                errMess: 'Song not found',
+            };
+        }
+        // Sử dụng transaction để đảm bảo tính toàn vẹn dữ liệu
+        await sequelize.transaction(async (t) => {
+            // Tạo mới thời gian phát bài hát
+            await SongPlayHistory.create({
+                userId: data.userId,
+                songId: data.songId,
+                playtime: data.playtime,
+            }, { transaction: t });
         });
         return {
             errCode: 0,
             errMess: 'Successfully',
         };
     } catch (error) {
+        console.log(error)
         return {
             errCode: 8,
             errMess: `Internal Server Error: ${error.message}`,

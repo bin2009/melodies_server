@@ -1,8 +1,16 @@
-const { PaymentTypes, PaymentStatus } = require('./enum');
-
-module.exports = (sequelize, DataTypes, Model, User, SubscriptionPackage) => {
-    class Subscriptions extends Model {}
-
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+    class Subscriptions extends Model {
+        /**
+         * Helper method for defining associations.
+         * This method is not a part of Sequelize lifecycle.
+         * The `models/index` file will call this method automatically.
+         */
+        static associate(models) {
+            // define association here
+        }
+    }
     Subscriptions.init(
         {
             id: {
@@ -13,7 +21,7 @@ module.exports = (sequelize, DataTypes, Model, User, SubscriptionPackage) => {
             userId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: User,
+                    model: 'User',
                     key: 'id',
                 },
                 allowNull: false,
@@ -21,7 +29,7 @@ module.exports = (sequelize, DataTypes, Model, User, SubscriptionPackage) => {
             packageId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: SubscriptionPackage,
+                    model: 'SubscriptionPackage',
                     key: 'id',
                 },
                 allowNull: false,
@@ -35,20 +43,18 @@ module.exports = (sequelize, DataTypes, Model, User, SubscriptionPackage) => {
                 allowNull: false,
             },
             paymentMethod: {
-                type: DataTypes.ENUM(Object.values(PaymentTypes)),
+                type: DataTypes.ENUM('CreditCard', 'PayPal', 'BankTransfer'),
                 allowNull: false,
             },
             status: {
-                type: DataTypes.ENUM(Object.values(PaymentStatus)),
+                type: DataTypes.ENUM('Pending', 'Active', 'Expired'),
                 allowNull: false,
             },
         },
         {
             sequelize,
-            tableName: 'Subscriptions',
             modelName: 'Subscriptions',
         },
     );
-
     return Subscriptions;
 };

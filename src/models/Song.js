@@ -1,6 +1,59 @@
-module.exports = (sequelize, DataTypes, Model, Album, User) => {
-    class Song extends Model {}
-
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+    class Song extends Model {
+        /**
+         * Helper method for defining associations.
+         * This method is not a part of Sequelize lifecycle.
+         * The `models/index` file will call this method automatically.
+         */
+        static associate(models) {
+            // define association here
+            Song.belongsTo(models.Album, { foreignKey: 'albumId', as: 'album' });
+            Song.belongsToMany(models.Artist, {
+                through: 'ArtistSong',
+                as: 'artists',
+                foreignKey: 'songId',
+                otherKey: 'artistId',
+            });
+            Song.belongsToMany(models.Playlist, {
+                through: 'PlaylistSong',
+                as: 'playlists',
+                foreignKey: 'songId',
+                otherKey: 'playlistId',
+            });
+            Song.belongsToMany(models.User, {
+                through: 'SongPlayHistory',
+                as: 'playedByUsers',
+                foreignKey: 'songId',
+                otherKey: 'userId',
+            });
+            Song.belongsToMany(models.User, {
+                through: 'Like',
+                as: 'likedByUsers',
+                foreignKey: 'songId',
+                otherKey: 'userId',
+            });
+            Song.belongsToMany(models.User, {
+                through: 'Comment',
+                as: 'commentedByUsers',
+                foreignKey: 'songId',
+                otherKey: 'userId',
+            });
+            Song.hasMany(models.Like, {
+                foreignKey: 'songId',
+                as: 'likes',
+            });
+            Song.hasMany(models.SongPlayHistory, {
+                foreignKey: 'songId',
+                as: 'playHistory',
+            });
+            Song.hasMany(models.ArtistSong, {
+                foreignKey: 'songId',
+                as: 'artistSong',
+            });
+        }
+    }
     Song.init(
         {
             id: {
@@ -11,7 +64,7 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
             albumId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: Album,
+                    model: 'Album',
                     key: 'albumId',
                 },
                 allowNull: true,
@@ -22,11 +75,11 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
             },
             duration: {
                 type: DataTypes.INTEGER,
-                allowNull: false,
+                allowNull: true,
             },
             lyric: {
                 type: DataTypes.TEXT,
-                allowNull: false,
+                allowNull: true,
             },
             filePathAudio: {
                 type: DataTypes.STRING,
@@ -35,22 +88,27 @@ module.exports = (sequelize, DataTypes, Model, Album, User) => {
             privacy: {
                 type: DataTypes.BOOLEAN,
                 allowNull: false,
+                defaultValue: false,
             },
             uploadUserId: {
                 type: DataTypes.UUID,
                 references: {
-                    model: User,
+                    model: 'User',
                     key: 'id',
                 },
                 allowNull: true,
             },
+            releaseDate: {
+                type: DataTypes.DATE,
+            },
+            viewCount: {
+                type: DataTypes.INTEGER,
+            },
         },
         {
             sequelize,
-            tableName: 'Song',
             modelName: 'Song',
         },
     );
-
     return Song;
 };

@@ -1,9 +1,28 @@
+// // require('dotenv').config();
+// const express = require('express');
+// const app = express();
+// // const bodyParser = require('body-parser');
+// // const cors = require('cors');
+// // const cookieParser = require('cookie-parser');
+// const connection = require('./config/database');
+
+// const routebin = require('./routes/api');
+// app.use('/', routebin);
+
+// connection();
+// const port = 3000;
+
+// app.listen(port, () => {
+//     console.log(`Listening on port: ${port}`);
+// });
+
 require('dotenv').config();
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const connection = require('./config/database');
 
 app.use(cors());
 app.use(cookieParser());
@@ -25,7 +44,8 @@ app.use(
 );
 
 // database
-require('./models');
+// require('./models');
+connection();
 
 // config view
 const configViewEngine = require('./config/viewEngine');
@@ -35,11 +55,13 @@ configViewEngine(app);
 const userRoute = require('./routes/userRoute');
 app.use('/api/users', userRoute);
 const songRoute = require('./routes/songRoute');
-app.use('/api/songs', songRoute);
+app.use('/api', songRoute);
 const adminRoute = require('./routes/adminRoute');
 app.use('/api/admin', adminRoute);
 const authRoute = require('./routes/authRoute');
 app.use('/api/auth', authRoute);
+const artistRoute = require('./routes/artistRoute');
+app.use('/api', artistRoute);
 
 // initialize server
 const port = process.env.PORT || 3000;

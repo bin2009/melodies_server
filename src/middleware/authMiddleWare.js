@@ -24,6 +24,7 @@ const verifyUser = (req, res, next) => {};
 
 const verifyTokenAndAdmin = (req, res, next) => {
     verifyToken(req, res, () => {
+        console.log(req.user);
         if (req.user.role === 'Admin') {
             next();
         } else {

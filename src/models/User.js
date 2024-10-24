@@ -1,6 +1,57 @@
-module.exports = (sequelize, DataTypes, Model) => {
-    class User extends Model {}
-
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+    class User extends Model {
+        /**
+         * Helper method for defining associations.
+         * This method is not a part of Sequelize lifecycle.
+         * The `models/index` file will call this method automatically.
+         */
+        static associate(models) {
+            // define association here
+            User.belongsToMany(models.SubscriptionPackage, {
+                through: 'Subscription',
+                as: 'subscriptions',
+                foreignKey: 'userId',
+                otherKey: 'packageId',
+            });
+            User.hasMany(models.SearchHistory, {
+                foreignKey: 'userId',
+                as: 'searchHistories',
+            });
+            User.belongsToMany(models.Artist, {
+                through: 'Follow',
+                as: 'followedArtists',
+                foreignKey: 'userId',
+                otherKey: 'artistId',
+            });
+            User.hasMany(models.Playlist, { foreignKey: 'userId', as: 'playlists' });
+            User.belongsToMany(models.Song, {
+                through: 'SongPlayHistory',
+                as: 'playedSongs',
+                foreignKey: 'userId',
+                otherKey: 'songId',
+            });
+            User.belongsToMany(models.Song, {
+                through: 'Like',
+                as: 'likedSongs',
+                foreignKey: 'userId',
+                otherKey: 'songId',
+            });
+            User.belongsToMany(models.Song, {
+                through: 'Comment',
+                as: 'commentedSongs',
+                foreignKey: 'userId',
+                otherKey: 'songId',
+            });
+            User.belongsToMany(models.Comment, {
+                through: 'Report',
+                as: 'reportedComments',
+                foreignKey: 'userId',
+                otherKey: 'commentId',
+            });
+        }
+    }
     User.init(
         {
             id: {
@@ -58,10 +109,8 @@ module.exports = (sequelize, DataTypes, Model) => {
         },
         {
             sequelize,
-            tableName: 'User',
             modelName: 'User',
         },
     );
-
     return User;
 };
