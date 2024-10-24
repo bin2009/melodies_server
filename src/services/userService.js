@@ -129,31 +129,27 @@ const registerService = async (data) => {
 
 const playTimeService = async (data) => {
     try {
-        // data.historyId = uuidv4(); // Sử dụng UUID mới nếu không có
-        // await SongPlayHistory.create(data);
-
-        // Kiểm tra xem người dùng và bài hát có tồn tại không
         const user = await User.findByPk(data.userId);
         const song = await db.Song.findByPk(data.songId);
 
         if (!user) {
             return {
-                errCode: 1,
-                errMess: 'User not found',
+                errCode: 404,
+                message: 'User not found',
             };
         }
 
         if (!song) {
             return {
-                errCode: 2,
-                errMess: 'Song not found',
+                errCode: 404,
+                message: 'Song not found',
             };
         }
-        // Sử dụng transaction để đảm bảo tính toàn vẹn dữ liệu
+
         await sequelize.transaction(async (t) => {
-            // Tạo mới thời gian phát bài hát
             await SongPlayHistory.create(
                 {
+                    historyId: uuidv4(),
                     userId: data.userId,
                     songId: data.songId,
                     playtime: data.playtime,
@@ -162,14 +158,13 @@ const playTimeService = async (data) => {
             );
         });
         return {
-            errCode: 0,
-            errMess: 'Successfully',
+            errCode: 200,
+            message: 'Play time successfully',
         };
     } catch (error) {
-        console.log(error);
         return {
-            errCode: 8,
-            errMess: `Internal Server Error: ${error.message}`,
+            errCode: 500,
+            message: `Play time failed: ${error.message}`,
         };
     }
 };
@@ -185,8 +180,8 @@ const likedSongService = async (data) => {
         if (like) {
             await Like.destroy({ where: { likeId: like.likeId } });
             return {
-                errCode: 0,
-                errMess: 'Delete like successfully',
+                errCode: 200,
+                message: 'Delete like successfully',
             };
         } else {
             await Like.create({
@@ -195,14 +190,14 @@ const likedSongService = async (data) => {
                 songId: data.songId,
             });
             return {
-                errCode: 0,
-                errMess: 'Like Successfully',
+                errCode: 201,
+                message: 'Like Successfully',
             };
         }
     } catch (error) {
         return {
-            errCode: 8,
-            errMess: `Internal Server Error: ${error.message}`,
+            errCode: 500,
+            message: `Like song failed: ${error.message}`,
         };
     }
 };
@@ -218,8 +213,8 @@ const followedArtistService = async (data) => {
         if (follow) {
             await Follow.destroy({ where: { followerId: follow.followerId } });
             return {
-                errCode: 0,
-                errMess: 'Delete follow successfully',
+                errCode: 200,
+                message: 'Delete follow successfully',
             };
         } else {
             await Follow.create({
@@ -228,14 +223,14 @@ const followedArtistService = async (data) => {
                 artistId: data.artistId,
             });
             return {
-                errCode: 0,
-                errMess: 'Follow Successfully',
+                errCode: 201,
+                message: 'Follow Successfully',
             };
         }
     } catch (error) {
         return {
-            errCode: 8,
-            errMess: `Internal Server Error: ${error.message}`,
+            errCode: 500,
+            message: `Follow artist failed: ${error.message}`,
         };
     }
 };

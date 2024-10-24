@@ -53,20 +53,15 @@ configViewEngine(app);
 
 // config route
 const userRoute = require('./routes/userRoute');
-app.use('/api/users', userRoute);
 const songRoute = require('./routes/songRoute');
-app.use('/api', songRoute);
+const authRoute = require('./routes/authRoute');
+const artistRoute = require('./routes/artistRoute');
 // const adminRoute = require('./routes/adminRoute');
 // app.use('/api/admin', adminRoute);
-const authRoute = require('./routes/authRoute');
+app.use('/api/user', userRoute);
 app.use('/api/auth', authRoute);
-const artistRoute = require('./routes/artistRoute');
+app.use('/api', songRoute);
 app.use('/api', artistRoute);
-
-const user = require('./routes/user');
-const admin = require('./routes/admin');
-app.use('/api/user', user);
-app.use('/api/admin', admin);
 
 // initialize server
 const port = process.env.PORT || 3000;

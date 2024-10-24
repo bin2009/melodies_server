@@ -7,24 +7,20 @@ const emailController = require('../controllers/emailController');
 const authMiddleWare = require('../middleware/authMiddleWare');
 
 // ---------------------------WORKING WITH MUSIC------------------------
-router.post('/actions/playtime',  userController.playTime);
-router.post('/likedsong',  userController.likedSong);
-router.post('/followed',  userController.followedArtist);
+router.post('/actions/playtime', authMiddleWare.verifyToken, userController.playTime);
+router.post('/likedsong', authMiddleWare.verifyToken, userController.likedSong);
+router.post('/followed', authMiddleWare.verifyToken, userController.followedArtist);
 
 // ---------------------------USER------------------------
 // get
-router.get('/', userController.getUsers);
-router.get('/:id', authMiddleWare.verifyTokenAndAdmin, userController.getUsers);
-// delete
-router.delete('/:id', authMiddleWare.verifyTokenAndAdmin, userController.deleteUser);
-// update
-router.patch('/:id', authMiddleWare.verifyTokenUserOrAdmin, userController.updateUser);
-// create
-router.post('/register', userController.register);
+router.get('/', userController.getAllUser);
+router.get('/:id', authMiddleWare.verifyTokenAndAdmin, userController.getUser);
+router.delete('/delete/:id', authMiddleWare.verifyTokenAndAdmin, userController.deleteUser);
+router.patch('/update', authMiddleWare.verifyTokenUserOrAdmin, userController.updateUser);
 
-// ---------------------------EMAIL------------------------
-router.post('/checkEmail', emailController.checkEmailExits);
+// ---------------------------USER + EMAIL------------------------
 router.post('/otp', authMiddleWare.checkEmailExits, emailController.sendOtp);
+router.post('/register', userController.register);
 
 // ---------------------------HOME------------------------
 router.get('/home', (req, res) => {
