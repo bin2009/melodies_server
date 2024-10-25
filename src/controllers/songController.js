@@ -44,38 +44,6 @@ const getNewReleaseSongs = async (req, res) => {
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
-const getPopularArtist = async (req, res) => {
-    const response = await songService.getPopularArtistService();
-    return res.status(statusCodes[response.errCode]).json(response);
-};
-
-// ---------------------------ARTIST------------------
-
-const getAllArtist = async (req, res) => {
-    const response = await songService.getAllArtistService();
-    return res.status(statusCodes[response.errCode]).json(response);
-};
-
-const getArtist = async (req, res) => {
-    const response = await songService.getArtistService(req.params.id);
-    return res.status(statusCodes[response.errCode]).json(response);
-};
-
-const createArtist = async (req, res) => {
-    const response = await songService.createArtistService(req.body);
-    return res.status(statusCodes[response.errCode]).json(response);
-};
-
-const deleteArtist = async (req, res) => {
-    const response = await songService.deleteArtistService(req.params.id);
-    return res.status(statusCodes[response.errCode]).json(response);
-};
-
-const updateArtist = async (req, res) => {
-    const response = await songService.updateArtistService(req.body);
-    return res.status(statusCodes[response.errCode]).json(response);
-};
-
 // ---------------------------GENRE------------------
 
 const createGenre = async (req, res) => {
@@ -105,13 +73,6 @@ module.exports = {
     getWeeklyTopSongs,
     getTrendingSongs,
     getNewReleaseSongs,
-    getPopularArtist,
-    // ------------
-    getAllArtist,
-    getArtist,
-    createArtist,
-    deleteArtist,
-    updateArtist,
     // ------------
     createGenre,
     // ---------
