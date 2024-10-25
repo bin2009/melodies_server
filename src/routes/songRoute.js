@@ -28,11 +28,11 @@ router.patch('/artists/update', authMiddleWare.verifyTokenAndAdmin, songControll
 
 // ---------------------------GENRE------------------
 
-router.post('/genre/create',songController.createGenre);
+router.post('/genre/create', songController.createGenre);
 
 // ---------------------------ALBUM------------------
 
-router.get('/album/', songController.getAllAlbum);
-router.get('/album/popular', songController.getAlbumPopular);
+// router.get('/album/', songController.getAllAlbum);
+// router.get('/album/popular', songController.getAlbumPopular);
 
 module.exports = router;
