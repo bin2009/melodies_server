@@ -13,6 +13,12 @@ const getAlbum = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+const getAllAlbum = async (req, res) => {
+    const response = await albumService.getAllAlbumService(req.query.offset);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     getAlbum,
+    getAllAlbum,
 };

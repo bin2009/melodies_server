@@ -5,6 +5,7 @@
         "database": "pbl6_melodies",
         "host": "127.0.0.1",
         "dialect": "postgres",
+        "logging": false,
         "define": {
             "freezeTableName": true
         }

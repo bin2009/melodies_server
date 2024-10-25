@@ -3,9 +3,6 @@ const router = express.Router();
 const albumController = require('../controllers/albumController');
 
 router.get('/:id', albumController.getAlbum);
-
-router.get('/', (req, res) => {
-    res.send("baoloc")
-})
+router.get('/', albumController.getAllAlbum)
 
 module.exports = router;
