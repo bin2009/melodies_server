@@ -3,3 +3,5 @@
 /.vscode
 .prettierrc
 /BINN
+
+/src/config/config.json

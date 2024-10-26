@@ -330,22 +330,33 @@ const getMoreArtistService = async (artistId) => {
             attributes: ['id', 'name', 'avatar'],
         });
 
-        // lấy ra artist cùng genre
-        const artistGenres = [
-            {
-                genreId: '36ed1ac0-b130-49a4-abdc-9e0684f0e5dc',
-            },
-            {
-                genreId: '84d2166e-2ca8-4dee-9209-3d9f9be2efc7',
-            },
-        ];
+        // lấy ra các artist cùng thể loại
 
-        const genreIds = artistGenres.map((record) => ({
-            genreId: record.genreId,
-        }));
+        const genreIds = artist.artistGenres.map((record) => record.genreId);
+
+        const artistSameGenreIds = await db.ArtistGenre.findAll({
+            where: {
+                genreId: {
+                    [Op.in]: genreIds,
+                },
+            },
+            attributes: ['artistId'],
+        });
+
+        const artistSameGenreIds2 = artistSameGenreIds.map((record) => record.artistId);
+
+        const artistSameGenre = await db.Artist.findAll({
+            where: {
+                id: {
+                    [Op.and]: [{ [Op.in]: artistSameGenreIds2 }, { [Op.not]: artist.id }],
+                },
+            },
+            attributes: ['id', 'name', 'avatar']
+        });
 
         const artistDetail = {
             ...artist.toJSON(),
+            artistSameGenre: artistSameGenre,
             genreIds: genreIds,
             popSong: popSong,
             artistAlbum: artistAlbum,
@@ -353,10 +364,13 @@ const getMoreArtistService = async (artistId) => {
             artistFeet: artistFeet,
         };
 
+        // Loại bỏ thuộc tính artistGenres
+        const { artistGenres, ...artistDetailWithoutGenres } = artistDetail;
+
         return {
             errCode: 200,
             message: 'Get more artist successfully',
-            artist: artistDetail,
+            artist: artistDetailWithoutGenres,
         };
     } catch (error) {
         return {
