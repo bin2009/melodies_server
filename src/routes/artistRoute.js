@@ -12,4 +12,6 @@ router.post('/artist/create', authMiddWare.verifyTokenAndAdmin, artistController
 router.delete('/artist/delete/:id', authMiddWare.verifyTokenAndAdmin, artistController.deleteArtist);
 router.patch('/artist/update', artistController.updateArtist);
 
+router.get('/artist/more/:artistId', artistController.getMoreArtist)
+
 module.exports = router;

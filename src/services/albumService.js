@@ -3,26 +3,19 @@ const { Op } = require('sequelize');
 
 const getAlbumService = async (albumId) => {
     try {
-        // const album = await db.Song.findAll();
         const album = await db.Album.findByPk(albumId, {
-            attributes: {
-                exclude: ['createdAt', 'updatedAt'],
-            },
+            attributes: [
+                'albumId',
+                'title',
+                'releaseDate',
+                'albumType',
+                [db.Sequelize.fn('COUNT', db.Sequelize.col('songs.id')), 'songNumber'],
+            ],
             include: [
                 {
                     model: db.Song,
                     as: 'songs',
-                    attributes: { exclude: ['albumId', 'createdAt', 'updatedAt'] },
-                    include: [
-                        {
-                            model: db.Artist,
-                            as: 'artists',
-                            attributes: ['id', 'name'],
-                            through: {
-                                attributes: ['main'],
-                            },
-                        },
-                    ],
+                    attributes: [],
                 },
                 {
                     model: db.AlbumImage,
@@ -30,7 +23,30 @@ const getAlbumService = async (albumId) => {
                     attributes: ['image', 'size'],
                 },
             ],
+            group: ['Album.albumId', 'albumImages.albumImageId'],
         });
+
+        const songs = await db.Song.findAll({
+            where: { albumId: album.albumId },
+            attributes: {
+                exclude: ['createdAt', 'updatedAt'],
+            },
+            include: [
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: ['main'],
+                    },
+                },
+            ],
+        });
+
+        const albumWithSong = {
+            ...album.toJSON(),
+            songs: songs,
+        };
 
         if (!album) {
             return {
@@ -41,7 +57,8 @@ const getAlbumService = async (albumId) => {
         return {
             errCode: 200,
             message: 'Get album successfully',
-            album: album,
+            albumWithSong: albumWithSong,
+            // songs: songs,
         };
     } catch (error) {
         return {

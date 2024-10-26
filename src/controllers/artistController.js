@@ -26,6 +26,11 @@ const updateArtist = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+const getMoreArtist = async (req, res) => {
+    const response = await artistService.getMoreArtistService(req.params.artistId);
+    return res.status(response.errCode).json(response);
+}
+
 // ----------------------------------------------------------------
 
 const getPopularArtist = async (req, res) => {
@@ -40,4 +45,5 @@ module.exports = {
     updateArtist,
     createArtist,
     getPopularArtist,
+    getMoreArtist,
 };

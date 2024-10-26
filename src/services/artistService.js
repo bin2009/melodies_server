@@ -233,6 +233,139 @@ const updateArtistService = async (data) => {
     }
 };
 
+const getMoreArtistService = async (artistId) => {
+    try {
+        const artist = await db.Artist.findByPk(artistId, {
+            include: [
+                {
+                    model: db.ArtistGenre,
+                    as: 'artistGenres',
+                    attributes: ['genreId'],
+                },
+            ],
+        });
+
+        if (!artist) {
+            return {
+                errCode: 404,
+                message: 'Artist not found',
+            };
+        }
+
+        // lấy ra song của artist
+        const songs = await db.ArtistSong.findAll({
+            where: { artistId: artist.id, main: true },
+            attributes: ['songId', 'artistId'],
+        });
+
+        const songIds = songs.map((record) => record.songId);
+
+        const popSong = await db.Song.findAll({
+            where: {
+                id: {
+                    [Op.in]: songIds,
+                },
+            },
+            attributes: {
+                exclude: ['createdAt', 'updatedAt'],
+                include: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'viewCount']],
+            },
+            include: [
+                {
+                    model: db.SongPlayHistory,
+                    as: 'playHistory',
+                    attributes: [],
+                },
+            ],
+            group: ['Song.id'],
+            order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'DESC']],
+        });
+
+        // // list album của nghệ sĩ từ list song id
+        const albumIds = [...new Set(popSong.map((record) => record.albumId))];
+        const artistAlbum = await db.Album.findAll({
+            where: {
+                albumId: {
+                    [Op.in]: albumIds,
+                },
+                albumType: {
+                    [Op.or]: ['album', 'ep'],
+                },
+            },
+            attributes: ['albumId', 'title', 'releaseDate', 'albumType'],
+            include: [
+                {
+                    model: db.AlbumImage,
+                    as: 'albumImages',
+                    attributes: ['image', 'size'],
+                },
+            ],
+        });
+
+        const artistSingle = await db.Album.findAll({
+            where: {
+                albumId: {
+                    [Op.in]: albumIds,
+                },
+                albumType: 'single',
+            },
+            attributes: ['albumId', 'title', 'releaseDate', 'albumType'],
+            include: [
+                {
+                    model: db.AlbumImage,
+                    as: 'albumImages',
+                    attributes: ['image', 'size'],
+                },
+            ],
+        });
+
+        // lấy ra các artist feet cùng
+        const artistFeetId = [...new Set(songs.map((record) => record.artistId))];
+        const artistFeet = await db.Artist.findAll({
+            where: {
+                id: {
+                    [Op.in]: artistFeetId,
+                },
+            },
+            attributes: ['id', 'name', 'avatar'],
+        });
+
+        // lấy ra artist cùng genre
+        const artistGenres = [
+            {
+                genreId: '36ed1ac0-b130-49a4-abdc-9e0684f0e5dc',
+            },
+            {
+                genreId: '84d2166e-2ca8-4dee-9209-3d9f9be2efc7',
+            },
+        ];
+
+        const genreIds = artistGenres.map((record) => ({
+            genreId: record.genreId,
+        }));
+
+        const artistDetail = {
+            ...artist.toJSON(),
+            genreIds: genreIds,
+            popSong: popSong,
+            artistAlbum: artistAlbum,
+            artistSingle: artistSingle,
+            artistFeet: artistFeet,
+        };
+
+        return {
+            errCode: 200,
+            message: 'Get more artist successfully',
+            artist: artistDetail,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Get more artist failed: ${error.message}`,
+        };
+    }
+};
+
 // ---------------------------------------------------------------------
 
 const getPopularArtistService = async (offset) => {
@@ -296,6 +429,7 @@ module.exports = {
     deleteArtistService,
     updateArtistService,
     createArtistService,
+    getMoreArtistService,
     // ------------------
     getPopularArtistService,
 };
