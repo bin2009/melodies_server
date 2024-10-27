@@ -256,14 +256,37 @@ const getMoreArtistService = async (artistId) => {
         const songs = await db.ArtistSong.findAll({
             where: { artistId: artist.id, main: true },
             attributes: ['songId', 'artistId'],
+            include: [
+                {
+                    model: db.Song,
+                    as: 'song',
+                    attributes: ['id', 'albumId'],
+                },
+            ],
         });
 
         const songIds = songs.map((record) => record.songId);
 
+        // lấy ra 5 bài hát có view cao nhất
+        const songsTop10View = await db.SongPlayHistory.findAll({
+            where: {
+                songId: {
+                    [Op.in]: songIds,
+                },
+            },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'viewCount']],
+            group: ['songId'],
+            order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'DESC']],
+            limit: 10,
+            // raw: true,
+        });
+
+        const songTop10ViewIds = songsTop10View.map((rec) => rec.songId);
+
         const popSong = await db.Song.findAll({
             where: {
                 id: {
-                    [Op.in]: songIds,
+                    [Op.in]: songTop10ViewIds,
                 },
             },
             attributes: {
@@ -276,13 +299,29 @@ const getMoreArtistService = async (artistId) => {
                     as: 'playHistory',
                     attributes: [],
                 },
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title'],
+                    include: [
+                        {
+                            model: db.AlbumImage,
+                            as: 'albumImages',
+                            attributes: ['image', 'size'],
+                        },
+                    ],
+                },
             ],
-            group: ['Song.id'],
+            group: ['Song.id', 'album.albumId', 'album.albumImages.albumImageId'],
             order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'DESC']],
         });
 
         // // list album của nghệ sĩ từ list song id
-        const albumIds = [...new Set(popSong.map((record) => record.albumId))];
+        // lấy ra list song của album
+        // lấy ra list id album tương ứng
+
+        const albumIds = [...new Set(songs.map((record) => record.song.albumId))];
+
         const artistAlbum = await db.Album.findAll({
             where: {
                 albumId: {
@@ -300,6 +339,8 @@ const getMoreArtistService = async (artistId) => {
                     attributes: ['image', 'size'],
                 },
             ],
+            order: [['releaseDate', 'DESC']],
+            limit: 10,
         });
 
         const artistSingle = await db.Album.findAll({
@@ -317,21 +358,35 @@ const getMoreArtistService = async (artistId) => {
                     attributes: ['image', 'size'],
                 },
             ],
+            order: [['releaseDate', 'DESC']],
+            limit: 10,
         });
 
-        // lấy ra các artist feet cùng
-        const artistFeetId = [...new Set(songs.map((record) => record.artistId))];
+        // lấy ra các artist feat cùng
+        // lấy ra các bài hát -> tìm ra các nghệ sĩ khác main -> lấy thông tin
+        // songIds
+        const artistFeatIds = await db.ArtistSong.findAll({
+            where: {
+                songId: {
+                    [Op.in]: songIds,
+                },
+                artistId: {
+                    [Op.not]: artist.id,
+                },
+            },
+            attributes: ['songId', 'artistId'],
+        });
+
         const artistFeet = await db.Artist.findAll({
             where: {
                 id: {
-                    [Op.in]: artistFeetId,
+                    [Op.in]: artistFeatIds.map((rec) => rec.artistId),
                 },
             },
             attributes: ['id', 'name', 'avatar'],
         });
 
         // lấy ra các artist cùng thể loại
-
         const genreIds = artist.artistGenres.map((record) => record.genreId);
 
         const artistSameGenreIds = await db.ArtistGenre.findAll({
@@ -339,29 +394,33 @@ const getMoreArtistService = async (artistId) => {
                 genreId: {
                     [Op.in]: genreIds,
                 },
+                artistId: {
+                    [Op.not]: artist.id,
+                },
             },
             attributes: ['artistId'],
         });
 
-        const artistSameGenreIds2 = artistSameGenreIds.map((record) => record.artistId);
-
         const artistSameGenre = await db.Artist.findAll({
             where: {
                 id: {
-                    [Op.and]: [{ [Op.in]: artistSameGenreIds2 }, { [Op.not]: artist.id }],
+                    [Op.in]: artistSameGenreIds.map((record) => record.artistId),
                 },
             },
-            attributes: ['id', 'name', 'avatar']
+            attributes: ['id', 'name', 'avatar'],
         });
 
         const artistDetail = {
             ...artist.toJSON(),
-            artistSameGenre: artistSameGenre,
-            genreIds: genreIds,
+            // artistFeatIds: artistFeatIds,
+            // songs: songs,
+            // albumIds: albumIds,
+            // genreIds: genreIds,
             popSong: popSong,
             artistAlbum: artistAlbum,
             artistSingle: artistSingle,
             artistFeet: artistFeet,
+            artistSameGenre: artistSameGenre,
         };
 
         // Loại bỏ thuộc tính artistGenres

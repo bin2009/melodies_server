@@ -1,6 +1,6 @@
 const albumService = require('../services/albumService');
 
-const getAlbum = async (req, res) => {
+const getMoreAlbum = async (req, res) => {
     const albumId = req.params.id;
     // if (!albumId) {
     //     return res.status(400).json({
@@ -8,8 +8,7 @@ const getAlbum = async (req, res) => {
     //         message: 'Album id required',
     //     });
     // }
-    // return res.status(200).json("jaj")
-    const response = await albumService.getAlbumService(albumId);
+    const response = await albumService.getMoreAlbumService(albumId);
     return res.status(response.errCode).json(response);
 };
 
@@ -19,6 +18,6 @@ const getAllAlbum = async (req, res) => {
 };
 
 module.exports = {
-    getAlbum,
+    getMoreAlbum,
     getAllAlbum,
 };

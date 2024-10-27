@@ -2,7 +2,6 @@ const db = require('../models');
 const { Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 
-
 // ---------------------------SONG------------------
 const getAllSongService = async (offset) => {
     try {
@@ -303,12 +302,10 @@ const getWeeklyTopSongsService = async (offset) => {
                     },
                 },
             ],
-            attributes: [
-                'id',
-                'title',
-                'albumId',
-                [db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'playCount'],
-            ],
+            attributes: {
+                exclude: ['createdAt', 'updatedAt'],
+                include: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'playCount']],
+            },
             group: ['Song.id', 'album.albumId', 'album->albumImages.albumImageId', 'artists.id'],
             order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'DESC']],
             subQuery: false,
@@ -404,7 +401,9 @@ const getTrendingSongsService = async (offset) => {
                     raw: true,
                 },
             ],
-            attributes: ['id', 'title', 'albumId', 'releaseDate', 'duration'],
+            attributes: {
+                exclude: ['createdAt', 'updatedAt'],
+            },
         });
 
         const trendingSongsWithCounts = trendingSongs.map((song) => {
@@ -460,7 +459,9 @@ const getNewReleaseSongsService = async (offset) => {
                     },
                 },
             ],
-            attributes: ['id', 'title', 'releaseDate', 'duration'],
+            attributes: {
+                exclude: ['createdAt', 'updatedAt'],
+            },
             order: [['releaseDate', 'DESC']],
             limit: limit,
             offset: limit * offset,
@@ -513,7 +514,6 @@ const getNewReleaseSongsService = async (offset) => {
         };
     }
 };
-
 
 // ---------------------------GENRE------------------
 

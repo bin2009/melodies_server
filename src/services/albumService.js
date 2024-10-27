@@ -1,7 +1,7 @@
 const db = require('../models');
 const { Op } = require('sequelize');
 
-const getAlbumService = async (albumId) => {
+const getMoreAlbumService = async (albumId) => {
     try {
         const album = await db.Album.findByPk(albumId, {
             attributes: [
@@ -43,9 +43,64 @@ const getAlbumService = async (albumId) => {
             ],
         });
 
+        // tổng duration của các bài hát
+        const durations = songs.map((rec) => rec.duration);
+        let totalDuration = 0;
+        for (var i in durations) {
+            totalDuration = totalDuration + parseInt(durations[i]);
+        }
+
+        // lấy ra nghệ sĩ chính
+        let artistMain = {};
+
+        const song = songs[0].get({ plain: true });
+        for (var i in song.artists) {
+            if (song.artists[i].ArtistSong.main == true) {
+                artistMain.id = song.artists[i].id;
+                artistMain.name = song.artists[i].name;
+                break;
+            }
+        }
+
+        // lấy ra các album khác của nghệ sĩ đó
+        const songsAnother = await db.ArtistSong.findAll({
+            where: {
+                artistId: artistMain.id,
+            },
+            attributes: ['songId'],
+        });
+
+        let albumAnotherIds = await db.Song.findAll({
+            where: {
+                id: {
+                    [Op.in]: songsAnother.map((rec) => rec.songId),
+                },
+            },
+            attributes: ['albumId'],
+        });
+
+        const albumAnother = await db.Album.findAll({
+            where: {
+                albumId: {
+                    [Op.in]: [...new Set(albumAnotherIds.map((rec) => rec.albumId))],
+                },
+            },
+            attributes: ['albumId', 'title'],
+            include: [
+                {
+                    model: db.AlbumImage,
+                    as: 'albumImages',
+                    attributes: ['image', 'size'],
+                },
+            ],
+        });
+
         const albumWithSong = {
             ...album.toJSON(),
+            artistMain: artistMain,
+            totalDuration: totalDuration,
             songs: songs,
+            albumAnother: albumAnother,
         };
 
         if (!album) {
@@ -58,7 +113,6 @@ const getAlbumService = async (albumId) => {
             errCode: 200,
             message: 'Get album successfully',
             albumWithSong: albumWithSong,
-            // songs: songs,
         };
     } catch (error) {
         return {
@@ -148,6 +202,6 @@ const getAllAlbumService = async (offset) => {
 };
 
 module.exports = {
-    getAlbumService,
+    getMoreAlbumService,
     getAllAlbumService,
 };
