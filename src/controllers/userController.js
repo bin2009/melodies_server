@@ -85,6 +85,16 @@ const followedArtist = async (req, res) => {
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
+// ---------------------------SUBSCRIPTION------------------------
+
+const subscription = async (req, res) => {
+    console.log('hah');
+    console.log(req.user, req.body.packageId);
+    // return res.send('hah');
+    const response = await userService.subscriptionService(req.user, req.body.packageId);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     getAllUser,
     getUser,
@@ -95,4 +105,5 @@ module.exports = {
     likedSong,
     followedArtist,
     changePassword,
+    subscription,
 };

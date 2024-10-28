@@ -263,6 +263,55 @@ const followedArtistService = async (data) => {
     }
 };
 
+// ---------------------------SUBSCRIPTION------------------------
+
+const subscriptionService = async (user, packageId) => {
+    try {
+        const package = await db.SubscriptionPackage.findByPk(packageId);
+        if (!package) {
+            return {
+                errCode: 404,
+                message: 'Package not found',
+            };
+        }
+
+        let dateCount = 0;
+        if (package.time == '7 Day') {
+            dateCount = 7;
+        } else if (package.time == '1 Month') {
+            dateCount = 30;
+        } else if (package.time == '3 Month') {
+            dateCount = 90;
+        }
+
+        let startDate = new Date();
+        let endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + dateCount);
+
+        let data = {
+            id: uuidv4(),
+            userId: user.id,
+            packageId: packageId,
+            startDate: startDate,
+            endDate: endDate,
+            paymentMethod: 'CreditCard',
+            status: 'Pending',
+        };
+
+        await db.Subscriptions.create(data);
+
+        return {
+            errCode: 200,
+            message: 'Registered successfully, please pay',
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Subscription failed: ${error.message}`,
+        };
+    }
+};
+
 module.exports = {
     getUsersService,
     getUserService,
@@ -273,4 +322,5 @@ module.exports = {
     likedSongService,
     followedArtistService,
     changePasswordService,
+    subscriptionService,
 };

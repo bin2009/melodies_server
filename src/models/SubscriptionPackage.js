@@ -25,7 +25,7 @@ module.exports = (sequelize, DataTypes) => {
                 defaultValue: DataTypes.UUIDV4,
             },
             time: {
-                type: DataTypes.ENUM('Monthly', 'Yearly'),
+                type: DataTypes.ENUM('7 Day', '1 Month', '3 Month'),
                 allowNull: false,
             },
             fare: {

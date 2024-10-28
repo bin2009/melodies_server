@@ -5,6 +5,9 @@ const emailController = require('../controllers/emailController');
 
 // middleware
 const authMiddleWare = require('../middleware/authMiddleWare');
+// ---------------------------SUBSCRIPTION------------------------
+
+router.post('/subscription', authMiddleWare.verifyToken, userController.subscription);
 
 // ---------------------------WORKING WITH MUSIC------------------------
 router.post('/actions/playtime', authMiddleWare.verifyToken, userController.playTime);
