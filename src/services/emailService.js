@@ -30,6 +30,40 @@ const sendOtp = async (email, otp) => {
     await transporter.sendMail(mailOptions);
 };
 
+const sendResetPasswordLink = async (email, link) => {
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL,
+            pass: process.env.EMAIL_PASSWORD,
+        },
+    });
+
+    const mailOptions = {
+        from: process.env.EMAIL,
+        to: email,
+        subject: 'Reset password',
+        text: `Please click on link to reset password: ${link}`,
+    };
+
+    await transporter.sendMail(mailOptions);
+};
+
+const emailResetPasswordService = async (email, link) => {
+    try {
+        await sendResetPasswordLink(email, link);
+        return {
+            errCode: 200,
+            errMess: 'Password reset link sent to your email',
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            errMess: `Internal server error: ${error.message}`,
+        };
+    }
+};
+
 const emailOtpService = async (email) => {
     const otp = generateOtp();
     try {
@@ -87,4 +121,5 @@ module.exports = {
     checkEmailExitsService,
     emailOtpService,
     emailVerifyOtpService,
+    emailResetPasswordService,
 };

@@ -85,7 +85,7 @@ const getMoreAlbumService = async (albumId) => {
                     [Op.in]: [...new Set(albumAnotherIds.map((rec) => rec.albumId))],
                 },
             },
-            attributes: ['albumId', 'title'],
+            attributes: ['albumId', 'title', 'releaseDate'],
             include: [
                 {
                     model: db.AlbumImage,

@@ -123,6 +123,34 @@ const registerService = async (data) => {
     }
 };
 
+const changePasswordService = async (data, user) => {
+    try {
+        // check pass
+        const findUser = await db.User.findByPk(user.id);
+
+        const validPass = await bcrypt.compare(data.oldPass, findUser.password);
+        if (!validPass) {
+            return {
+                errCode: 401,
+                message: 'Wrong password',
+            };
+        }
+
+        // change pass
+        const hashPass = await bcrypt.hash(data.newPass, saltRounds);
+        await db.User.update({ password: hashPass }, { where: { id: user.id } });
+        return {
+            errCode: 200,
+            message: 'Change password success',
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Change password failed: ${error.message}`,
+        };
+    }
+};
+
 // ---------------------------HOME------------------------
 
 // ---------------------------WORKING WITH MUSIC------------------------
@@ -244,4 +272,5 @@ module.exports = {
     playTimeService,
     likedSongService,
     followedArtistService,
+    changePasswordService,
 };

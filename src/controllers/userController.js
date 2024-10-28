@@ -55,6 +55,18 @@ const register = async (req, res) => {
     }
 };
 
+const changePassword = async (req, res) => {
+    const data = req.body;
+    if (!data.oldPass || !data.newPass) {
+        return res.status(400).json({
+            errCode: 400,
+            messaeg: 'Missing data',
+        });
+    }
+    const response = await userService.changePasswordService(req.body, req.user);
+    return res.status(response.errCode).json(response);
+};
+
 // ---------------------------HOME------------------------
 
 // ---------------------------WORKING WITH MUSIC------------------------
@@ -82,4 +94,5 @@ module.exports = {
     playTime,
     likedSong,
     followedArtist,
+    changePassword,
 };

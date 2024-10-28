@@ -22,6 +22,8 @@ router.patch('/update', authMiddleWare.verifyTokenUserOrAdmin, userController.up
 router.post('/otp', authMiddleWare.checkEmailExits, emailController.sendOtp);
 router.post('/register', userController.register);
 
+router.post('/changepass', authMiddleWare.verifyToken, userController.changePassword);
+
 // ---------------------------HOME------------------------
 router.get('/home', (req, res) => {
     return res.status(200).json('Admin page');

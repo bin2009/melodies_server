@@ -1,9 +1,11 @@
 const db = require('../models');
 const User = db.User;
 const bcrypt = require('bcryptjs');
+const saltRounds = 10;
 const jwt = require('jsonwebtoken');
 const { client } = require('../services/redisService');
 const { Op } = require('sequelize');
+const emailService = require('../services/emailService');
 
 const generateAccessToken = (user) => {
     return jwt.sign({ id: user.id, role: user.role }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' });
@@ -11,6 +13,10 @@ const generateAccessToken = (user) => {
 
 const generateRefreshToken = (user) => {
     return jwt.sign({ id: user.id, role: user.role }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+};
+
+const generateToken = (user) => {
+    return jwt.sign({ id: user.id }, process.env.TOKEN_SECRET, { expiresIn: '1d' });
 };
 
 const loginService = async (data) => {
@@ -72,7 +78,7 @@ const loginService = async (data) => {
             message: `Internal Server Error: ${error.message}`,
         };
     }
-    return data;
+    // return data;
 };
 
 const refreshService = async (authorization) => {
@@ -164,10 +170,86 @@ const logoutService = async (authorization) => {
     }
 };
 
+const getOtpResetPassService = async (email) => {
+    try {
+        const user = await db.User.findOne({ where: { email: email } });
+
+        if (!user) {
+            return {
+                errCode: 404,
+                message: 'User not found',
+            };
+        }
+
+        await emailService.emailOtpService(email);
+        return {
+            errCode: 200,
+            message: 'Please check your email for otp to reset password',
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Send otp reset password failed: ${error.message}`,
+        };
+    }
+};
+
+const requestResetPasswordService = async (email) => {
+    try {
+        const user = await db.User.findOne({ where: { email: email } });
+
+        if (!user) {
+            return {
+                errCode: 404,
+                message: 'User not found',
+            };
+        }
+
+        const token = generateToken(user);
+
+        const resetLink = `http://localhost:2009/api/auth/reset/${token}`;
+
+        const respone = await emailService.emailResetPasswordService(email, resetLink);
+        return respone;
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Request reset passworđ failed: ${error.message}`,
+        };
+    }
+};
+
+const resetPasswordService = async (token, password) => {
+    try {
+        const userToken = jwt.verify(token, process.env.TOKEN_SECRET);
+        const user = await db.User.findByPk(userToken.id);
+        if (!user) {
+            return {
+                errCode: 404,
+                message: 'User not found',
+            };
+        }
+        const hashPass = await bcrypt.hash(password, saltRounds);
+        await db.User.update({ password: hashPass }, { where: { id: user.id } });
+        return {
+            errCode: 200,
+            message: 'Reset password success',
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Request reset passworđ failed: ${error.message}`,
+        };
+    }
+};
+
 module.exports = {
     generateAccessToken,
     generateRefreshToken,
     loginService,
     logoutService,
     refreshService,
+    getOtpResetPassService,
+    requestResetPasswordService,
+    resetPasswordService,
 };
