@@ -201,7 +201,91 @@ const getAllAlbumService = async (offset) => {
     }
 };
 
+const getTopAlbumService = async (offset) => {
+    try {
+        const limit = 10;
+        const start = limit * offset;
+        const end = start + limit;
+
+        const albums = await db.Album.findAll({
+            attributes: ['albumId', 'title', 'releaseDate'],
+            include: [{ model: db.AlbumImage, as: 'albumImages', attributes: ['image', 'size'] }],
+        });
+
+        const albumIds = albums.map((rec) => rec.albumId);
+        // console.log(albumIds);
+        const songs = await db.Song.findAll({
+            attributes: [
+                'id',
+                'title',
+                'albumId',
+                [db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'totalPlayCount'],
+            ],
+            include: [
+                {
+                    model: db.SongPlayHistory,
+                    as: 'playHistory',
+                    attributes: [],
+                },
+                {
+                    model: db.ArtistSong,
+                    as: 'artistSong',
+                    attributes: ['artistId'],
+                    where: { main: true },
+                },
+            ],
+            group: ['Song.id', 'artistSong.artistId'],
+            order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'DESC']],
+            raw: true,
+            // limit: 5,
+        });
+
+        const albumPlayCounts = {};
+        const artistAlbum = {};
+
+        for (const albumId of albumIds) {
+            const albumSongs = songs.filter((song) => song.albumId === albumId);
+            const totalPlayCount = albumSongs.reduce((total, song) => {
+                return total + parseInt(song.totalPlayCount || 0);
+            }, 0);
+
+            let artistMainId;
+            for (var song in albumSongs) {
+                if (song['artistSong.artistId'] !== '') {
+                    artistMainId = albumSongs[0]['artistSong.artistId'];
+                    break;
+                }
+            }
+
+            const artist = await db.Artist.findByPk(artistMainId, { attributes: ['id', 'name'] });
+            artistAlbum[albumId] = artist;
+            albumPlayCounts[albumId] = totalPlayCount;
+        }
+
+        const albumTop = albums.map((album) => ({
+            ...album.toJSON(),
+            totalPlayCount: albumPlayCounts[album.albumId] || 0,
+            artistMain: artistAlbum[album.albumId] || null,
+        }));
+
+        albumTop.sort((a, b) => b.totalPlayCount - a.totalPlayCount);
+        const paginatedAlbums = albumTop.slice(start, end);
+
+        return {
+            errCode: 200,
+            message: 'Get top album successfully',
+            albums: paginatedAlbums,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Get top album failed: ${error.message}`,
+        };
+    }
+};
+
 module.exports = {
     getMoreAlbumService,
     getAllAlbumService,
+    getTopAlbumService,
 };
