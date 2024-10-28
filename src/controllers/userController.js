@@ -1,22 +1,43 @@
-const userService = require('../services/userService');
 const statusCodes = require('../utils/statusCodes');
+const userService = require('../services/userService');
 
 const emailController = require('./emailController');
 
-const getUsers = async (req, res) => {
-    const response = await userService.getUsersService(req.params.id);
-    return res.status(statusCodes[response.errCode]).json(response);
+// ---------------------------USER------------------------
+
+const getAllUser = async (req, res) => {
+    const response = await userService.getUsersService(req.query.offset);
+    return res.status(response.errCode).json(response);
+};
+
+const getUser = async (req, res) => {
+    const userId = req.params.id;
+    if (!userId) {
+        return res.status(400).json({
+            errCode: 400,
+            message: 'User id required',
+        });
+    }
+    const response = await userService.getUserService(userId);
+    return res.status(response.errCode).json(response);
 };
 
 const deleteUser = async (req, res) => {
     const userId = req.params.id;
+    if (!userId) {
+        return res.status(400).json({
+            errCode: 400,
+            message: 'User id required',
+        });
+    }
     const response = await userService.deleteUserService(userId);
-    return res.status(statusCodes[response.errCode]).json(response);
+    return res.status(response.errCode).json(response);
 };
 
 const updateUser = async (req, res) => {
-    const response = await userService.updateUserService(req.params.id, req.body);
-    return res.status(statusCodes[response.errCode]).json(response);
+    const response = await userService.updateUserService(req.body);
+    console.log(req.body);
+    return res.status(response.errCode).json(response);
 };
 
 const register = async (req, res) => {
@@ -34,17 +55,29 @@ const register = async (req, res) => {
     }
 };
 
+const changePassword = async (req, res) => {
+    const data = req.body;
+    if (!data.oldPass || !data.newPass) {
+        return res.status(400).json({
+            errCode: 400,
+            messaeg: 'Missing data',
+        });
+    }
+    const response = await userService.changePasswordService(req.body, req.user);
+    return res.status(response.errCode).json(response);
+};
+
 // ---------------------------HOME------------------------
 
 // ---------------------------WORKING WITH MUSIC------------------------
 const playTime = async (req, res) => {
     const response = await userService.playTimeService(req.body);
-    return res.status(statusCodes[response.errCode]).json(response);
+    return res.status(response.errCode).json(response);
 };
 
 const likedSong = async (req, res) => {
     const response = await userService.likedSongService(req.body);
-    return res.status(statusCodes[response.errCode]).json(response);
+    return res.status(response.errCode).json(response);
 };
 
 const followedArtist = async (req, res) => {
@@ -52,12 +85,25 @@ const followedArtist = async (req, res) => {
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
+// ---------------------------SUBSCRIPTION------------------------
+
+const subscription = async (req, res) => {
+    console.log('hah');
+    console.log(req.user, req.body.packageId);
+    // return res.send('hah');
+    const response = await userService.subscriptionService(req.user, req.body.packageId);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
-    getUsers,
-    deleteUser,
+    getAllUser,
+    getUser,
     updateUser,
+    deleteUser,
     register,
     playTime,
     likedSong,
     followedArtist,
+    changePassword,
+    subscription,
 };

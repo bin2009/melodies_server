@@ -1,240 +1,194 @@
-const { raw } = require('mysql2');
 const db = require('../models');
-const { Op, INTEGER, where } = require('sequelize');
-
-const Song = db.Song;
-const SongPlayHistory = db.SongPlayHistory;
-const Like = db.Like;
-const Artist = db.Artist;
-const Sequelize = db.Sequelize;
-const sequelize = db.sequelize;
-const Genre = db.Genre;
-// const Op = db.Op;
-// const { Op, where } = require('sequelize');
+const { Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 
 // ---------------------------SONG------------------
-const getAllSongService = async () => {
+const getAllSongService = async (offset) => {
     try {
-        const limit = 10;
         const songs = await db.Song.findAll({
             attributes: {
-                include: [
-                    'id',
-                    [
-                        db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likes.likeId'))),
-                        'likeCount',
-                    ],
-                    [
-                        db.sequelize.literal(
-                            `COUNT(DISTINCT CASE WHEN "playHistory"."playtime" > 100 THEN "playHistory"."historyId" END)`,
-                        ),
-                        'viewCount',
-                    ],
-                ],
+                exclude: ['albumId', 'updatedAt'],
             },
             include: [
                 {
                     model: db.Album,
                     as: 'album',
                     attributes: ['albumId', 'title'],
-                    include: [
-                        {
-                            model: db.AlbumImage,
-                            as: 'albumImages',
-                            attributes: ['image', 'size'],
-                        },
-                    ],
+                    include: [{ model: db.AlbumImage, as: 'albumImages', attributes: ['image', 'size'] }],
                 },
                 {
                     model: db.Artist,
                     as: 'artists',
-                    attributes: ['id', 'name', 'avatar'],
+                    attributes: ['id', 'name'],
                     through: {
                         attributes: ['main'],
                     },
                 },
-                {
-                    model: db.Like,
-                    as: 'likes',
-                    attributes: [],
-                },
-                {
-                    model: db.SongPlayHistory,
-                    as: 'playHistory',
-                    attributes: [],
-                },
             ],
-            subQuery: false,
-            group: [
-                'Song.id',
-                'album.albumId',
-                'album->albumImages.albumId',
-                'artists.id',
-                'artists->ArtistSong.songId',
-                'artists->ArtistSong.artistId',
-                // 'artists->ArtistSong.main',
-            ],
-            // limit: 10,
-            // offset: 2 * offset,
+            // group: ['id'],
+            order: [['createdAt', 'DESC']],
+            limit: 10,
+            offset: 10 * offset,
         });
 
+        const songIds = songs.map((record) => record.id);
+
+        const playCounts = await db.SongPlayHistory.findAll({
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('historyId')), 'playCount']],
+            where: {
+                songId: {
+                    [Op.in]: songIds,
+                },
+            },
+            group: ['songId'],
+            raw: true,
+        });
+
+        console.log('playCount', playCounts);
+
+        const playCountMap = playCounts.reduce((acc, record) => {
+            acc[record.songId] = record.playCount;
+            return acc;
+        }, {});
+
+        console.log('playCountMap', playCountMap);
+
+        const songsWithPlayCount = songs.map((song) => ({
+            ...song.toJSON(),
+            playCount: playCountMap[song.id] || 0,
+        }));
+
         return {
-            errCode: 0,
-            errMess: 'Get all songs successfully',
-            songs: songs,
+            errCode: 200,
+            message: 'Get all songs successfully',
+            songs: songsWithPlayCount,
         };
     } catch (error) {
         return {
-            errCode: 8,
-            errMess: `Get all songs failed ${error.message}`,
+            errCode: 500,
+            message: `Get all songs failed ${error.message}`,
         };
     }
 };
 
 const getSongService = async (songId) => {
     try {
-        const song = await db.Song.findAll({
+        const song = await db.Song.findOne({
             where: { id: songId },
             attributes: {
-                include: [
-                    'id',
-                    [
-                        db.sequelize.fn('COUNT', db.sequelize.fn('DISTINCT', db.sequelize.col('likesSong.likeId'))),
-                        'likeCount',
-                    ],
-                    [
-                        db.sequelize.literal(
-                            `COUNT(DISTINCT CASE WHEN "songPlayHistories"."playtime" > 100 THEN "songPlayHistories"."historyId" END)`,
-                        ),
-                        'viewCount',
-                    ],
-                ],
+                exclude: ['albumId', 'updatedAt'],
             },
             include: [
                 {
                     model: db.Album,
                     as: 'album',
                     attributes: ['albumId', 'title'],
-                    include: [
-                        {
-                            model: db.AlbumImage,
-                            as: 'albumImages',
-                            attributes: ['image', 'size'],
-                        },
-                    ],
+                    include: [{ model: db.AlbumImage, as: 'albumImages', attributes: ['image', 'size'] }],
                 },
                 {
                     model: db.Artist,
                     as: 'artists',
-                    attributes: ['id', 'name', 'avatar'],
+                    attributes: ['id', 'name'],
                     through: {
                         attributes: ['main'],
                     },
                 },
-                {
-                    model: db.Like,
-                    as: 'likesSong',
-                    attributes: [],
-                },
-                {
-                    model: db.SongPlayHistory,
-                    as: 'songPlayHistories',
-                    attributes: [],
-                },
-            ],
-            // limit: 10,
-            subQuery: false,
-            group: [
-                'Song.id',
-                'album.albumId',
-                'album->albumImages.id',
-                'artists.id',
-                'artists->ArtistSong.songId',
-                'artists->ArtistSong.artistId',
-                // 'artists->ArtistSong.main',
             ],
         });
 
-        // const song = await Song.findOne({ where:});
-        if (song.length > 0) {
+        if (!song) {
             return {
-                errCode: 0,
-                errMess: 'Get song by ID successfully',
-                songs: song,
-            };
-        } else {
-            return {
-                errCode: 6,
-                errMess: 'Song not found',
+                errCode: 404,
+                message: 'Song not found',
             };
         }
+
+        const playCount = await db.SongPlayHistory.findAll({
+            where: { songId: song.id },
+            attributes: [[db.Sequelize.fn('COUNT', db.Sequelize.col('historyId')), 'playCount']],
+            raw: true,
+        });
+
+        const songsWithPlayCount = {
+            ...song.toJSON(),
+            playCount: playCount[0].playCount || 0,
+        };
+
+        return {
+            errCode: 200,
+            message: 'Get song successfully',
+            song: songsWithPlayCount,
+        };
     } catch (error) {
         return {
-            errCode: 8,
-            errMess: `Get song failed ${error.message}`,
+            errCode: 500,
+            message: `Get song failed ${error.message}`,
         };
     }
 };
 
 const deleteSongService = async (songId) => {
     try {
-        const song = await Song.findOne({ where: { id: songId } });
+        const song = await db.Song.findOne({ where: { id: songId } });
         if (song) {
-            await Song.destroy({ where: { id: song.id } });
             await db.ArtistSong.destroy({ where: { songId: song.id } });
+            await db.Song.destroy({ where: { id: song.id } });
             return {
-                errCode: 0,
-                errMess: 'Delete song success',
+                errCode: 200,
+                message: 'Delete song success',
             };
         } else {
             return {
-                errCode: 6,
-                errMess: 'Song not found',
+                errCode: 404,
+                message: 'Song not found',
             };
         }
     } catch (error) {
         return {
-            errCode: 8,
-            errMess: `Delete song failed ${error.message}`,
+            errCode: 500,
+            message: `Delete song failed ${error.message}`,
         };
     }
 };
 
 const updateSongService = async (data) => {
     try {
-        const song = await Song.findOne({ where: { id: data.songId } });
+        const song = await db.Song.findOne({ where: { id: data.songId } });
         if (song) {
-            await Song.update(data.updateData, { where: { id: data.songId } });
+            await db.Song.update(data.updateData, { where: { id: data.songId } });
             return {
-                errCode: 0,
-                errMess: 'Song updated successfully',
+                errCode: 200,
+                message: 'Song updated successfully',
             };
         } else {
             return {
-                errCode: 6,
-                errMess: 'Song not found',
+                errCode: 404,
+                message: 'Song not found',
             };
         }
     } catch (error) {
         return {
             errCode: 8,
-            errMess: `Update song failed ${error.message}`,
+            message: `Update song failed ${error.message}`,
         };
     }
 };
 
 const createSongService = async (data) => {
     try {
-        const song = await Song.findAll({
-            where: { title: data.title },
+        const song = await db.Song.findOne({
+            where: {
+                title: {
+                    [Op.iLike]: `%${data.title.trim()}%`,
+                },
+            },
             attributes: ['title'],
             include: [
                 {
-                    model: Artist,
+                    model: db.Artist,
                     as: 'artists',
                     where: { id: data.artists[0].id },
-                    attributes: [],
+                    attributes: ['id', 'name'],
                     through: {
                         attributes: [],
                     },
@@ -242,13 +196,15 @@ const createSongService = async (data) => {
             ],
         });
 
-        if (song.length > 1) {
-            return {
-                errCode: 0,
-                errMess: 'Song exit',
-            };
-        } else {
-            const newSong = await Song.create({
+        if (!song) {
+            if (!data.artists || data.artists.length === 0) {
+                return {
+                    errCode: 400,
+                    errMess: 'No artists provided',
+                };
+            }
+
+            const newSong = await db.Song.create({
                 id: uuidv4(),
                 title: data.title,
                 duration: data.duration,
@@ -256,13 +212,6 @@ const createSongService = async (data) => {
                 filePathAudio: data.filePathAudio,
                 privacy: data.privacy,
             });
-
-            if (!data.artists || data.artists.length === 0) {
-                return {
-                    errCode: 2,
-                    errMess: 'No artists provided',
-                };
-            }
 
             const artistSongData = data.artists
                 .filter((artist) => artist.id)
@@ -277,15 +226,20 @@ const createSongService = async (data) => {
             await db.ArtistSong.bulkCreate(artistSongData);
 
             return {
-                errCode: 0,
-                errMess: 'Song created successfully',
+                errCode: 200,
+                message: 'Song created successfully',
                 newSong: newSong,
             };
         }
+
+        return {
+            errCode: 409,
+            message: 'Song exits',
+        };
     } catch (error) {
         return {
-            errCode: 8,
-            errMess: `Song creation failed: ${error.message}`,
+            errCode: 500,
+            message: `Song creation failed: ${error.message}`,
         };
     }
 };
@@ -348,12 +302,10 @@ const getWeeklyTopSongsService = async (offset) => {
                     },
                 },
             ],
-            attributes: [
-                'id',
-                'title',
-                'albumId',
-                [db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'playCount'],
-            ],
+            attributes: {
+                exclude: ['createdAt', 'updatedAt'],
+                include: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'playCount']],
+            },
             group: ['Song.id', 'album.albumId', 'album->albumImages.albumImageId', 'artists.id'],
             order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'DESC']],
             subQuery: false,
@@ -449,15 +401,9 @@ const getTrendingSongsService = async (offset) => {
                     raw: true,
                 },
             ],
-            attributes: ['id', 'title', 'albumId', 'releaseDate', 'duration'],
-            // group: [
-            //     'Song.id',
-            //     'album.albumId',
-            //     'album->albumImages.albumImageId',
-            //     'artists.id',
-            //     'artists->ArtistSong.artistSongId',
-            // ],
-            // subQuery: false,
+            attributes: {
+                exclude: ['createdAt', 'updatedAt'],
+            },
         });
 
         const trendingSongsWithCounts = trendingSongs.map((song) => {
@@ -513,19 +459,10 @@ const getNewReleaseSongsService = async (offset) => {
                     },
                 },
             ],
-            attributes: ['id', 'title', 'releaseDate', 'duration'],
-            // subQuery: false,
+            attributes: {
+                exclude: ['createdAt', 'updatedAt'],
+            },
             order: [['releaseDate', 'DESC']],
-            group: [
-                // 'Song.id',
-                // 'album.albumId',
-                // 'artists.id',
-                // 'artists->ArtistSong.songId',
-                // // 'artists->ArtistSong.artistId',
-                // // 'album->albumImages.albumId',
-                // 'album->albumImages.albumImageId',
-                // 'artists->ArtistSong.artistSongId'
-            ], // Chỉ nhóm theo Son
             limit: limit,
             offset: limit * offset,
         });
@@ -567,243 +504,13 @@ const getNewReleaseSongsService = async (offset) => {
 
         return {
             errCode: 0,
-            errMess: 'Get release song successfully',
+            message: 'Get release song successfully',
             newReleaseSongs: newReleaseSongs2,
-            // newReleaseSongs2: songIds,
-            // newReleaseSongs3: topPlaySongIds,
         };
     } catch (error) {
         return {
             errCode: 8,
-            errMess: `Get release song failed: ${error.message}`,
-        };
-    }
-};
-
-const getPopularArtistService = async () => {
-    try {
-        const limit = 10;
-        const popArtist = await Artist.findAll({
-            attributes: {
-                include: [[Sequelize.literal(`COUNT(followers.id) + "Artist"."followersCount"`), 'folCount']],
-            },
-            include: [
-                {
-                    model: db.User,
-                    as: 'followers',
-                    attributes: [],
-                    through: {
-                        attributes: [],
-                    },
-                },
-            ],
-            subQuery: false,
-            order: [[Sequelize.literal(`COUNT(followers.id) + "Artist"."followersCount"`), 'DESC']],
-            group: ['Artist.id'],
-            // limit: limit,
-            // offset: limit * offset,
-        });
-        return {
-            errCode: 0,
-            errMess: 'Get popular artist successfully',
-            popArtist: popArtist,
-        };
-    } catch (error) {
-        return {
-            errCode: 8,
-            errMess: `Get popular artist failed: ${error.message}`,
-        };
-    }
-};
-
-// ---------------------------ARTIST------------------
-
-const getAllArtistService = async () => {
-    try {
-        const artists = await Artist.findAll({
-            attributes: {
-                include: [[db.sequelize.fn('COUNT', db.sequelize.col('followers.id')), 'followCount']],
-            },
-            include: [
-                {
-                    model: db.Genre,
-                    as: 'genres',
-                    attributes: ['genreId', 'name'],
-                    through: {
-                        attributes: [],
-                    },
-                },
-                {
-                    model: db.User,
-                    as: 'followers',
-                    attributes: [],
-                    through: {
-                        attributes: [],
-                    },
-                },
-            ],
-            group: ['Artist.id', 'genres.genreId', 'followers.id'],
-        });
-        return {
-            errCode: 0,
-            errMess: 'Get all artists',
-            artists: artists,
-        };
-    } catch (error) {
-        return {
-            errCode: 8,
-            errMess: `Get all artists failed: ${error.message}`,
-        };
-    }
-};
-
-const getArtistService = async (artistId) => {
-    try {
-        const artist = await Artist.findAll({
-            where: { id: artistId },
-            attributes: {
-                include: [[db.sequelize.fn('COUNT', db.sequelize.col('followers.id')), 'followCount']],
-            },
-            include: [
-                {
-                    model: db.Genre,
-                    as: 'genres',
-                    attributes: ['genreId', 'name'],
-                    through: {
-                        attributes: [],
-                    },
-                },
-                {
-                    model: db.User,
-                    as: 'followers',
-                    attributes: [],
-                    through: {
-                        attributes: [],
-                    },
-                },
-            ],
-            group: ['Artist.id', 'genres.genreId', 'followers.id'],
-        });
-        return {
-            errCode: 0,
-            errMess: 'Get artist successfully',
-            artists: artist,
-        };
-    } catch (error) {
-        return {
-            errCode: 8,
-            errMess: `Get artist failed: ${error.message}`,
-        };
-    }
-};
-
-const createArtistService = async (data) => {
-    try {
-        const artist = await db.Artist.findAll({
-            where: { name: data.name },
-            attributes: ['name'],
-            include: [
-                {
-                    model: db.Genre,
-                    as: 'genres',
-                    where: { genreId: data.genres[0].genreId },
-                    attributes: [],
-                    through: {
-                        attributes: [],
-                    },
-                },
-            ],
-        });
-
-        // const artist = await Artist.findOne({ where: { name: data.name } });
-        if (artist.length > 1) {
-            return {
-                errCode: 7,
-                errMess: 'Artist exits',
-            };
-        } else {
-            if (!data.genres || data.genres.length === 0) {
-                return {
-                    errCode: 2,
-                    errMess: 'No genre provided',
-                };
-            }
-
-            // tạo mới artist
-            const newArtist = await Artist.create({
-                id: uuidv4(),
-                name: data.name,
-                avatar: data.avatar,
-                bio: data.bio,
-            });
-
-            const genreArtist = data.genres
-                .filter((genre) => genre.genreId)
-                .map((genre, index) => {
-                    return {
-                        artistId: newArtist.id,
-                        genreId: genre.genreId,
-                    };
-                });
-
-            await db.ArtistGenre.bulkCreate(genreArtist);
-
-            return {
-                errCode: 0,
-                errMess: 'Create artist successfully',
-                newArtist: newArtist,
-            };
-        }
-    } catch (error) {
-        return {
-            errCode: 8,
-            errMess: `Create artist failed: ${error.message}`,
-        };
-    }
-};
-
-const deleteArtistService = async (artistId) => {
-    try {
-        const artist = await Artist.findOne({ where: { id: artistId } });
-        if (artist) {
-            await Artist.destroy({ where: { id: artistId } });
-            return {
-                errCode: 0,
-                errMess: 'Delete artist successfully',
-            };
-        } else {
-            return {
-                errCode: 6,
-                errMess: 'Artist not found',
-            };
-        }
-    } catch (error) {
-        return {
-            errCode: 8,
-            errMess: `Delete artist failed: ${error.message}`,
-        };
-    }
-};
-
-const updateArtistService = async (data) => {
-    try {
-        const artist = await Artist.findOne({ where: { id: data.id } });
-        if (artist) {
-            await Artist.update(data, { where: { id: data.id } });
-            return {
-                errCode: 0,
-                errMess: 'Update artist successfully',
-            };
-        } else {
-            return {
-                errCode: 6,
-                errMess: 'Artist not found',
-            };
-        }
-    } catch (error) {
-        return {
-            errCode: 8,
-            errMess: `Update artist failed: ${error.message}`,
+            message: `Get release song failed: ${error.message}`,
         };
     }
 };
@@ -961,15 +668,7 @@ module.exports = {
     // -------------------
     getWeeklyTopSongsService,
     getTrendingSongsService,
-    // getTopSongsService,
     getNewReleaseSongsService,
-    getPopularArtistService,
-    // ----------------------
-    getAllArtistService,
-    getArtistService,
-    createArtistService,
-    deleteArtistService,
-    updateArtistService,
     // ----------------
     createGenreService,
     // ----------------

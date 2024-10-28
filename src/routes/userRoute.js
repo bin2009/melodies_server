@@ -5,26 +5,27 @@ const emailController = require('../controllers/emailController');
 
 // middleware
 const authMiddleWare = require('../middleware/authMiddleWare');
+// ---------------------------SUBSCRIPTION------------------------
+
+router.post('/subscription', authMiddleWare.verifyToken, userController.subscription);
 
 // ---------------------------WORKING WITH MUSIC------------------------
-router.post('/actions/playtime',  userController.playTime);
-router.post('/likedsong',  userController.likedSong);
-router.post('/followed',  userController.followedArtist);
+router.post('/actions/playtime', authMiddleWare.verifyToken, userController.playTime);
+router.post('/likedsong', authMiddleWare.verifyToken, userController.likedSong);
+router.post('/followed', authMiddleWare.verifyToken, userController.followedArtist);
 
 // ---------------------------USER------------------------
 // get
-router.get('/', userController.getUsers);
-router.get('/:id', authMiddleWare.verifyTokenAndAdmin, userController.getUsers);
-// delete
-router.delete('/:id', authMiddleWare.verifyTokenAndAdmin, userController.deleteUser);
-// update
-router.patch('/:id', authMiddleWare.verifyTokenUserOrAdmin, userController.updateUser);
-// create
+router.get('/', userController.getAllUser);
+router.get('/:id', authMiddleWare.verifyTokenAndAdmin, userController.getUser);
+router.delete('/delete/:id', authMiddleWare.verifyTokenAndAdmin, userController.deleteUser);
+router.patch('/update', authMiddleWare.verifyTokenUserOrAdmin, userController.updateUser);
+
+// ---------------------------USER + EMAIL------------------------
+router.post('/otp', authMiddleWare.checkEmailExits, emailController.sendOtp);
 router.post('/register', userController.register);
 
-// ---------------------------EMAIL------------------------
-router.post('/checkEmail', emailController.checkEmailExits);
-router.post('/otp', authMiddleWare.checkEmailExits, emailController.sendOtp);
+router.post('/changepass', authMiddleWare.verifyToken, userController.changePassword);
 
 // ---------------------------HOME------------------------
 router.get('/home', (req, res) => {

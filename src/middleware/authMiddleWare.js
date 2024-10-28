@@ -4,19 +4,25 @@ const User = db.User;
 const emailController = require('../controllers/emailController');
 
 const verifyToken = (req, res, next) => {
-    const token = req.headers.token;
+    const token = req.headers['authorization'];
 
     if (token) {
         const accessToken = token.split(' ')[1];
         jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
             if (err) {
-                return res.status(403).json('Token is not valid');
+                return res.status(403).json({
+                    errCode: 403,
+                    message: 'Token is not valid',
+                });
             }
             req.user = user;
             next();
         });
     } else {
-        return res.status(401).json("You're not authenticated");
+        return res.status(401).json({
+            errCode: 401,
+            message: "You're not authenticated",
+        });
     }
 };
 

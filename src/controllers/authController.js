@@ -49,8 +49,46 @@ const refresh = async (req, res) => {
     // }
 };
 
+const getOtpResetPass = async (req, res) => {
+    const response = await authService.getOtpResetPassService(req.body.email);
+    return res.status(response.errCode).json(response);
+};
+
+const requestResetPassword = async (req, res) => {
+    const response = await authService.requestResetPasswordService(req.body.email);
+    return res.status(response.errCode).json(response);
+};
+
+const resetForm = (req, res) => {
+    const { token } = req.params;
+    console.log(token);
+    return res.render('reset', { token });
+};
+
+const resetPassword = async (req, res) => {
+    const { token } = req.params;
+    const { password, confirmPassword } = req.body;
+
+    if (password !== confirmPassword) {
+        return res.status(400).json({
+            errCode: 400,
+            message: 'Passwords do not match',
+        });
+    }
+
+    const response = await authService.resetPasswordService(token, password);
+    if (response.errCode == 404) {
+        return res.send(response.message);
+    }
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     login,
     logout,
     refresh,
+    getOtpResetPass,
+    requestResetPassword,
+    resetForm,
+    resetPassword,
 };
