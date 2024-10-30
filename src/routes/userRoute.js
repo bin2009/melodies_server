@@ -5,6 +5,15 @@ const emailController = require('../controllers/emailController');
 
 // middleware
 const authMiddleWare = require('../middleware/authMiddleWare');
+
+// ---------------------------SEARCH------------------------
+
+router.get('/search2', (req, res) => {
+    res.render('search');
+});
+
+router.get('/search', userController.search);
+
 // ---------------------------SUBSCRIPTION------------------------
 
 router.post('/subscription', authMiddleWare.verifyToken, userController.subscription);

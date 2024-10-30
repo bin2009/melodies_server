@@ -95,6 +95,12 @@ const subscription = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+const search = async (req, res) => {
+    // return res.status(200).json(req.query.query);
+    const response = await userService.serachService(req.query.query);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     getAllUser,
     getUser,
@@ -106,4 +112,6 @@ module.exports = {
     followedArtist,
     changePassword,
     subscription,
+    // ----------
+    search,
 };

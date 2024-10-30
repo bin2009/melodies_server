@@ -8,6 +8,8 @@ const SongPlayHistory = db.SongPlayHistory;
 const Like = db.Like;
 const Follow = db.Follow;
 const sequelize = db.sequelize;
+const removeAccents = require('remove-accents');
+const { Op } = require('sequelize');
 
 const getUsersService = async (offset) => {
     try {
@@ -312,6 +314,264 @@ const subscriptionService = async (user, packageId) => {
     }
 };
 
+const serachService = async (query) => {
+    try {
+        // xử lý query
+        let normalizedQuery = removeAccents(query.toLowerCase()).trim();
+        normalizedQuery = normalizedQuery.replace(/[^a-z0-9\s]/g, '');
+
+        let keywords = normalizedQuery.split(/\s+/);
+        keywords = keywords.map((keyword) => removeAccents(keyword.toLowerCase()));
+
+        // tìm theo nghệ sĩ
+        const artists = await db.Artist.findAll({
+            where: {
+                [Op.or]: keywords.map((keyword) =>
+                    db.Sequelize.where(
+                        db.Sequelize.fn('lower', db.Sequelize.fn('unaccent', db.Sequelize.col('name'))),
+                        { [Op.like]: `%${keyword}%` },
+                    ),
+                ),
+            },
+            raw: true,
+        });
+
+        if (artists.length > 0) {
+            // lấy ra nghệ sĩ chính: top result:
+            const artistIds = artists.map((rec) => rec.id);
+
+            const followCounts = await db.Follow.findAll({
+                where: {
+                    artistId: {
+                        [Op.in]: artistIds,
+                    },
+                },
+                attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('followerId')), 'followCount']],
+                group: ['artistId'],
+                order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('followerId')), 'DESC']],
+                limit: 1,
+                raw: true,
+            });
+
+            const topResult = artists.find((artist) => {
+                return artist.id === followCounts[0].artistId;
+            });
+
+            const songFromTopArtistResult = await db.ArtistSong.findAll({
+                where: {
+                    artistId: topResult.id,
+                },
+                attributes: ['songId'],
+                raw: true,
+            });
+
+            const songFromTopArtistResultId = songFromTopArtistResult.map((rec) => rec.songId);
+
+            const topSong = await db.SongPlayHistory.findAll({
+                where: {
+                    songId: {
+                        [Op.in]: songFromTopArtistResultId,
+                    },
+                },
+                attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('historyId')), 'playCount']],
+                order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('historyId')), 'DESC']],
+                group: ['SongPlayHistory.songId'],
+                limit: 5,
+                raw: true,
+            });
+
+            const topSongIds = topSong.map((rec) => rec.songId);
+            console.log(topSongIds);
+
+            const topSongDetail = await db.Song.findAll({
+                where: {
+                    id: {
+                        [Op.in]: topSongIds,
+                    },
+                },
+                attributes: {
+                    exclude: ['createdAt', 'updatedAt'],
+                },
+                include: [
+                    {
+                        model: db.Album,
+                        as: 'album',
+                        attributes: ['albumId', 'title', 'releaseDate'],
+                        include: [
+                            {
+                                model: db.AlbumImage,
+                                as: 'albumImages',
+                                attributes: ['image', 'size'],
+                            },
+                        ],
+                    },
+                    {
+                        model: db.Artist,
+                        as: 'artists',
+                        attributes: ['id', 'name', 'avatar'],
+                        through: {
+                            attributes: ['main'],
+                        },
+                    },
+                ],
+            });
+
+            var topSongDetailByArtist = topSong.map((rec) => {
+                const song = topSongDetail.find((f) => f.id === rec.songId);
+                return {
+                    ...song.toJSON(),
+                    playCount: rec.playCount,
+                };
+            });
+
+            topSongDetailByArtist = {
+                artist: topResult,
+                songs: topSongDetailByArtist,
+            };
+        }
+
+        // tìm theo album
+        const albums = await db.Album.findAll({
+            where: {
+                [Op.or]: keywords.map((keyword) =>
+                    db.Sequelize.where(
+                        db.Sequelize.fn('lower', db.Sequelize.fn('unaccent', db.Sequelize.col('title'))),
+                        { [Op.like]: `%${keyword}%` },
+                    ),
+                ),
+            },
+        });
+
+        if (albums.length > 0) {
+            var albumIds = albums.map((rec) => rec.albumId);
+
+            var albumWithArtist = {};
+
+            for (let i in albumIds) {
+                // lấy ra song -> lấy ra artist
+
+                const song = await db.Song.findAll({
+                    where: {
+                        albumId: albumIds[i],
+                    },
+                    attributes: [],
+                    include: [
+                        {
+                            model: db.Artist,
+                            as: 'artists',
+                            attributes: {
+                                exclude: ['createdAt', 'updatedAt'],
+                            },
+                            through: {
+                                attributes: ['main'],
+                            },
+                        },
+                    ],
+                    limit: 1,
+                });
+
+                albumWithArtist[albumIds[i]] = song.artists;
+            }
+
+            var albumSearch = albums.map((ab) => {
+                const artists = albumWithArtist[ab.albumId];
+                return {
+                    ...ab.toJSON(),
+                    artists: artists,
+                };
+            });
+        }
+
+        // theo the loai
+        const genres = await db.Genre.findAll({
+            where: {
+                [Op.or]: keywords.map((keyword) =>
+                    db.Sequelize.where(
+                        db.Sequelize.fn('lower', db.Sequelize.fn('unaccent', db.Sequelize.col('name'))),
+                        { [Op.like]: `%${keyword}%` },
+                    ),
+                ),
+            },
+            raw: true,
+        });
+
+        if (genres.length > 0) {
+            // lay ra cac bai hat cung the loai
+            var genreSearch = [];
+
+            for (let i in genres) {
+                console.log(i, genres[i]);
+                let genreName = genres[i].name;
+                // lay ra cac nghe si the loai do
+
+                const artists = await db.ArtistGenre.findAll({
+                    where: {
+                        genreId: genres[i].genreId,
+                    },
+                    raw: true,
+                });
+
+                const artistIds = artists.map((rec) => rec.artistId);
+
+                var artistSameGenre = await db.Artist.findAll({
+                    where: {
+                        id: {
+                            [Op.in]: artistIds,
+                        },
+                    },
+                    attributes: {
+                        exclude: ['createdAt', 'updatedAt'],
+                    },
+                });
+
+                genreSearch.push({
+                    genreId: genres[i].genreId,
+                    genreName: genreName,
+                    artists: artistSameGenre,
+                });
+            }
+        }
+
+        // tim theo bai hat
+        const songSearch = await db.Song.findAll({
+            where: {
+                [Op.or]: keywords.map((keyword) =>
+                    db.Sequelize.where(
+                        db.Sequelize.fn('lower', db.Sequelize.fn('unaccent', db.Sequelize.col('title'))),
+                        { [Op.like]: `%${keyword}%` },
+                    ),
+                ),
+            },
+            include: [
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: ['main'],
+                    },
+                },
+            ],
+            // raw: true,
+        });
+
+        return {
+            errCode: 200,
+            query: query,
+            topResult: topSongDetailByArtist,
+            artists: artists,
+            albums: albumSearch,
+            genres: genreSearch,
+            songs: songSearch,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Search failed: ${error.message}`,
+        };
+    }
+};
+
 module.exports = {
     getUsersService,
     getUserService,
@@ -323,4 +583,6 @@ module.exports = {
     followedArtistService,
     changePasswordService,
     subscriptionService,
+    // -----------------
+    serachService,
 };
