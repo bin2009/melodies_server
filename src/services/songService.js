@@ -244,6 +244,63 @@ const createSongService = async (data) => {
     }
 };
 
+// ---------------------------RANDOM------------------
+
+const getSongRandomService = async () => {
+    try {
+        let song = await db.Song.findOne({
+            attributes: {
+                exclude: ['createdAt', 'updatedAt'],
+            },
+            include: [
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title', 'releaseDate'],
+                    include: [
+                        {
+                            model: db.AlbumImage,
+                            as: 'albumImages',
+                            attributes: ['image', 'size'],
+                        },
+                    ],
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: ['main'],
+                    },
+                },
+            ],
+            order: db.Sequelize.literal('RANDOM()'),
+        });
+
+        const playCount = await db.SongPlayHistory.count({
+            where: {
+                songId: song.id,
+            },
+        });
+
+        song = {
+            ...song.toJSON(),
+            playCount: playCount,
+        };
+
+        return {
+            errCode: 200,
+            message: 'Get song random successfully',
+            song: song,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Get song random failed: ${error.message}`,
+        };
+    }
+};
+
 // ---------------------------THEME MUSIC------------------
 
 const getWeeklyTopSongsService = async (offset) => {
@@ -665,6 +722,8 @@ module.exports = {
     deleteSongService,
     updateSongService,
     createSongService,
+    // -------------------
+    getSongRandomService,
     // -------------------
     getWeeklyTopSongsService,
     getTrendingSongsService,

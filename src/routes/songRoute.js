@@ -10,6 +10,10 @@ router.get('/songs/weeklytopsongs', songController.getWeeklyTopSongs);
 router.get('/songs/trending', songController.getTrendingSongs);
 router.get('/songs/newRaleaseSong', songController.getNewReleaseSongs);
 
+// ---------------------------RANDOM------------------
+
+router.get('/songs/random', songController.getSongRandom);
+
 // ---------------------------SONG------------------
 router.get('/songs/', songController.getAllSong);
 router.get('/songs/:id', songController.getSong);
@@ -20,8 +24,6 @@ router.patch('/songs/update', authMiddleWare.verifyTokenAndAdmin, songController
 // ---------------------------GENRE------------------
 
 router.post('/genre/create', songController.createGenre);
-
-// ---------------------------ALBUM------------------
 
 // router.get('/album/', songController.getAllAlbum);
 // router.get('/album/popular', songController.getAlbumPopular);

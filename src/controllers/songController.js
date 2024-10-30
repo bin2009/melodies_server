@@ -27,6 +27,13 @@ const createSong = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+// ---------------------------RANDOM------------------
+
+const getSongRandom = async (req, res) => {
+    const response = await songService.getSongRandomService();
+    return res.status(response.errCode).json(response);
+};
+
 // ---------------------------THEME MUSIC------------------
 
 const getWeeklyTopSongs = async (req, res) => {
@@ -69,6 +76,8 @@ module.exports = {
     updateSong,
     createSong,
     getAllSong,
+    // -----------
+    getSongRandom,
     // ------------
     getWeeklyTopSongs,
     getTrendingSongs,
