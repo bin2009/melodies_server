@@ -101,6 +101,18 @@ const search = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+// ---------------------------PLAYLIST------------------------
+
+const getPlaylist = async (req, res) => {
+    const response = await userService.getPlaylistService(req.params.userId);
+    return res.status(response.errCode).json(response);
+};
+
+const getPlaylistDetail = async (req, res) => {
+    const response = await userService.getPlaylistDetailService(req.params.playlistId);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     getAllUser,
     getUser,
@@ -114,4 +126,7 @@ module.exports = {
     subscription,
     // ----------
     search,
+    // ---------
+    getPlaylist,
+    getPlaylistDetail,
 };

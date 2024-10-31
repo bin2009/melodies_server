@@ -36,6 +36,11 @@ router.post('/register', userController.register);
 
 router.post('/changepass', authMiddleWare.verifyToken, userController.changePassword);
 
+// ---------------------------PLAYLIST------------------------
+
+router.get('/playlist/:userId', userController.getPlaylist);
+router.get('/playlist/detail/:playlistId', userController.getPlaylistDetail);
+
 // ---------------------------HOME------------------------
 router.get('/home', (req, res) => {
     return res.status(200).json('Admin page');

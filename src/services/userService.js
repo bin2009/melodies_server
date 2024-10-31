@@ -572,6 +572,189 @@ const serachService = async (query) => {
     }
 };
 
+// ---------------------------PLAYLIST------------------------
+
+const getPlaylistService = async (userId) => {
+    try {
+        const playlists = await db.UserPlaylist.findAll({
+            where: {
+                userId: userId,
+            },
+        });
+
+        const playlistIds = playlists.map((rec) => rec.playlistId);
+
+        const playlistByUser = await db.Playlist.findAll({
+            where: {
+                id: {
+                    [Op.in]: playlistIds,
+                },
+            },
+            include: [
+                {
+                    model: db.PlaylistSong,
+                    as: 'playlistSongs',
+                    attributes: [],
+                },
+            ],
+            attributes: {
+                include: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playlistSongs.playlistSongId')), 'songCount']],
+            },
+            group: ['Playlist.id'],
+        });
+
+        // xử lý tên và ảnh của playlist
+        // id playlist -> tìm song mới nhất
+        var playlistDetailByUser = [];
+
+        for (let i in playlistIds) {
+            const playlist = playlistByUser.find((f) => f.id === playlistIds[i]).get({ plain: true });
+
+            const songFirstPlaylist = await db.PlaylistSong.findOne({
+                where: {
+                    playlistId: playlistIds[i],
+                },
+                attributes: ['songId'],
+                order: [['createdAt', 'DESC']],
+                raw: true,
+            });
+
+            const songFirstPlaylistDetail = await db.Song.findOne({
+                where: {
+                    id: songFirstPlaylist.songId,
+                },
+                attributes: ['id', 'albumId', 'title'],
+            });
+
+            const album = await db.Album.findOne({
+                where: {
+                    albumId: songFirstPlaylistDetail.albumId,
+                },
+                attributes: [],
+                include: [
+                    {
+                        model: db.AlbumImage,
+                        as: 'albumImages',
+                        attributes: ['image', 'size'],
+                    },
+                ],
+            });
+
+            playlistDetailByUser.push({
+                playlistId: playlistIds[i],
+                name: playlist.title === 'Null' ? songFirstPlaylistDetail.title : playlist.title,
+                image: album,
+                description: playlist.description,
+                privacy: playlist.privacy,
+                totalSong: parseInt(playlist.songCount),
+            });
+        }
+
+        return {
+            errCode: 200,
+            message: 'Get playlist by user successfully',
+            playlists: playlistDetailByUser,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Get playlist failed: ${error}`,
+        };
+    }
+};
+
+const getPlaylistDetailService = async (playlistId) => {
+    try {
+        const playlist = await db.Playlist.findByPk(playlistId);
+
+        if (!playlist) {
+            return {
+                errCode: 404,
+                message: 'Playlist not found',
+            };
+        }
+
+        let songIds = await db.PlaylistSong.findAll({
+            where: {
+                playlistId: playlistId,
+            },
+            attributes: ['songId', 'createdAt'],
+            order: [['createdAt', 'DESC']],
+            raw: true,
+        });
+
+        songIds = songIds.map((rec) => ({
+            songId: rec.songId,
+            date: rec.createdAt,
+        }));
+
+        var songsOfPlaylist = [];
+        var totalTime = 0;
+
+        for (let songId of songIds) {
+            const song = await db.Song.findOne({
+                where: {
+                    id: songId.songId,
+                },
+                attributes: {
+                    exclude: ['createdAt', 'updatedAt'],
+                },
+                include: [
+                    {
+                        model: db.Album,
+                        as: 'album',
+                        attributes: ['albumId', 'title', 'releaseDate'],
+                        include: [
+                            {
+                                model: db.AlbumImage,
+                                as: 'albumImages',
+                                attributes: ['image', 'size'],
+                            },
+                        ],
+                    },
+                    {
+                        model: db.Artist,
+                        as: 'artists',
+                        attributes: ['id', 'name'],
+                        through: {
+                            attributes: ['main'],
+                        },
+                    },
+                ],
+            });
+
+            totalTime = totalTime + parseInt(song.duration);
+
+            songsOfPlaylist.push({
+                ...song.toJSON(),
+                dateAdded: songId.date,
+            });
+        }
+
+        const data = {
+            playlistId: playlist.id,
+            name: playlist.title === 'Null' ? songsOfPlaylist[0].title : playlist.title,
+            image: songsOfPlaylist[0].album.albumImages,
+            description: playlist.description,
+            privacy: playlist.privacy,
+            totalTime: totalTime,
+            totalSong: songIds.length,
+            songsOfPlaylist: songsOfPlaylist,
+        };
+
+        return {
+            errCode: 200,
+            message: 'Get playlist detail successfully',
+            playlist: data,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Get playlist detail failed: ${error}`,
+        };
+    }
+};
+
 module.exports = {
     getUsersService,
     getUserService,
@@ -585,4 +768,7 @@ module.exports = {
     subscriptionService,
     // -----------------
     serachService,
+    // ----------------
+    getPlaylistService,
+    getPlaylistDetailService,
 };
