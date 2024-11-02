@@ -6,9 +6,9 @@ const authMiddleWare = require('../middleware/authMiddleWare');
 // ---------------------THEME MUSIC------------------
 // kh cần phân quyền: dùng đc cho user và guest
 
-router.get('/songs/weeklytopsongs', songController.getWeeklyTopSongs);
-router.get('/songs/trending', songController.getTrendingSongs);
-router.get('/songs/newRaleaseSong', songController.getNewReleaseSongs);
+router.get('/songs/weeklytopsongs', authMiddleWare.optionalVerifyToken, songController.getWeeklyTopSongs);
+router.get('/songs/trending', authMiddleWare.optionalVerifyToken, songController.getTrendingSongs);
+router.get('/songs/newRaleaseSong', authMiddleWare.optionalVerifyToken, songController.getNewReleaseSongs);
 
 // ---------------------------RANDOM------------------
 

@@ -67,9 +67,31 @@ const checkEmailExits = async (req, res, next) => {
         });
     }
 };
+
+const optionalVerifyToken = async (req, res, next) => {
+    const token = req.headers['authorization'];
+
+    if (!token) {
+        return next();
+    }
+
+    const accessToken = token.split(' ')[1];
+    jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({
+                errCode: 403,
+                message: 'Token is not valid',
+            });
+        }
+        req.user = user;
+        next();
+    });
+};
+
 module.exports = {
     verifyToken,
     verifyTokenAndAdmin,
     verifyTokenUserOrAdmin,
     checkEmailExits,
+    optionalVerifyToken,
 };

@@ -303,7 +303,7 @@ const getSongRandomService = async () => {
 
 // ---------------------------THEME MUSIC------------------
 
-const getWeeklyTopSongsService = async (offset) => {
+const getWeeklyTopSongsService = async (offset, user) => {
     try {
         const topSongIds = await db.SongPlayHistory.findAll({
             attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'playCount']],
@@ -321,7 +321,7 @@ const getWeeklyTopSongsService = async (offset) => {
 
         const songIds = topSongIds.map((record) => record.songId);
 
-        const weeklyTopSongs = await db.Song.findAll({
+        let weeklyTopSongs = await db.Song.findAll({
             where: {
                 id: {
                     [Op.in]: songIds,
@@ -368,8 +368,31 @@ const getWeeklyTopSongsService = async (offset) => {
             subQuery: false,
         });
 
+        if (user) {
+            const likedSongs = await db.Like.findAll({
+                where: {
+                    [Op.and]: [{ songId: { [Op.in]: songIds } }, { userId: user.id }],
+                },
+                attributes: ['songId'],
+                raw: true,
+            });
+            const likedSongIds = new Set(likedSongs.map((like) => like.songId));
+
+            weeklyTopSongs = weeklyTopSongs.map((song) => ({
+                ...song.toJSON(),
+                liked: likedSongIds.has(song.id),
+            }));
+
+            return {
+                errCode: 200,
+                message: 'Get weekly top song successfully',
+                weeklyTopSongs: weeklyTopSongs,
+            };
+        }
+
         return {
             errCode: 200,
+            user: 'guest',
             message: 'Get weekly top song successfully',
             weeklyTopSongs: weeklyTopSongs,
         };
@@ -381,7 +404,7 @@ const getWeeklyTopSongsService = async (offset) => {
     }
 };
 
-const getTrendingSongsService = async (offset) => {
+const getTrendingSongsService = async (offset, user) => {
     try {
         const limit = 10;
         const start = limit * offset;
@@ -463,34 +486,55 @@ const getTrendingSongsService = async (offset) => {
             },
         });
 
-        const trendingSongsWithCounts = trendingSongs.map((song) => {
-            const songData = topSongIds.find((s) => s.songId === song.id);
+        var trendingSongsWithCounts = topSongIds.map((rec) => {
+            const song = trendingSongs.find((s) => (s.id = rec.songId));
             return {
                 ...song.toJSON(),
-                likeCount: songData ? songData.likeCount : 0,
-                playCount: songData ? songData.playCount : 0,
-                // totalCount: songData ? songData.totalCount : 0,
+                likeCount: rec ? rec.likeCount : 0,
+                playCount: rec ? rec.playCount : 0,
             };
         });
 
-        const sortedTrendingSongs = topSongIds.map((topSong) =>
-            trendingSongsWithCounts.find((song) => song.id === topSong.songId),
-        );
+        console.log(trendingSongsWithCounts);
+
+        if (user) {
+            const likedSongs = await db.Like.findAll({
+                where: {
+                    [Op.and]: [{ songId: { [Op.in]: topSongIds.map((rec) => rec.songId) } }, { userId: user.id }],
+                },
+                attributes: ['songId'],
+                raw: true,
+            });
+
+            const likedSongIds = new Set(likedSongs.map((like) => like.songId));
+
+            trendingSongsWithCounts = trendingSongsWithCounts.map((song) => ({
+                ...song,
+                liked: likedSongIds.has(song.id),
+            }));
+
+            return {
+                errCode: 200,
+                message: 'Get trending song successfully',
+                trendingSongs: trendingSongsWithCounts,
+            };
+        }
 
         return {
-            errCode: 0,
+            errCode: 200,
             message: 'Get trending song successfully',
-            trendingSongs: sortedTrendingSongs,
+            user: 'guest',
+            trendingSongs: trendingSongsWithCounts,
         };
     } catch (error) {
         return {
-            errCode: 8,
+            errCode: 500,
             message: `Get trending song failed: ${error.message}`,
         };
     }
 };
 
-const getNewReleaseSongsService = async (offset) => {
+const getNewReleaseSongsService = async (offset, user) => {
     try {
         const limit = 10;
         const newReleaseSongs = await db.Song.findAll({
@@ -548,7 +592,7 @@ const getNewReleaseSongsService = async (offset) => {
             raw: true,
         });
 
-        const newReleaseSongs2 = newReleaseSongs.map((song) => {
+        let newReleaseSongs2 = newReleaseSongs.map((song) => {
             const songData = topPlaySongIds.find((s) => s.songId === song.id);
             const songData2 = topLikeSongIds.find((s) => s.songId === song.id);
 
@@ -559,14 +603,38 @@ const getNewReleaseSongsService = async (offset) => {
             };
         });
 
+        if (user) {
+            const likedSongs = await db.Like.findAll({
+                where: {
+                    [Op.and]: [{ songId: { [Op.in]: songIds } }, { userId: user.id }],
+                },
+                attributes: ['songId'],
+                raw: true,
+            });
+
+            const likedSongIds = new Set(likedSongs.map((like) => like.songId));
+
+            newReleaseSongs2 = newReleaseSongs2.map((song) => ({
+                ...song,
+                liked: likedSongIds.has(song.id),
+            }));
+
+            return {
+                errCode: 200,
+                message: 'Get release song successfully',
+                newReleaseSongs: newReleaseSongs2,
+            };
+        }
+
         return {
-            errCode: 0,
+            errCode: 200,
             message: 'Get release song successfully',
+            user: 'guest',
             newReleaseSongs: newReleaseSongs2,
         };
     } catch (error) {
         return {
-            errCode: 8,
+            errCode: 500,
             message: `Get release song failed: ${error.message}`,
         };
     }

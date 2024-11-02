@@ -37,18 +37,18 @@ const getSongRandom = async (req, res) => {
 // ---------------------------THEME MUSIC------------------
 
 const getWeeklyTopSongs = async (req, res) => {
-    const response = await songService.getWeeklyTopSongsService(req.query.offset);
+    const response = await songService.getWeeklyTopSongsService(req.query.offset, req.user);
     return res.status(response.errCode).json(response);
 };
 
 const getTrendingSongs = async (req, res) => {
-    const response = await songService.getTrendingSongsService(req.query.offset);
-    return res.status(statusCodes[response.errCode]).json(response);
+    const response = await songService.getTrendingSongsService(req.query.offset, req.user);
+    return res.status(response.errCode).json(response);
 };
 
 const getNewReleaseSongs = async (req, res) => {
-    const response = await songService.getNewReleaseSongsService(req.query.offset);
-    return res.status(statusCodes[response.errCode]).json(response);
+    const response = await songService.getNewReleaseSongsService(req.query.offset, req.user);
+    return res.status(response.errCode).json(response);
 };
 
 // ---------------------------GENRE------------------
