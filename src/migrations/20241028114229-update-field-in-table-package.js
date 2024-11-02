@@ -17,7 +17,7 @@ module.exports = {
 
         // Xóa kiểu enum cũ
         await queryInterface.sequelize.query(`
-            DROP TYPE enum_SubscriptionPackage_time;
+            DROP TYPE "enum_SubscriptionPackage_time";
         `);
     },
 

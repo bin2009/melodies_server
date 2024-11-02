@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const songController = require('../controllers/songController');
 const authMiddleWare = require('../middleware/authMiddleWare');
+const db = require('../models');
 
 // ---------------------THEME MUSIC------------------
 // kh cần phân quyền: dùng đc cho user và guest
@@ -27,5 +28,14 @@ router.post('/genre/create', songController.createGenre);
 
 // router.get('/album/', songController.getAllAlbum);
 // router.get('/album/popular', songController.getAlbumPopular);
+
+router.get('/data/song/all', async (req, res) => {
+    const data = await db.Genre.findAll({
+        attributes: ['genreId', 'name'],
+    });
+
+    // const data2 = data.map((rec) => rec.id);
+    return res.status(200).json(data);
+});
 
 module.exports = router;
