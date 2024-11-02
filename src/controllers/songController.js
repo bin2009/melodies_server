@@ -12,6 +12,11 @@ const getSong = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+// const getMoreSong = async (req,res) => {
+//     const response = await songService.getMoreSongService(req.params.id);
+//     return res.status(response.errCode).json(response);
+// }
+
 const deleteSong = async (req, res) => {
     const response = await songService.deleteSongService(req.params.id);
     return res.status(response.errCode).json(response);
@@ -70,8 +75,16 @@ const getAlbumPopular = async (req, res) => {
     return res.status(statusCodes[response.errCode]).json(response);
 };
 
+// ---------------------------COMMENT------------------
+
+const getCommentSong = async (req, res) => {
+    const response = await songService.getCommentSongService(req.params.songId);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     getSong,
+    // getMoreSong,
     deleteSong,
     updateSong,
     createSong,
@@ -87,4 +100,6 @@ module.exports = {
     // ---------
     getAllAlbum,
     getAlbumPopular,
+    // ----------
+    getCommentSong,
 };

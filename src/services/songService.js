@@ -127,6 +127,10 @@ const getSongService = async (songId) => {
     }
 };
 
+// const getMoreSongService = async () => {
+
+// }
+
 const deleteSongService = async (songId) => {
     try {
         const song = await db.Song.findOne({ where: { id: songId } });
@@ -784,9 +788,17 @@ const getAllAlbumService = async () => {
 
 const getAlbumPopularService = () => {};
 
+// ---------------------------COMMENT------------------
+
+const getCommentSongService = async (songId) => {
+    try {
+    } catch (error) {}
+};
+
 module.exports = {
     getAllSongService,
     getSongService,
+    // getMoreSongService,
     deleteSongService,
     updateSongService,
     createSongService,
@@ -802,4 +814,5 @@ module.exports = {
     getAllAlbumService,
     getAlbumPopularService,
     // ----------------
+    getCommentSongService,
 };

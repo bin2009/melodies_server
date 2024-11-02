@@ -20,8 +20,9 @@ router.post('/subscription', authMiddleWare.verifyToken, userController.subscrip
 
 // ---------------------------WORKING WITH MUSIC------------------------
 router.post('/actions/playtime', authMiddleWare.verifyToken, userController.playTime);
-router.post('/likedsong', authMiddleWare.verifyToken, userController.likedSong);
-router.post('/followed', authMiddleWare.verifyToken, userController.followedArtist);
+router.post('/actions/likedsong', authMiddleWare.verifyToken, userController.likedSong);
+router.post('/actions/followed', authMiddleWare.verifyToken, userController.followedArtist);
+router.post('/actions/comment', authMiddleWare.verifyToken, userController.comment);
 
 // ---------------------------USER------------------------
 // get

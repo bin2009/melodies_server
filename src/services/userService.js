@@ -157,17 +157,9 @@ const changePasswordService = async (data, user) => {
 
 // ---------------------------WORKING WITH MUSIC------------------------
 
-const playTimeService = async (data) => {
+const playTimeService = async (data, user) => {
     try {
-        const user = await User.findByPk(data.userId);
         const song = await db.Song.findByPk(data.songId);
-
-        if (!user) {
-            return {
-                errCode: 404,
-                message: 'User not found',
-            };
-        }
 
         if (!song) {
             return {
@@ -176,20 +168,17 @@ const playTimeService = async (data) => {
             };
         }
 
-        await sequelize.transaction(async (t) => {
-            await SongPlayHistory.create(
-                {
-                    historyId: uuidv4(),
-                    userId: data.userId,
-                    songId: data.songId,
-                    playtime: data.playtime,
-                },
-                { transaction: t },
-            );
+        const playtime = await db.SongPlayHistory.create({
+            historyId: uuidv4(),
+            userId: user.id,
+            songId: data.songId,
+            playtime: data.playtime,
         });
+
         return {
             errCode: 200,
             message: 'Play time successfully',
+            playtime: playtime,
         };
     } catch (error) {
         return {
@@ -199,14 +188,15 @@ const playTimeService = async (data) => {
     }
 };
 
-const likedSongService = async (data) => {
+const likedSongService = async (data, user) => {
     try {
         const like = await Like.findOne({
             where: {
-                userId: data.userId,
+                userId: user.id,
                 songId: data.songId,
             },
         });
+
         if (like) {
             await Like.destroy({ where: { likeId: like.likeId } });
             return {
@@ -215,8 +205,8 @@ const likedSongService = async (data) => {
             };
         } else {
             await Like.create({
-                likeId: uuidv4(), // Sử dụng UUID mới nếu không có
-                userId: data.userId,
+                likeId: uuidv4(),
+                userId: user.id,
                 songId: data.songId,
             });
             return {
@@ -232,11 +222,11 @@ const likedSongService = async (data) => {
     }
 };
 
-const followedArtistService = async (data) => {
+const followedArtistService = async (data, user) => {
     try {
         const follow = await Follow.findOne({
             where: {
-                userId: data.userId,
+                userId: user.id,
                 artistId: data.artistId,
             },
         });
@@ -249,7 +239,7 @@ const followedArtistService = async (data) => {
         } else {
             await Follow.create({
                 followerId: uuidv4(),
-                userId: data.userId,
+                userId: user.id,
                 artistId: data.artistId,
             });
             return {
@@ -261,6 +251,27 @@ const followedArtistService = async (data) => {
         return {
             errCode: 500,
             message: `Follow artist failed: ${error.message}`,
+        };
+    }
+};
+
+const commentService = async (data, user) => {
+    try {
+        const comment = await db.Comment.create({
+            id: uuidv4(),
+            userId: user.id,
+            songId: data.songId,
+            content: data.content,
+        });
+        return {
+            errCode: 200,
+            message: 'Comment successfully',
+            comment: comment,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Comment failed: ${error.message}`,
         };
     }
 };
@@ -761,9 +772,12 @@ module.exports = {
     deleteUserService,
     updateUserService,
     registerService,
+    // -------------------
     playTimeService,
     likedSongService,
     followedArtistService,
+    commentService,
+    // -------------------
     changePasswordService,
     subscriptionService,
     // -----------------

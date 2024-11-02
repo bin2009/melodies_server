@@ -71,18 +71,23 @@ const changePassword = async (req, res) => {
 
 // ---------------------------WORKING WITH MUSIC------------------------
 const playTime = async (req, res) => {
-    const response = await userService.playTimeService(req.body);
+    const response = await userService.playTimeService(req.body, req.user);
     return res.status(response.errCode).json(response);
 };
 
 const likedSong = async (req, res) => {
-    const response = await userService.likedSongService(req.body);
+    const response = await userService.likedSongService(req.body, req.user);
     return res.status(response.errCode).json(response);
 };
 
 const followedArtist = async (req, res) => {
-    const response = await userService.followedArtistService(req.body);
-    return res.status(statusCodes[response.errCode]).json(response);
+    const response = await userService.followedArtistService(req.body, req.user);
+    return res.status(response.errCode).json(response);
+};
+
+const comment = async (req, res) => {
+    const response = await userService.commentService(req.body, req.user);
+    return res.status(response.errCode).json(response);
 };
 
 // ---------------------------SUBSCRIPTION------------------------
@@ -119,9 +124,12 @@ module.exports = {
     updateUser,
     deleteUser,
     register,
+    // -----------
     playTime,
     likedSong,
     followedArtist,
+    comment,
+    // --------------
     changePassword,
     subscription,
     // ----------

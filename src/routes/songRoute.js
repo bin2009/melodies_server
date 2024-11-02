@@ -17,9 +17,14 @@ router.get('/songs/random', songController.getSongRandom);
 // ---------------------------SONG------------------
 router.get('/songs/', songController.getAllSong);
 router.get('/songs/:id', songController.getSong);
+// router.get('/song/more/:id', songController.getMoreSong);
 router.post('/songs/create', authMiddleWare.verifyTokenAndAdmin, songController.createSong);
 router.delete('/songs/delete/:id', authMiddleWare.verifyTokenAndAdmin, songController.deleteSong);
 router.patch('/songs/update', authMiddleWare.verifyTokenAndAdmin, songController.updateSong);
+
+// ---------------------------COMMENT------------------
+
+router.get('/songs/comment/:songId', songController.getCommentSong);
 
 // ---------------------------GENRE------------------
 
