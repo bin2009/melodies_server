@@ -42,6 +42,9 @@ router.post('/changepass', authMiddleWare.verifyToken, userController.changePass
 router.get('/playlist/:userId', userController.getPlaylist);
 router.get('/playlist/detail/:playlistId', userController.getPlaylistDetail);
 router.post('/playlist/create', authMiddleWare.verifyToken, userController.createPlaylist);
+router.post('/playlist/addSong', authMiddleWare.verifyToken, userController.addSongPlaylist);
+router.patch('/playlist/update', authMiddleWare.verifyToken, userController.updatePlaylist);
+router.delete('/playlist/deleteSong', authMiddleWare.verifyToken, userController.deleteSong);
 
 // ---------------------------HOME------------------------
 router.get('/home', (req, res) => {

@@ -123,6 +123,21 @@ const createPlaylist = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+const addSongPlaylist = async (req, res) => {
+    const response = await userService.addSongPlaylistService(req.body, req.user);
+    return res.status(response.errCode).json(response);
+};
+
+const updatePlaylist = async (req, res) => {
+    const response = await userService.updatePlaylistService(req.body, req.user);
+    return res.status(response.errCode).json(response);
+};
+
+const deleteSong = async (req, res) => {
+    const response = await userService.deleteSongService(req.body, req.user);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     getAllUser,
     getUser,
@@ -143,4 +158,7 @@ module.exports = {
     getPlaylist,
     getPlaylistDetail,
     createPlaylist,
+    addSongPlaylist,
+    updatePlaylist,
+    deleteSong,
 };

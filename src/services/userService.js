@@ -706,7 +706,7 @@ const getPlaylistDetailService = async (playlistId) => {
             };
         }
 
-        let songIds = await db.PlaylistSong.findAll({
+        const songIds = await db.PlaylistSong.findAll({
             where: {
                 playlistId: playlistId,
             },
@@ -715,69 +715,61 @@ const getPlaylistDetailService = async (playlistId) => {
             raw: true,
         });
 
-        songIds = songIds.map((rec) => ({
-            songId: rec.songId,
-            date: rec.createdAt,
-        }));
-
-        var songsOfPlaylist = [];
-        var totalTime = 0;
-
-        for (let songId of songIds) {
-            const song = await db.Song.findOne({
-                where: {
-                    id: songId.songId,
+        const songs = await db.Song.findAll({
+            where: {
+                id: {
+                    [Op.in]: songIds.map((s) => s.songId),
                 },
-                attributes: {
-                    exclude: ['createdAt', 'updatedAt'],
-                },
-                include: [
-                    {
-                        model: db.Album,
-                        as: 'album',
-                        attributes: ['albumId', 'title', 'releaseDate'],
-                        include: [
-                            {
-                                model: db.AlbumImage,
-                                as: 'albumImages',
-                                attributes: ['image', 'size'],
-                            },
-                        ],
-                    },
-                    {
-                        model: db.Artist,
-                        as: 'artists',
-                        attributes: ['id', 'name'],
-                        through: {
-                            attributes: ['main'],
+            },
+            attributes: ['id', 'title', 'releaseDate', 'duration', 'lyric', 'filePathAudio'],
+            include: [
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title', 'releaseDate'],
+                    include: [
+                        {
+                            model: db.AlbumImage,
+                            as: 'albumImages',
+                            attributes: ['image', 'size'],
                         },
+                    ],
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: ['main'],
                     },
-                ],
-            });
+                },
+            ],
+        });
 
-            totalTime = totalTime + parseInt(song.duration);
-
-            songsOfPlaylist.push({
+        let totalTime = 0;
+        const songInfo = songIds.map((rec) => {
+            const song = songs.find((s) => s.id === rec.songId);
+            totalTime = totalTime + song.duration;
+            return {
                 ...song.toJSON(),
-                dateAdded: songId.date,
-            });
-        }
+                dateAdded: rec.date,
+            };
+        });
 
-        const data = {
+        const result = {
             playlistId: playlist.id,
-            name: playlist.title === 'Null' ? songsOfPlaylist[0].title : playlist.title,
-            image: songsOfPlaylist[0].album.albumImages,
-            description: playlist.description,
-            privacy: playlist.privacy,
+            name: playlist.title === 'Null' ? songInfo[0].title : playlist.title,
+            image: songInfo[0].album.albumImages,
+            description: playlist.description || null,
             totalTime: totalTime,
             totalSong: songIds.length,
-            songsOfPlaylist: songsOfPlaylist,
+            songsOfPlaylist: songInfo,
         };
 
         return {
             errCode: 200,
             message: 'Get playlist detail successfully',
-            playlist: data,
+            playlist: result,
         };
     } catch (error) {
         return {
@@ -840,6 +832,157 @@ const createPlaylistService = async (data, user) => {
     }
 };
 
+const addSongPlaylistService = async (data, user) => {
+    try {
+        const playlist = await db.Playlist.findByPk(data.playlistId);
+        if (!playlist) {
+            return {
+                errCode: 404,
+                message: 'Playlist not found',
+            };
+        }
+        const song = await db.Song.findByPk(data.songId);
+        if (!song) {
+            return {
+                errCode: 404,
+                message: 'Song not found',
+            };
+        }
+        const songPlaylist = await db.PlaylistSong.findOne({
+            where: {
+                playlistId: playlist.id,
+                songId: song.id,
+            },
+        });
+        if (songPlaylist) {
+            return {
+                errCode: 409,
+                message: 'The song is already in the playlist.',
+            };
+        }
+        const checkUserPlaylist = await db.UserPlaylist.findOne({
+            where: {
+                userId: user.id,
+                playlistId: playlist.id,
+            },
+        });
+        if (!checkUserPlaylist) {
+            return {
+                errCode: 403,
+                message: 'You do not have permission to perform this action',
+            };
+        }
+        await db.PlaylistSong.create({
+            playlistSongId: uuidv4(),
+            playlistId: data.playlistId,
+            songId: data.songId,
+        });
+
+        return {
+            errCode: 200,
+            message: 'Add song playlist success',
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Add song playlist failed: ${error}`,
+        };
+    }
+};
+
+const updatePlaylistService = async (data, user) => {
+    try {
+        const playlist = await db.Playlist.findByPk(data.playlistId);
+        if (!playlist) {
+            return {
+                errCode: 404,
+                message: 'Playlist not found',
+            };
+        }
+        const checkUserPlaylist = await db.UserPlaylist.findOne({
+            where: {
+                userId: user.id,
+                playlistId: playlist.id,
+            },
+        });
+        if (!checkUserPlaylist) {
+            return {
+                errCode: 403,
+                message: 'You do not have permission to perform this action',
+            };
+        }
+
+        await db.Playlist.update(data.data, { where: { id: data.playlistId } });
+
+        return {
+            errCode: 200,
+            message: 'Update playlist success',
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Update playlist failed: ${error}`,
+        };
+    }
+};
+
+const deleteSongService = async (data, user) => {
+    try {
+        const playlist = await db.Playlist.findByPk(data.playlistId);
+        if (!playlist) {
+            return {
+                errCode: 404,
+                message: 'Playlist not found',
+            };
+        }
+        const song = await db.Song.findByPk(data.songId);
+        if (!song) {
+            return {
+                errCode: 404,
+                message: 'Song not found',
+            };
+        }
+        const songPlaylist = await db.PlaylistSong.findOne({
+            where: {
+                playlistId: playlist.id,
+                songId: song.id,
+            },
+        });
+        if (songPlaylist) {
+            return {
+                errCode: 409,
+                message: 'The song is already in the playlist.',
+            };
+        }
+        const checkUserPlaylist = await db.UserPlaylist.findOne({
+            where: {
+                userId: user.id,
+                playlistId: playlist.id,
+            },
+        });
+        if (!checkUserPlaylist) {
+            return {
+                errCode: 403,
+                message: 'You do not have permission to perform this action',
+            };
+        }
+
+        await db.PlaylistSong.destroy({
+            where: { playlistId: playlist.id, songId: song.id },
+        });
+
+        return {
+            errCode: 200,
+            message: 'Delete song success',
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Delete song failed: ${error}`,
+        };
+    }
+};
+
 module.exports = {
     getUsersService,
     getUserService,
@@ -860,4 +1003,7 @@ module.exports = {
     getPlaylistService,
     getPlaylistDetailService,
     createPlaylistService,
+    addSongPlaylistService,
+    updatePlaylistService,
+    deleteSongService,
 };

@@ -34,7 +34,6 @@ router.patch('/songs/comment/update', authMiddleWare.verifyToken, songController
 // ---------------------------GENRE------------------
 
 router.post('/genre/create', songController.createGenre);
-
 // router.get('/album/', songController.getAllAlbum);
 // router.get('/album/popular', songController.getAlbumPopular);
 
