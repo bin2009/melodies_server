@@ -118,6 +118,11 @@ const getPlaylistDetail = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+const createPlaylist = async (req, res) => {
+    const response = await userService.createPlaylistService(req.body, req.user);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     getAllUser,
     getUser,
@@ -137,4 +142,5 @@ module.exports = {
     // ---------
     getPlaylist,
     getPlaylistDetail,
+    createPlaylist,
 };

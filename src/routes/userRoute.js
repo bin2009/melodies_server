@@ -41,6 +41,7 @@ router.post('/changepass', authMiddleWare.verifyToken, userController.changePass
 
 router.get('/playlist/:userId', userController.getPlaylist);
 router.get('/playlist/detail/:playlistId', userController.getPlaylistDetail);
+router.post('/playlist/create', authMiddleWare.verifyToken, userController.createPlaylist);
 
 // ---------------------------HOME------------------------
 router.get('/home', (req, res) => {

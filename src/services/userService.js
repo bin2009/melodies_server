@@ -262,6 +262,7 @@ const commentService = async (data, user) => {
             userId: user.id,
             songId: data.songId,
             content: data.content,
+            commentParentId: data.commentParentId || null,
         });
         return {
             errCode: 200,
@@ -392,7 +393,6 @@ const serachService = async (query) => {
             });
 
             const topSongIds = topSong.map((rec) => rec.songId);
-            console.log(topSongIds);
 
             const topSongDetail = await db.Song.findAll({
                 where: {
@@ -451,6 +451,13 @@ const serachService = async (query) => {
                     ),
                 ),
             },
+            include: [
+                {
+                    model: db.AlbumImage,
+                    as: 'albumImages',
+                    attributes: ['image', 'size'],
+                },
+            ],
         });
 
         if (albums.length > 0) {
@@ -511,7 +518,7 @@ const serachService = async (query) => {
             var genreSearch = [];
 
             for (let i in genres) {
-                console.log(i, genres[i]);
+                // console.log(i, genres[i]);
                 let genreName = genres[i].name;
                 // lay ra cac nghe si the loai do
 
@@ -548,7 +555,7 @@ const serachService = async (query) => {
             where: {
                 [Op.or]: keywords.map((keyword) =>
                     db.Sequelize.where(
-                        db.Sequelize.fn('lower', db.Sequelize.fn('unaccent', db.Sequelize.col('title'))),
+                        db.Sequelize.fn('lower', db.Sequelize.fn('unaccent', db.Sequelize.col('Song.title'))),
                         { [Op.like]: `%${keyword}%` },
                     ),
                 ),
@@ -562,18 +569,32 @@ const serachService = async (query) => {
                         attributes: ['main'],
                     },
                 },
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title', 'releaseDate', 'albumType'],
+                    include: [{ model: db.AlbumImage, as: 'albumImages', attributes: ['image', 'size'] }],
+                },
             ],
+            attributes: ['id', 'title', 'duration', 'lyric', 'filePathAudio', 'releaseDate'],
             // raw: true,
         });
 
+        let topResult;
+        if (topSongDetailByArtist && topSongDetailByArtist.songs?.length > 0) {
+            topResult = topSongDetailByArtist;
+        } else {
+            topResult = {};
+        }
         return {
             errCode: 200,
-            query: query,
-            topResult: topSongDetailByArtist,
+            text: query,
+            // topResult: topSongDetailByArtist && topSongDetailByArtist.songs ? topSongDetailByArtist : {},
+            topResult: topResult,
             artists: artists,
-            albums: albumSearch,
-            genres: genreSearch,
-            songs: songSearch,
+            albums: albumSearch || [],
+            genres: genreSearch || [],
+            songs: songSearch || [],
         };
     } catch (error) {
         return {
@@ -766,6 +787,59 @@ const getPlaylistDetailService = async (playlistId) => {
     }
 };
 
+const createPlaylistService = async (data, user) => {
+    try {
+        const playlist = await db.Playlist.findOne({ where: { title: data.title } });
+        if (playlist) {
+            return {
+                errCode: 409,
+                message: 'Playlist exits',
+            };
+        }
+
+        const song = await db.Song.findByPk(data.songId);
+        if (!song) {
+            return {
+                errCode: 404,
+                message: 'Song not found',
+            };
+        }
+
+        const newPlaylist = await db.Playlist.create({
+            id: uuidv4(),
+            title: data.title,
+            description: data.description || null,
+            playlistImage: data.playlistImage || null,
+            privacy: false,
+        });
+
+        await db.UserPlaylist.create({
+            id: uuidv4(),
+            userId: user.id,
+            playlistId: newPlaylist.id,
+        });
+
+        if (data.songId) {
+            await db.PlaylistSong.create({
+                playlistSongId: uuidv4(),
+                playlistId: newPlaylist.id,
+                songId: data.songId,
+            });
+        }
+
+        return {
+            errCode: 200,
+            message: 'Create playlist success',
+            newPlaylist: newPlaylist,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Create playlist failed: ${error}`,
+        };
+    }
+};
+
 module.exports = {
     getUsersService,
     getUserService,
@@ -785,4 +859,5 @@ module.exports = {
     // ----------------
     getPlaylistService,
     getPlaylistDetailService,
+    createPlaylistService,
 };

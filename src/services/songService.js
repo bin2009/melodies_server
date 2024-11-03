@@ -3,7 +3,7 @@ const { Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 
 // ---------------------------SONG------------------
-const getAllSongService = async (offset) => {
+const getAllSongService = async (offset, user) => {
     try {
         const songs = await db.Song.findAll({
             attributes: {
@@ -25,43 +25,67 @@ const getAllSongService = async (offset) => {
                     },
                 },
             ],
-            // group: ['id'],
             order: [['createdAt', 'DESC']],
             limit: 10,
             offset: 10 * offset,
         });
 
-        const songIds = songs.map((record) => record.id);
-
         const playCounts = await db.SongPlayHistory.findAll({
             attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('historyId')), 'playCount']],
             where: {
                 songId: {
-                    [Op.in]: songIds,
+                    [Op.in]: songs.map((record) => record.id),
                 },
             },
             group: ['songId'],
             raw: true,
         });
 
-        console.log('playCount', playCounts);
-
-        const playCountMap = playCounts.reduce((acc, record) => {
-            acc[record.songId] = record.playCount;
-            return acc;
+        const playCountMap = playCounts.reduce((map, record) => {
+            map[record.songId] = record.playCount;
+            return map;
         }, {});
 
-        console.log('playCountMap', playCountMap);
+        const likeCounts = await db.Like.findAll({
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('likeId')), 'likeCount']],
+            where: {
+                songId: {
+                    [Op.in]: songs.map((record) => record.id),
+                },
+            },
+            group: ['songId'],
+            raw: true,
+        });
 
-        const songsWithPlayCount = songs.map((song) => ({
+        const likeCountsMap = likeCounts.reduce((map, item) => {
+            map[item.songId] = item.likeCount;
+            return map;
+        }, {});
+
+        let likedSongIds = [];
+        if (user) {
+            const likedSongs = await db.Like.findAll({
+                where: {
+                    [Op.and]: [{ songId: { [Op.in]: songs.map((s) => s.id) } }, { userId: user.id }],
+                },
+                attributes: ['songId'],
+                raw: true,
+            });
+
+            likedSongIds = likedSongs.map((ls) => ls.songId);
+        }
+
+        const allSongs = songs.map((song) => ({
             ...song.toJSON(),
             playCount: playCountMap[song.id] || 0,
+            likeCount: likeCountsMap[song.id] || 0,
+            liked: user && likedSongIds.includes(song.id),
         }));
 
         return {
             errCode: 200,
             message: 'Get all songs successfully',
-            songs: songsWithPlayCount,
+            songs: allSongs,
         };
     } catch (error) {
         return {
@@ -71,7 +95,7 @@ const getAllSongService = async (offset) => {
     }
 };
 
-const getSongService = async (songId) => {
+const getSongService = async (songId, user) => {
     try {
         const song = await db.Song.findOne({
             where: { id: songId },
@@ -103,21 +127,46 @@ const getSongService = async (songId) => {
             };
         }
 
-        const playCount = await db.SongPlayHistory.findAll({
+        const playCount = await db.SongPlayHistory.findOne({
             where: { songId: song.id },
             attributes: [[db.Sequelize.fn('COUNT', db.Sequelize.col('historyId')), 'playCount']],
             raw: true,
         });
 
-        const songsWithPlayCount = {
+        const likeCount = await db.Like.findOne({
+            where: {
+                songId: songId,
+            },
+            attributes: [[db.Sequelize.fn('COUNT', db.Sequelize.col('likeId')), 'likeCount']],
+            raw: true,
+        });
+
+        let likedSongIds = [];
+        if (user) {
+            const likedSongs = await db.Like.findOne({
+                where: {
+                    [Op.and]: [{ songId: songId }, { userId: user.id }],
+                },
+                attributes: ['songId'],
+                raw: true,
+            });
+
+            if (likedSongs) {
+                likedSongIds.push(likedSongs.songId);
+            }
+        }
+
+        const songData = {
             ...song.toJSON(),
-            playCount: playCount[0].playCount || 0,
+            playCount: playCount.playCount || 0,
+            likeCount: likeCount.likeCount || 0,
+            liked: user && likedSongIds.includes(songId),
         };
 
         return {
             errCode: 200,
             message: 'Get song successfully',
-            song: songsWithPlayCount,
+            song: songData,
         };
     } catch (error) {
         return {
@@ -127,9 +176,365 @@ const getSongService = async (songId) => {
     }
 };
 
-// const getMoreSongService = async () => {
+const getOtherSongByArtistService = async (artistId, offset, user) => {
+    try {
+        const songIds = await db.ArtistSong.findAll({
+            where: {
+                artistId: artistId,
+                main: true,
+            },
+            attributes: ['songId', 'createdAt'],
+            order: [['createdAt', 'DESC']],
+            limit: 10,
+            offset: 10 * offset,
+            raw: true,
+        });
 
-// }
+        // nhac , artist, ảnh, album, view, like
+
+        const songInfo = await db.Song.findAll({
+            where: {
+                id: {
+                    [Op.in]: songIds.map((s) => s.songId),
+                },
+            },
+            attributes: ['id', 'title', 'duration', 'lyric', 'filePathAudio', 'releaseDate'],
+            include: [
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title', 'releaseDate', 'albumType'],
+                    include: [
+                        {
+                            model: db.AlbumImage,
+                            as: 'albumImages',
+                            attributes: ['image', 'size'],
+                        },
+                    ],
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: ['main'],
+                    },
+                },
+            ],
+        });
+
+        const viewCount = await db.SongPlayHistory.findAll({
+            where: {
+                songId: {
+                    [Op.in]: songIds.map((s) => s.songId),
+                },
+            },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('historyId')), 'viewCount']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        const viewCountMap = viewCount.reduce((map, item) => {
+            map[item.songId] = item.viewCount;
+            return map;
+        }, {});
+
+        const likeCount = await db.Like.findAll({
+            where: {
+                songId: {
+                    [Op.in]: songIds.map((s) => s.songId),
+                },
+            },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('likeId')), 'likeCount']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        const likeCountMap = likeCount.reduce((map, item) => {
+            map[item.songId] = item.likeCount;
+            return map;
+        }, {});
+
+        let likedSongIds = [];
+        if (user) {
+            const likedSongs = await db.Like.findAll({
+                where: {
+                    [Op.and]: [{ songId: { [Op.in]: songIds.map((s) => s.songId) } }, { userId: user.id }],
+                },
+                attributes: ['songId'],
+                raw: true,
+            });
+
+            likedSongIds = likedSongs.map((ls) => ls.songId);
+        }
+
+        const songOther = songIds.map((s) => {
+            const song = songInfo.find((f) => f.id === s.songId);
+            return {
+                ...song.toJSON(),
+                viewCount: viewCountMap[s.songId] || 0,
+                likeCount: likeCountMap[s.songId] || 0,
+                liked: user && likedSongIds.includes(s.songId),
+            };
+        });
+
+        return {
+            errCode: 200,
+            message: 'Get other song by artist success',
+            user: user ? 'user' : 'guest',
+            songs: songOther,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Get other song by artist failed ${error.message}`,
+        };
+    }
+};
+
+const getSongOtherArtistService = async (artistId, offset, user) => {
+    try {
+        const songIds = await db.ArtistSong.findAll({
+            where: {
+                artistId: artistId,
+                main: false,
+            },
+            attributes: ['songId'],
+            raw: true,
+        });
+
+        const songInfo = await db.Song.findAll({
+            where: {
+                id: {
+                    [Op.in]: songIds.map((s) => s.songId),
+                },
+            },
+            attributes: ['id', 'title', 'duration', 'lyric', 'filePathAudio', 'releaseDate'],
+            include: [
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title', 'releaseDate', 'albumType'],
+                    include: [
+                        {
+                            model: db.AlbumImage,
+                            as: 'albumImages',
+                            attributes: ['image', 'size'],
+                        },
+                    ],
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: ['main'],
+                    },
+                },
+            ],
+        });
+
+        const viewCount = await db.SongPlayHistory.findAll({
+            where: {
+                songId: {
+                    [Op.in]: songIds.map((s) => s.songId),
+                },
+            },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('historyId')), 'viewCount']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        const viewCountMap = viewCount.reduce((map, item) => {
+            map[item.songId] = item.viewCount;
+            return map;
+        }, {});
+
+        const likeCount = await db.Like.findAll({
+            where: {
+                songId: {
+                    [Op.in]: songIds.map((s) => s.songId),
+                },
+            },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('likeId')), 'likeCount']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        const likeCountMap = likeCount.reduce((map, item) => {
+            map[item.songId] = item.likeCount;
+            return map;
+        }, {});
+
+        let likedSongIds = [];
+        if (user) {
+            const likedSongs = await db.Like.findAll({
+                where: {
+                    [Op.and]: [{ songId: { [Op.in]: songIds.map((s) => s.songId) } }, { userId: user.id }],
+                },
+                attributes: ['songId'],
+                raw: true,
+            });
+
+            likedSongIds = likedSongs.map((ls) => ls.songId);
+        }
+
+        const songOther = songIds.map((s) => {
+            const song = songInfo.find((f) => f.id === s.songId);
+            return {
+                ...song.toJSON(),
+                viewCount: viewCountMap[s.songId] || 0,
+                likeCount: likeCountMap[s.songId] || 0,
+                liked: user && likedSongIds.includes(s.songId),
+            };
+        });
+
+        return {
+            errCode: 200,
+            message: 'Get song other artist success',
+            user: user ? 'user' : 'guest',
+            songs: songOther,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Get song other artist failed ${error.message}`,
+        };
+    }
+};
+
+const getSongSameGenreService = async (artistId, offset, user) => {
+    try {
+        const genreIds = await db.ArtistGenre.findAll({
+            where: {
+                artistId: artistId,
+            },
+            attributes: ['genreId'],
+            raw: true,
+        });
+
+        const artistIds = await db.ArtistGenre.findAll({
+            where: {
+                [Op.and]: [
+                    { artistId: { [Op.not]: artistId } },
+                    { genreId: { [Op.in]: genreIds.map((g) => g.genreId) } },
+                ],
+            },
+            attributes: ['artistId'],
+            raw: true,
+        });
+
+        const songIds = await db.ArtistSong.findAll({
+            where: {
+                artistId: { [Op.in]: artistIds.map((a) => a.artistId) },
+            },
+            attributes: ['songId'],
+            raw: true,
+        });
+
+        const songs = await db.Song.findAll({
+            where: {
+                id: { [Op.in]: songIds.map((s) => s.songId) },
+            },
+            attributes: ['id', 'title', 'duration', 'lyric', 'filePathAudio', 'releaseDate'],
+            include: [
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title', 'releaseDate', 'albumType'],
+                    include: [
+                        {
+                            model: db.AlbumImage,
+                            as: 'albumImages',
+                            attributes: ['image', 'size'],
+                        },
+                    ],
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: ['main'],
+                    },
+                    include: [
+                        { model: db.Genre, as: 'genres', attributes: ['genreId', 'name'], through: { attributes: [] } },
+                    ],
+                },
+            ],
+            order: [['releaseDate', 'DESC']],
+            limit: 10,
+            offset: 10 * offset,
+        });
+
+        const viewCount = await db.SongPlayHistory.findAll({
+            where: {
+                songId: {
+                    [Op.in]: songs.map((s) => s.id),
+                },
+            },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('historyId')), 'viewCount']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        const viewCountMap = viewCount.reduce((map, item) => {
+            map[item.songId] = item.viewCount;
+            return map;
+        }, {});
+
+        const likeCount = await db.Like.findAll({
+            where: {
+                songId: {
+                    [Op.in]: songs.map((s) => s.id),
+                },
+            },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('likeId')), 'likeCount']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        const likeCountMap = likeCount.reduce((map, item) => {
+            map[item.songId] = item.likeCount;
+            return map;
+        }, {});
+
+        let likedSongIds = [];
+        if (user) {
+            const likedSongs = await db.Like.findAll({
+                where: {
+                    [Op.and]: [{ songId: { [Op.in]: songs.map((s) => s.id) } }, { userId: user.id }],
+                },
+                attributes: ['songId'],
+                raw: true,
+            });
+
+            likedSongIds = likedSongs.map((ls) => ls.songId);
+        }
+
+        const songOther = songs.map((s) => {
+            return {
+                ...s.toJSON(),
+                genre: s.toJSON().artists.flatMap((artist) => artist.genres) || [],
+                viewCount: viewCountMap[s.id] || 0,
+                likeCount: likeCountMap[s.id] || 0,
+                liked: user && likedSongIds.includes(s.id),
+            };
+        });
+
+        return {
+            errCode: 200,
+            message: 'Get song same genre success',
+            user: user ? 'user' : 'guest',
+            songs: songOther,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Get song same genre failed ${error.message}`,
+        };
+    }
+};
 
 const deleteSongService = async (songId) => {
     try {
@@ -790,7 +1195,129 @@ const getAlbumPopularService = () => {};
 
 // ---------------------------COMMENT------------------
 
-const getCommentSongService = async (songId) => {
+const getCommentSongService = async (songId, offset, user) => {
+    try {
+        const song = await db.Song.findByPk(songId);
+        if (!song) {
+            return {
+                errCode: 404,
+                message: 'Song not found',
+            };
+        }
+        const comments = await db.Comment.findAll({
+            where: {
+                [Op.and]: [{ songId: songId }, { commentParentId: null }],
+            },
+            include: [
+                {
+                    model: db.User,
+                    as: 'user',
+                    attributes: ['id', 'username', 'image', 'accountType'],
+                },
+            ],
+            attributes: ['id', 'commentParentId', 'userId', 'content', 'createdAt'],
+            order: [['createdAt', 'DESC']],
+            limit: 10,
+            offset: 10 * offset,
+        });
+
+        // kiểm tra xem comment chính có comment con bên trong không ?????
+        const checkCommentChild = await db.Comment.findAll({
+            where: {
+                commentParentId: {
+                    [Op.in]: comments.map((rec) => rec.id),
+                },
+            },
+            attributes: ['commentParentId', [db.Sequelize.fn('COUNT', db.Sequelize.col('id')), 'totalComment']],
+            group: ['Comment.commentParentId'],
+            raw: true,
+        });
+
+        const checkCommentChildMap = checkCommentChild.reduce((map, item) => {
+            map[item.commentParentId] = item.totalComment;
+            return map;
+        }, {});
+
+        const checkHasChild = comments.map((rec) => {
+            return {
+                ...rec.toJSON(),
+                hasChild: checkCommentChildMap[rec.id] || 0,
+                myComment: user && rec.userId === user.id,
+            };
+        });
+
+        return {
+            errCode: 200,
+            message: 'Get comment success',
+            user: user ? 'user' : 'guest',
+            comments: checkHasChild,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            errMess: `Get comment failed: ${error}`,
+        };
+    }
+};
+
+const getCommentChildService = async (parentId, offset, user) => {
+    try {
+        const comments = await db.Comment.findAll({
+            where: {
+                commentParentId: parentId,
+            },
+            attributes: ['id', 'commentParentId', 'userId', 'content', 'createdAt'],
+            include: [
+                {
+                    model: db.User,
+                    as: 'user',
+                    attributes: ['id', 'username', 'image', 'accountType'],
+                },
+            ],
+            order: [['createdAt', 'DESC']],
+            limit: 10,
+            offset: 10 * offset,
+        });
+
+        const checkCommentChild = await db.Comment.findAll({
+            where: {
+                commentParentId: {
+                    [Op.in]: comments.map((rec) => rec.id),
+                },
+            },
+            attributes: ['commentParentId', [db.Sequelize.fn('COUNT', db.Sequelize.col('id')), 'totalComment']],
+            group: ['Comment.commentParentId'],
+            raw: true,
+        });
+
+        const checkCommentChildMap = checkCommentChild.reduce((map, item) => {
+            map[item.commentParentId] = item.totalComment;
+            return map;
+        }, {});
+
+        const checkHasChild = comments.map((rec) => {
+            return {
+                ...rec.toJSON(),
+                hasChild: checkCommentChildMap[rec.id] || 0,
+                myComment: user && rec.userId === user.id,
+            };
+        });
+
+        return {
+            errCode: 200,
+            message: 'Get comment success',
+            user: user ? 'user' : 'guest',
+            comments: checkHasChild,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            errMess: `Get comment child failed: ${error}`,
+        };
+    }
+};
+
+const updateCommentService = async (data, user) => {
     try {
     } catch (error) {}
 };
@@ -798,6 +1325,9 @@ const getCommentSongService = async (songId) => {
 module.exports = {
     getAllSongService,
     getSongService,
+    getOtherSongByArtistService,
+    getSongOtherArtistService,
+    getSongSameGenreService,
     // getMoreSongService,
     deleteSongService,
     updateSongService,
@@ -815,4 +1345,6 @@ module.exports = {
     getAlbumPopularService,
     // ----------------
     getCommentSongService,
+    getCommentChildService,
+    updateCommentService,
 };

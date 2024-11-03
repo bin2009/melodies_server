@@ -3,12 +3,12 @@ const statusCodes = require('../utils/statusCodes');
 
 // ---------------------------SONG------------------
 const getAllSong = async (req, res) => {
-    const response = await songService.getAllSongService(req.query.offset);
+    const response = await songService.getAllSongService(req.query.offset, req.user);
     return res.status(response.errCode).json(response);
 };
 
 const getSong = async (req, res) => {
-    const response = await songService.getSongService(req.params.id);
+    const response = await songService.getSongService(req.params.id, req.user);
     return res.status(response.errCode).json(response);
 };
 
@@ -78,17 +78,45 @@ const getAlbumPopular = async (req, res) => {
 // ---------------------------COMMENT------------------
 
 const getCommentSong = async (req, res) => {
-    const response = await songService.getCommentSongService(req.params.songId);
+    const response = await songService.getCommentSongService(req.params.songId, req.query.offset, req.user);
+    return res.status(response.errCode).json(response);
+};
+
+const getCommentChild = async (req, res) => {
+    const response = await songService.getCommentChildService(req.params.parentId, req.query.offset, req.user);
+    return res.status(response.errCode).json(response);
+};
+
+const updateComment = async (req, res) => {
+    const response = await songService.updateCommentService(req.body, req.user);
+    return res.status(response.errCode).json(response);
+};
+
+const getOtherSongByArtist = async (req, res) => {
+    const response = await songService.getOtherSongByArtistService(req.params.artistId, req.query.offset, req.user);
+    return res.status(response.errCode).json(response);
+};
+
+const getSongOtherArtist = async (req, res) => {
+    const response = await songService.getSongOtherArtistService(req.params.artistId, req.query.offset, req.user);
+    return res.status(response.errCode).json(response);
+};
+
+const getSongSameGenre = async (req, res) => {
+    const response = await songService.getSongSameGenreService(req.params.artistId, req.query.offset, req.user);
     return res.status(response.errCode).json(response);
 };
 
 module.exports = {
+    getAllSong,
     getSong,
+    getOtherSongByArtist,
+    getSongOtherArtist,
+    getSongSameGenre,
     // getMoreSong,
     deleteSong,
     updateSong,
     createSong,
-    getAllSong,
     // -----------
     getSongRandom,
     // ------------
@@ -102,4 +130,6 @@ module.exports = {
     getAlbumPopular,
     // ----------
     getCommentSong,
+    getCommentChild,
+    updateComment,
 };

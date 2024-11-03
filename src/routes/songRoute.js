@@ -15,8 +15,11 @@ router.get('/songs/newRaleaseSong', authMiddleWare.optionalVerifyToken, songCont
 router.get('/songs/random', songController.getSongRandom);
 
 // ---------------------------SONG------------------
-router.get('/songs/', songController.getAllSong);
-router.get('/songs/:id', songController.getSong);
+router.get('/songs/', authMiddleWare.optionalVerifyToken, songController.getAllSong);
+router.get('/songs/:id', authMiddleWare.optionalVerifyToken, songController.getSong);
+router.get('/songs/otherByArtist/:artistId', authMiddleWare.optionalVerifyToken, songController.getOtherSongByArtist);
+router.get('/songs/songOtherArtist/:artistId', authMiddleWare.optionalVerifyToken, songController.getSongOtherArtist);
+router.get('/songs/songSameGenre/:artistId', authMiddleWare.optionalVerifyToken, songController.getSongSameGenre);
 // router.get('/song/more/:id', songController.getMoreSong);
 router.post('/songs/create', authMiddleWare.verifyTokenAndAdmin, songController.createSong);
 router.delete('/songs/delete/:id', authMiddleWare.verifyTokenAndAdmin, songController.deleteSong);
@@ -24,7 +27,9 @@ router.patch('/songs/update', authMiddleWare.verifyTokenAndAdmin, songController
 
 // ---------------------------COMMENT------------------
 
-router.get('/songs/comment/:songId', songController.getCommentSong);
+router.get('/songs/comment/:songId', authMiddleWare.optionalVerifyToken, songController.getCommentSong);
+router.get('/songs/comment/replies/:parentId', authMiddleWare.optionalVerifyToken, songController.getCommentChild);
+router.patch('/songs/comment/update', authMiddleWare.verifyToken, songController.updateComment);
 
 // ---------------------------GENRE------------------
 
