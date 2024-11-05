@@ -102,7 +102,7 @@ const search = async (req, res) => {
 // ---------------------------PLAYLIST------------------------
 
 const getPlaylist = async (req, res) => {
-    const response = await userService.getPlaylistService(req.params.userId);
+    const response = await userService.getPlaylistService(req.query.page, req.user);
     return res.status(response.errCode).json(response);
 };
 

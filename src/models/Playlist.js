@@ -19,12 +19,6 @@ module.exports = (sequelize, DataTypes) => {
                 foreignKey: 'playlistId',
                 otherKey: 'songId',
             });
-            Playlist.belongsToMany(models.User, {
-                through: 'UserPlaylist',
-                as: 'playlists',
-                foreignKey: 'playlistId',
-                otherKey: 'userId',
-            });
             Playlist.hasMany(models.PlaylistSong, {
                 foreignKey: 'playlistId',
                 as: 'playlistSongs',
@@ -38,14 +32,14 @@ module.exports = (sequelize, DataTypes) => {
                 primaryKey: true,
                 defaultValue: DataTypes.UUIDV4,
             },
-            // userId: {
-            //     type: DataTypes.UUID,
-            //     references: {
-            //         model: 'User',
-            //         key: 'id',
-            //     },
-            //     allowNull: false,
-            // },
+            userId: {
+                type: DataTypes.UUID,
+                references: {
+                    model: 'User',
+                    key: 'id',
+                },
+                allowNull: false,
+            },
             title: {
                 type: DataTypes.STRING,
                 allowNull: false,

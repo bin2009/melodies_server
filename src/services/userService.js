@@ -607,86 +607,89 @@ const serachService = async (query) => {
 
 // ---------------------------PLAYLIST------------------------
 
-const getPlaylistService = async (userId) => {
+const getPlaylistService = async (page, user) => {
     try {
-        const playlists = await db.UserPlaylist.findAll({
-            where: {
-                userId: userId,
-            },
-        });
+        const limit = 5;
+        const start = (page - 1) * limit;
+        const end = start + limit;
 
-        const playlistIds = playlists.map((rec) => rec.playlistId);
-
-        const playlistByUser = await db.Playlist.findAll({
-            where: {
-                id: {
-                    [Op.in]: playlistIds,
-                },
-            },
-            include: [
-                {
-                    model: db.PlaylistSong,
-                    as: 'playlistSongs',
-                    attributes: [],
-                },
-            ],
+        const allPlaylist = await db.Playlist.findAll({
+            where: { userId: user.id },
             attributes: {
-                include: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playlistSongs.playlistSongId')), 'songCount']],
+                include: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playlistSongs.playlistSongId')), 'totalSong']],
             },
-            group: ['Playlist.id'],
+            include: [{ model: db.PlaylistSong, as: 'playlistSongs', attributes: [] }],
+            group: ['id'],
+            order: [['createdAt', 'DESC']],
+            raw: true,
         });
 
-        // xử lý tên và ảnh của playlist
-        // id playlist -> tìm song mới nhất
-        var playlistDetailByUser = [];
+        const totalPlaylist = allPlaylist.length;
+        const totalPage = Math.ceil(totalPlaylist / limit);
 
-        for (let i in playlistIds) {
-            const playlist = playlistByUser.find((f) => f.id === playlistIds[i]).get({ plain: true });
+        if (page < 1 || page > totalPage) {
+            return {
+                errCode: 400,
+                message: 'Requested page number is out of range',
+            };
+        }
 
-            const songFirstPlaylist = await db.PlaylistSong.findOne({
-                where: {
-                    playlistId: playlistIds[i],
-                },
+        const playlists = allPlaylist.slice(start, end);
+
+        let playlistByUser = [];
+        for (let i in playlists) {
+            const songId = await db.PlaylistSong.findOne({
+                where: { playlistId: playlists[i].id },
                 attributes: ['songId'],
                 order: [['createdAt', 'DESC']],
                 raw: true,
             });
 
-            const songFirstPlaylistDetail = await db.Song.findOne({
-                where: {
-                    id: songFirstPlaylist.songId,
-                },
-                attributes: ['id', 'albumId', 'title'],
-            });
-
-            const album = await db.Album.findOne({
-                where: {
-                    albumId: songFirstPlaylistDetail.albumId,
-                },
-                attributes: [],
-                include: [
-                    {
-                        model: db.AlbumImage,
-                        as: 'albumImages',
-                        attributes: ['image', 'size'],
-                    },
-                ],
-            });
-
-            playlistDetailByUser.push({
-                playlistId: playlistIds[i],
-                name: playlist.title === 'Null' ? songFirstPlaylistDetail.title : playlist.title,
-                image: album,
-                description: playlist.description,
-                privacy: playlist.privacy,
-                totalSong: parseInt(playlist.songCount),
-            });
+            if (songId && songId.songId) {
+                const song = await db.Song.findByPk(songId.songId, {
+                    attributes: ['id', 'title'],
+                    include: [
+                        {
+                            model: db.Artist,
+                            as: 'artists',
+                            attributes: ['id', 'name'],
+                            through: { attributes: ['main'] },
+                        },
+                        {
+                            model: db.Album,
+                            as: 'album',
+                            attributes: ['albumId', 'title'],
+                            include: [{ model: db.AlbumImage, as: 'albumImages', attributes: ['image', 'size'] }],
+                        },
+                    ],
+                });
+                playlistByUser.push({
+                    playlistId: playlists[i].id,
+                    name: playlists[i].title === '' || playlists[i].title === null ? song.title : playlists[i].title,
+                    image: song.album.albumImages,
+                    description: playlists[i].description,
+                    privacy: playlists[i].privacy,
+                    totalSong: parseInt(playlists[i].totalSong),
+                });
+            } else {
+                playlistByUser.push({
+                    playlistId: playlists[i].id,
+                    name: playlists[i].title,
+                    image: null,
+                    description: playlists[i].description,
+                    privacy: playlists[i].privacy,
+                    totalSong: parseInt(playlists[i].totalSong),
+                });
+            }
         }
 
         return {
             errCode: 200,
             message: 'Get playlist by user successfully',
-            playlists: playlistDetailByUser,
+            user: user ? 'user' : 'guest',
+            page: page,
+            totalPage: totalPage,
+            playlists: playlistByUser,
         };
     } catch (error) {
         return {
@@ -782,7 +785,7 @@ const getPlaylistDetailService = async (playlistId) => {
 
 const createPlaylistService = async (data, user) => {
     try {
-        const playlist = await db.Playlist.findOne({ where: { title: data.title } });
+        const playlist = await db.Playlist.findOne({ where: { title: data.title, userId: user.id } });
         if (playlist) {
             return {
                 errCode: 409,
@@ -790,26 +793,13 @@ const createPlaylistService = async (data, user) => {
             };
         }
 
-        const song = await db.Song.findByPk(data.songId);
-        if (!song) {
-            return {
-                errCode: 404,
-                message: 'Song not found',
-            };
-        }
-
         const newPlaylist = await db.Playlist.create({
             id: uuidv4(),
+            userId: user.id,
             title: data.title,
             description: data.description || null,
             playlistImage: data.playlistImage || null,
             privacy: false,
-        });
-
-        await db.UserPlaylist.create({
-            id: uuidv4(),
-            userId: user.id,
-            playlistId: newPlaylist.id,
         });
 
         if (data.songId) {

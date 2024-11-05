@@ -39,7 +39,7 @@ router.post('/changepass', authMiddleWare.verifyToken, userController.changePass
 
 // ---------------------------PLAYLIST------------------------
 
-router.get('/playlist/:userId', userController.getPlaylist);
+router.get('/playlist', authMiddleWare.verifyToken, userController.getPlaylist);
 router.get('/playlist/detail/:playlistId', userController.getPlaylistDetail);
 router.post('/playlist/create', authMiddleWare.verifyToken, userController.createPlaylist);
 router.post('/playlist/addSong', authMiddleWare.verifyToken, userController.addSongPlaylist);
