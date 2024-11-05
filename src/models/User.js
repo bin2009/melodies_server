@@ -25,7 +25,7 @@ module.exports = (sequelize, DataTypes) => {
                 foreignKey: 'userId',
                 otherKey: 'artistId',
             });
-            User.hasMany(models.Playlist, { foreignKey: 'userId', as: 'playlists' });
+            // User.hasMany(models.Playlist, { foreignKey: 'userId', as: 'playlists' });
             User.belongsToMany(models.Song, {
                 through: 'SongPlayHistory',
                 as: 'playedSongs',
@@ -49,6 +49,16 @@ module.exports = (sequelize, DataTypes) => {
                 as: 'reportedComments',
                 foreignKey: 'userId',
                 otherKey: 'commentId',
+            });
+            User.belongsToMany(models.Playlist, {
+                through: 'UserPlaylist',
+                as: 'playlists',
+                foreignKey: 'userId',
+                otherKey: 'playlistId',
+            });
+            User.hasMany(models.Comment, {
+                foreignKey: 'userId',
+                as: 'comments',
             });
         }
     }

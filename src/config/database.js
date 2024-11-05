@@ -13,7 +13,7 @@ const { Sequelize, Model } = require('sequelize');
 //     },
 // });
 
-const sequelize = new Sequelize('pbl6_melodies', 'postgres', '290321', {
+const sequelize = new Sequelize('BAOLOC', 'postgres', '290321', {
     host: 'localhost',
     dialect: 'postgres',
 });

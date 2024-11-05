@@ -243,6 +243,7 @@ const getMoreArtistService = async (artistId) => {
                     attributes: ['genreId'],
                 },
             ],
+            attributes: ['id', 'name', 'avatar'],
         });
 
         if (!artist) {
@@ -289,10 +290,19 @@ const getMoreArtistService = async (artistId) => {
                     [Op.in]: songTop10ViewIds,
                 },
             },
-            attributes: {
-                exclude: ['createdAt', 'updatedAt'],
-                include: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'viewCount']],
-            },
+            attributes: [
+                'id',
+                'title',
+                'releaseDate',
+                'duration',
+                'lyric',
+                'filePathAudio',
+                [db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'viewCount'],
+            ],
+            // attributes: {
+            //     exclude: ['createdAt', 'updatedAt'],
+            //     include: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'viewCount']],
+            // },
             include: [
                 {
                     model: db.SongPlayHistory,
@@ -311,8 +321,22 @@ const getMoreArtistService = async (artistId) => {
                         },
                     ],
                 },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name', 'avatar'],
+                    through: {
+                        attributes: ['main'],
+                    },
+                },
             ],
-            group: ['Song.id', 'album.albumId', 'album.albumImages.albumImageId'],
+            group: [
+                'Song.id',
+                'album.albumId',
+                'album.albumImages.albumImageId',
+                'artists.id',
+                'artists->ArtistSong.artistSongId',
+            ],
             order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'DESC']],
         });
 
@@ -377,7 +401,7 @@ const getMoreArtistService = async (artistId) => {
             attributes: ['songId', 'artistId'],
         });
 
-        const artistFeet = await db.Artist.findAll({
+        const artistFeat = await db.Artist.findAll({
             where: {
                 id: {
                     [Op.in]: artistFeatIds.map((rec) => rec.artistId),
@@ -410,16 +434,27 @@ const getMoreArtistService = async (artistId) => {
             attributes: ['id', 'name', 'avatar'],
         });
 
+        const totalSong = await db.ArtistSong.count({
+            where: {
+                artistId: artist.id,
+                main: true,
+            },
+        });
+
+        const totalFollow = await db.Follow.count({ where: { artistId: artist.id } });
+
         const artistDetail = {
             ...artist.toJSON(),
             // artistFeatIds: artistFeatIds,
             // songs: songs,
             // albumIds: albumIds,
             // genreIds: genreIds,
+            totalSong: totalSong,
+            totalFollow: totalFollow,
             popSong: popSong,
             artistAlbum: artistAlbum,
             artistSingle: artistSingle,
-            artistFeet: artistFeet,
+            artistFeat: artistFeat,
             artistSameGenre: artistSameGenre,
         };
 
