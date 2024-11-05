@@ -78,12 +78,18 @@ const getAlbumPopular = async (req, res) => {
 // ---------------------------COMMENT------------------
 
 const getCommentSong = async (req, res) => {
-    const response = await songService.getCommentSongService(req.params.songId, req.query.offset, req.user);
+    if (!req.query.page) {
+        return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page' });
+    }
+    const response = await songService.getCommentSongService(req.params.songId, req.query.page, req.user);
     return res.status(response.errCode).json(response);
 };
 
 const getCommentChild = async (req, res) => {
-    const response = await songService.getCommentChildService(req.params.parentId, req.query.offset, req.user);
+    if (!req.query.page) {
+        return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page' });
+    }
+    const response = await songService.getCommentChildService(req.params.parentId, req.query.page, req.user);
     return res.status(response.errCode).json(response);
 };
 
@@ -107,6 +113,14 @@ const getSongSameGenre = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+const getWeeklyTopSongs2 = async (req, res) => {
+    if (!req.query.page) {
+        return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page' });
+    }
+    const response = await songService.getWeeklyTopSongsService2(req.query.page, req.user);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     getAllSong,
     getSong,
@@ -121,6 +135,7 @@ module.exports = {
     getSongRandom,
     // ------------
     getWeeklyTopSongs,
+    getWeeklyTopSongs2,
     getTrendingSongs,
     getNewReleaseSongs,
     // ------------

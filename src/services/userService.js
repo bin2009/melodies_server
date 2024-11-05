@@ -36,8 +36,9 @@ const getUserService = async (userId) => {
     try {
         const user = await db.User.findByPk(userId, {
             raw: true,
-            attributes: ['id', 'name', 'email', 'image', 'accountType', 'status'],
+            attributes: ['id', 'name', 'username', 'email', 'image', 'accountType', 'status'],
         });
+
         return {
             errCode: 200,
             message: 'Get user successfully',
@@ -983,6 +984,31 @@ const deleteSongService = async (data, user) => {
     }
 };
 
+const deletePlaylistService = async (playlistId, user) => {
+    try {
+        const playlist = await db.Playlist.findByPk(playlistId);
+        if (!playlist) {
+            return {
+                errCode: 404,
+                message: 'Playlist not found',
+            };
+        }
+
+        const checkPlaylist = await db.UserPlaylist.findOne({ where: { playlistId: playlistId, userId: user.id } });
+        if (!checkPlaylist) {
+            return {
+                errCode: 403,
+                message: 'You do not have permission to perform this action',
+            };
+        }
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Delete playlist failed: ${error}`,
+        };
+    }
+};
+
 module.exports = {
     getUsersService,
     getUserService,
@@ -1006,4 +1032,5 @@ module.exports = {
     addSongPlaylistService,
     updatePlaylistService,
     deleteSongService,
+    deletePlaylistService,
 };

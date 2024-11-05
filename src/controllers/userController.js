@@ -11,14 +11,7 @@ const getAllUser = async (req, res) => {
 };
 
 const getUser = async (req, res) => {
-    const userId = req.params.id;
-    if (!userId) {
-        return res.status(400).json({
-            errCode: 400,
-            message: 'User id required',
-        });
-    }
-    const response = await userService.getUserService(userId);
+    const response = await userService.getUserService(req.user.id);
     return res.status(response.errCode).json(response);
 };
 
@@ -138,6 +131,11 @@ const deleteSong = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+const deletePlaylist = async (req, res) => {
+    const response = await userService.deletePlaylistService(req.body.playlistId, req.user);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     getAllUser,
     getUser,
@@ -161,4 +159,5 @@ module.exports = {
     addSongPlaylist,
     updatePlaylist,
     deleteSong,
+    deletePlaylist,
 };

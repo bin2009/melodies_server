@@ -27,7 +27,7 @@ router.post('/actions/comment', authMiddleWare.verifyToken, userController.comme
 // ---------------------------USER------------------------
 // get
 router.get('/', userController.getAllUser);
-router.get('/:id', authMiddleWare.verifyTokenAndAdmin, userController.getUser);
+router.get('/info', authMiddleWare.verifyToken, userController.getUser);
 router.delete('/delete/:id', authMiddleWare.verifyTokenAndAdmin, userController.deleteUser);
 router.patch('/update', authMiddleWare.verifyTokenUserOrAdmin, userController.updateUser);
 
@@ -45,6 +45,7 @@ router.post('/playlist/create', authMiddleWare.verifyToken, userController.creat
 router.post('/playlist/addSong', authMiddleWare.verifyToken, userController.addSongPlaylist);
 router.patch('/playlist/update', authMiddleWare.verifyToken, userController.updatePlaylist);
 router.delete('/playlist/deleteSong', authMiddleWare.verifyToken, userController.deleteSong);
+router.delete('/playlist/deletePlaylist', authMiddleWare.verifyToken, userController.deletePlaylist);
 
 // ---------------------------HOME------------------------
 router.get('/home', (req, res) => {

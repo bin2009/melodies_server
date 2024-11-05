@@ -37,4 +37,5 @@ router.post('/genre/create', songController.createGenre);
 // router.get('/album/', songController.getAllAlbum);
 // router.get('/album/popular', songController.getAlbumPopular);
 
+router.get('/baoloc/test', authMiddleWare.optionalVerifyToken, songController.getWeeklyTopSongs2);
 module.exports = router;
