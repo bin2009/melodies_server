@@ -58,15 +58,15 @@ const authRoute = require('./routes/authRoute');
 const artistRoute = require('./routes/artistRoute');
 const albumRoute = require('./routes/albumRoute');
 const adsRoute = require('./routes/adsRoute');
+const adminRoute = require('./routes/adminRoute');
 // const payRoute = require('./routes/payRoute');
-// const adminRoute = require('./routes/adminRoute');
-// app.use('/api/admin', adminRoute);
 app.use('/api/user', userRoute);
 app.use('/api/auth', authRoute);
 app.use('/api/album', albumRoute);
 app.use('/api/ads', adsRoute);
 app.use('/api', songRoute);
 app.use('/api', artistRoute);
+app.use('/api/admin', adminRoute);
 // app.use('/api/pay', payRoute);
 
 // initialize server
