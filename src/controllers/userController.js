@@ -132,7 +132,7 @@ const deleteSong = async (req, res) => {
 };
 
 const deletePlaylist = async (req, res) => {
-    const response = await userService.deletePlaylistService(req.body.playlistId, req.user);
+    const response = await userService.deletePlaylistService(req.params.playlistId, req.user);
     return res.status(response.errCode).json(response);
 };
 

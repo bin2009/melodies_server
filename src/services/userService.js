@@ -1005,7 +1005,9 @@ const deleteSongService = async (data, user) => {
 
 const deletePlaylistService = async (playlistId, user) => {
     try {
-        const playlist = await db.Playlist.findByPk(playlistId);
+        const playlist = await db.Playlist.findOne({
+            where: { id: playlistId, userId: user.id },
+        });
         if (!playlist) {
             return {
                 errCode: 404,
@@ -1013,13 +1015,11 @@ const deletePlaylistService = async (playlistId, user) => {
             };
         }
 
-        const checkPlaylist = await db.UserPlaylist.findOne({ where: { playlistId: playlistId, userId: user.id } });
-        if (!checkPlaylist) {
-            return {
-                errCode: 403,
-                message: 'You do not have permission to perform this action',
-            };
-        }
+        await db.Playlist.destroy({ where: { id: playlist.id } });
+        return {
+            errCode: 200,
+            message: 'Delete playlist success',
+        };
     } catch (error) {
         return {
             errCode: 500,

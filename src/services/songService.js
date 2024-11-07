@@ -281,7 +281,7 @@ const getOtherSongByArtistService = async (artistId, offset, user) => {
         return {
             errCode: 200,
             message: 'Get other song by artist success',
-            user: user ? 'user' : 'guest',
+            role: user ? 'user' : 'guest',
             songs: songOther,
         };
     } catch (error) {
@@ -392,7 +392,7 @@ const getSongOtherArtistService = async (artistId, offset, user) => {
         return {
             errCode: 200,
             message: 'Get song other artist success',
-            user: user ? 'user' : 'guest',
+            role: user ? 'user' : 'guest',
             songs: songOther,
         };
     } catch (error) {
@@ -525,7 +525,7 @@ const getSongSameGenreService = async (artistId, offset, user) => {
         return {
             errCode: 200,
             message: 'Get song same genre success',
-            user: user ? 'user' : 'guest',
+            role: user ? 'user' : 'guest',
             songs: songOther,
         };
     } catch (error) {
@@ -712,8 +712,12 @@ const getSongRandomService = async () => {
 
 // ---------------------------THEME MUSIC------------------
 
-const getWeeklyTopSongsService = async (offset, user) => {
+const getWeeklyTopSongsService = async (page, user) => {
     try {
+        const limit = 10;
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
         const topSongIds = await db.SongPlayHistory.findAll({
             attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'playCount']],
             where: {
@@ -723,15 +727,25 @@ const getWeeklyTopSongsService = async (offset, user) => {
             },
             group: ['songId'],
             order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'DESC']],
-            limit: 10,
-            offset: 10 * offset,
             raw: true,
         });
+
+        const totalSong = topSongIds.length;
+        const totalPage = Math.ceil(totalSong / limit);
+
+        if (page > totalPage || page < 1) {
+            return {
+                errCode: 400,
+                message: 'Requested page number is out of range',
+            };
+        }
+
+        const topSongIdsPage = topSongIds.slice(start, end);
 
         const songs = await db.Song.findAll({
             where: {
                 id: {
-                    [Op.in]: topSongIds.map((record) => record.songId),
+                    [Op.in]: topSongIdsPage.map((record) => record.songId),
                 },
             },
             include: [
@@ -759,7 +773,7 @@ const getWeeklyTopSongsService = async (offset, user) => {
             attributes: ['id', 'title', 'releaseDate', 'duration', 'lyric', 'filePathAudio'],
         });
 
-        let weeklyTopSongs = topSongIds.map((t) => {
+        let weeklyTopSongs = topSongIdsPage.map((t) => {
             const song = songs.find((s) => s.id === t.songId);
             return {
                 ...song.toJSON(),
@@ -770,7 +784,10 @@ const getWeeklyTopSongsService = async (offset, user) => {
         if (user) {
             const likedSongs = await db.Like.findAll({
                 where: {
-                    [Op.and]: [{ songId: { [Op.in]: topSongIds.map((record) => record.songId) } }, { userId: user.id }],
+                    [Op.and]: [
+                        { songId: { [Op.in]: topSongIdsPage.map((record) => record.songId) } },
+                        { userId: user.id },
+                    ],
                 },
                 attributes: ['songId'],
                 raw: true,
@@ -781,18 +798,14 @@ const getWeeklyTopSongsService = async (offset, user) => {
                 ...song,
                 liked: likedSongIds.has(song.id),
             }));
-
-            return {
-                errCode: 200,
-                message: 'Get weekly top song successfully',
-                weeklyTopSongs: weeklyTopSongs,
-            };
         }
 
         return {
             errCode: 200,
-            user: 'guest',
             message: 'Get weekly top song successfully',
+            role: user ? 'user' : 'guest',
+            page: page,
+            totalPage: totalPage,
             weeklyTopSongs: weeklyTopSongs,
         };
     } catch (error) {
@@ -803,12 +816,22 @@ const getWeeklyTopSongsService = async (offset, user) => {
     }
 };
 
-const getTrendingSongsService = async (offset, user) => {
+const getTrendingSongsService = async (page, user) => {
     try {
         const limit = 10;
-        const start = limit * offset;
+        const start = limit * (page - 1);
         const end = start + limit;
         const songStats = {};
+
+        const totalSong = await db.Song.count();
+        const totalPage = Math.ceil(totalSong / limit);
+
+        if (page > totalPage || page < 1) {
+            return {
+                errCode: 400,
+                message: 'Requested page number is out of range',
+            };
+        }
 
         const topPlaySongIds = await db.SongPlayHistory.findAll({
             attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'playCount']],
@@ -877,17 +900,13 @@ const getTrendingSongsService = async (offset, user) => {
                     through: {
                         attributes: ['main'],
                     },
-                    raw: true,
                 },
             ],
-            // attributes: {
-            //     exclude: ['createdAt', 'updatedAt'],
-            // },
             attributes: ['id', 'title', 'releaseDate', 'duration', 'lyric', 'filePathAudio'],
         });
 
         let trendingSongsWithCounts = topSongIds.map((rec) => {
-            const song = trendingSongs.find((s) => (s.id = rec.songId));
+            const song = trendingSongs.find((s) => s.id === rec.songId);
             return {
                 ...song.toJSON(),
                 likeCount: rec ? rec.likeCount : 0,
@@ -910,18 +929,14 @@ const getTrendingSongsService = async (offset, user) => {
                 ...song,
                 liked: likedSongIds.has(song.id),
             }));
-
-            // return {
-            //     errCode: 200,
-            //     message: 'Get trending song successfully',
-            //     trendingSongs: trendingSongsWithCounts,
-            // };
         }
 
         return {
             errCode: 200,
             message: 'Get trending song successfully',
-            user: user ? 'user' : 'guest',
+            role: user ? 'user' : 'guest',
+            page: page,
+            totalPage: totalPage,
             trendingSongs: trendingSongsWithCounts,
         };
     } catch (error) {
@@ -932,9 +947,21 @@ const getTrendingSongsService = async (offset, user) => {
     }
 };
 
-const getNewReleaseSongsService = async (offset, user) => {
+const getNewReleaseSongsService = async (page, user) => {
     try {
         const limit = 10;
+        const skip = (page - 1) * limit;
+
+        const totalSong = await db.Song.count();
+        const totalPage = Math.ceil(totalSong / limit);
+
+        if (page > totalPage || page < 1) {
+            return {
+                errCode: 400,
+                message: 'Requested page number is out of range',
+            };
+        }
+
         const newReleaseSongs = await db.Song.findAll({
             include: [
                 {
@@ -958,16 +985,11 @@ const getNewReleaseSongsService = async (offset, user) => {
                     },
                 },
             ],
-            // attributes: {
-            //     exclude: ['createdAt', 'updatedAt'],
-            // },
             attributes: ['id', 'title', 'releaseDate', 'duration', 'lyric', 'filePathAudio'],
             order: [['releaseDate', 'DESC']],
             limit: limit,
-            offset: limit * offset,
+            offset: skip,
         });
-
-        // const songIds = newReleaseSongs.map((record) => record.id);
 
         const playCountSong = await db.SongPlayHistory.findAll({
             where: {
@@ -1020,18 +1042,14 @@ const getNewReleaseSongsService = async (offset, user) => {
                 ...song,
                 liked: likedSongIds.has(song.id),
             }));
-
-            // return {
-            //     errCode: 200,
-            //     message: 'Get release song successfully',
-            //     newReleaseSongs: newReleaseSongs2,
-            // };
         }
 
         return {
             errCode: 200,
             message: 'Get release song successfully',
-            user: user ? 'user' : 'guest',
+            role: user ? 'user' : 'guest',
+            page: page,
+            totalPage: totalPage,
             newReleaseSongs: newReleaseSongs2,
         };
     } catch (error) {
@@ -1251,7 +1269,7 @@ const getCommentSongService = async (songId, page, user) => {
         return {
             errCode: 200,
             message: 'Get comment success',
-            user: user ? 'user' : 'guest',
+            role: user ? 'user' : 'guest',
             page: page,
             totalPage: totalPage,
             totalComment: totalCommentOfSong,
@@ -1306,7 +1324,7 @@ const getCommentChildService = async (parentId, page, user) => {
         return {
             errCode: 200,
             message: 'Get comment success',
-            user: user ? 'user' : 'guest',
+            role: user ? 'user' : 'guest',
             page: page,
             totalPage: totalPage,
             comments: checkHasChild,

@@ -42,17 +42,26 @@ const getSongRandom = async (req, res) => {
 // ---------------------------THEME MUSIC------------------
 
 const getWeeklyTopSongs = async (req, res) => {
-    const response = await songService.getWeeklyTopSongsService(req.query.offset, req.user);
+    if (!req.query.page) {
+        return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page' });
+    }
+    const response = await songService.getWeeklyTopSongsService(req.query.page, req.user);
     return res.status(response.errCode).json(response);
 };
 
 const getTrendingSongs = async (req, res) => {
-    const response = await songService.getTrendingSongsService(req.query.offset, req.user);
+    if (!req.query.page) {
+        return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page' });
+    }
+    const response = await songService.getTrendingSongsService(req.query.page, req.user);
     return res.status(response.errCode).json(response);
 };
 
 const getNewReleaseSongs = async (req, res) => {
-    const response = await songService.getNewReleaseSongsService(req.query.offset, req.user);
+    if (!req.query.page) {
+        return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page' });
+    }
+    const response = await songService.getNewReleaseSongsService(req.query.page, req.user);
     return res.status(response.errCode).json(response);
 };
 
