@@ -58,6 +58,29 @@ const getTodayBestSong = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+const getAllSong = async (req, res) => {
+    if (!req.query.page) {
+        return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page' });
+    }
+    const response = await adminService.getAllSongService(req.query.page);
+    return res.status(response.errCode).json(response);
+};
+
+const getSongDetail = async (req, res) => {
+    const response = await adminService.getSongDetailService(req.params.songId);
+    return res.status(response.errCode).json(response);
+};
+
+const updateSong = async (req, res) => {
+    const response = await adminService.updateSongService(req.body);
+    return res.status(response.errCode).json(response);
+};
+
+const createSong = async (req, res) => {
+    const response = await adminService.createSongService(req.body);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     getAllArtistName,
     getAllGenreName,
@@ -69,4 +92,9 @@ module.exports = {
     getUserGrowth,
     getTotal,
     getTodayBestSong,
+    // ----------------
+    getAllSong,
+    getSongDetail,
+    updateSong,
+    createSong,
 };

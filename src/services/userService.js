@@ -751,19 +751,35 @@ const getPlaylistDetailService = async (playlistId) => {
         });
 
         let totalTime = 0;
-        const songInfo = songIds.map((rec) => {
-            const song = songs.find((s) => s.id === rec.songId);
-            totalTime = totalTime + song.duration;
+        // const songInfo = songIds.map((rec) => {
+        //     const song = songs.find((s) => s.id === rec.songId);
+        //     totalTime = totalTime + song.duration;
+        //     return {
+        //         ...song.toJSON(),
+        //         dateAdded: rec.date,
+        //     };
+        // });
+
+        const songInfo = songs.map((s) => {
+            const { album, artists, ...other } = s.toJSON();
+            totalTime = totalTime + s.duration;
             return {
-                ...song.toJSON(),
-                dateAdded: rec.date,
+                ...other,
+                albumId: album.albumId,
+                albumTitle: album.title,
+                images: album.albumImages,
+                artists: artists.map(({ ArtistSong, ...otherArtist }) => ({
+                    ...otherArtist,
+                    main: ArtistSong?.main || false,
+                })),
             };
         });
 
         const result = {
             playlistId: playlist.id,
-            name: playlist.title === 'Null' ? songInfo[0].title : playlist.title,
-            image: songInfo[0].album.albumImages,
+            name: playlist.title,
+
+            image: songInfo[0].images,
             description: playlist.description || null,
             totalTime: totalTime,
             totalSong: songIds.length,
@@ -784,31 +800,45 @@ const getPlaylistDetailService = async (playlistId) => {
 };
 
 const createPlaylistService = async (data, user) => {
+    const t = await db.sequelize.transaction();
+
     try {
-        const playlist = await db.Playlist.findOne({ where: { title: data.title, userId: user.id } });
-        if (playlist) {
-            return {
-                errCode: 409,
-                message: 'Playlist exits',
-            };
+        if (data.title) {
+            const playlist = await db.Playlist.findOne({ where: { title: data.title, userId: user.id } });
+            if (playlist) {
+                return {
+                    errCode: 409,
+                    message: 'Playlist exits',
+                };
+            }
         }
 
-        const newPlaylist = await db.Playlist.create({
-            id: uuidv4(),
-            userId: user.id,
-            title: data.title,
-            description: data.description || null,
-            playlistImage: data.playlistImage || null,
-            privacy: false,
-        });
+        const count = await db.Playlist.count({ where: { userId: user.id } });
+
+        const newPlaylist = await db.Playlist.create(
+            {
+                id: uuidv4(),
+                userId: user.id,
+                title: data.title || `New playlist #${parseInt(count + 1)}`,
+                description: data.description || null,
+                playlistImage: data.playlistImage || null,
+                privacy: false,
+            },
+            { transaction: t },
+        );
 
         if (data.songId) {
-            await db.PlaylistSong.create({
-                playlistSongId: uuidv4(),
-                playlistId: newPlaylist.id,
-                songId: data.songId,
-            });
+            await db.PlaylistSong.create(
+                {
+                    playlistSongId: uuidv4(),
+                    playlistId: newPlaylist.id,
+                    songId: data.songId,
+                },
+                { transaction: t },
+            );
         }
+
+        await t.commit();
 
         return {
             errCode: 200,
@@ -816,6 +846,7 @@ const createPlaylistService = async (data, user) => {
             newPlaylist: newPlaylist,
         };
     } catch (error) {
+        await t.rollback();
         return {
             errCode: 500,
             message: `Create playlist failed: ${error}`,
@@ -824,8 +855,18 @@ const createPlaylistService = async (data, user) => {
 };
 
 const addSongPlaylistService = async (data, user) => {
+    const t = await db.sequelize.transaction();
+
     try {
-        const playlist = await db.Playlist.findByPk(data.playlistId);
+        if (!data.playlistId || !data.songId) {
+            return {
+                errCode: 400,
+                message: 'Missing data',
+            };
+        }
+        const playlist = await db.Playlist.findOne({
+            where: { id: data.playlistId, userId: user.id },
+        });
         if (!playlist) {
             return {
                 errCode: 404,
@@ -851,29 +892,24 @@ const addSongPlaylistService = async (data, user) => {
                 message: 'The song is already in the playlist.',
             };
         }
-        const checkUserPlaylist = await db.UserPlaylist.findOne({
-            where: {
-                userId: user.id,
-                playlistId: playlist.id,
+
+        await db.PlaylistSong.create(
+            {
+                playlistSongId: uuidv4(),
+                playlistId: data.playlistId,
+                songId: data.songId,
             },
-        });
-        if (!checkUserPlaylist) {
-            return {
-                errCode: 403,
-                message: 'You do not have permission to perform this action',
-            };
-        }
-        await db.PlaylistSong.create({
-            playlistSongId: uuidv4(),
-            playlistId: data.playlistId,
-            songId: data.songId,
-        });
+            { transaction: t },
+        );
+
+        await t.commit();
 
         return {
             errCode: 200,
             message: 'Add song playlist success',
         };
     } catch (error) {
+        await t.rollback();
         return {
             errCode: 500,
             message: `Add song playlist failed: ${error}`,
@@ -882,34 +918,28 @@ const addSongPlaylistService = async (data, user) => {
 };
 
 const updatePlaylistService = async (data, user) => {
+    const t = await db.sequelize.transaction();
+
     try {
-        const playlist = await db.Playlist.findByPk(data.playlistId);
+        const playlist = await db.Playlist.findOne({
+            where: { id: data.playlistId, userId: user.id },
+        });
         if (!playlist) {
             return {
                 errCode: 404,
                 message: 'Playlist not found',
             };
         }
-        const checkUserPlaylist = await db.UserPlaylist.findOne({
-            where: {
-                userId: user.id,
-                playlistId: playlist.id,
-            },
-        });
-        if (!checkUserPlaylist) {
-            return {
-                errCode: 403,
-                message: 'You do not have permission to perform this action',
-            };
-        }
 
-        await db.Playlist.update(data.data, { where: { id: data.playlistId } });
+        await db.Playlist.update(data.data, { where: { id: data.playlistId }, transaction: t });
 
+        await t.commit();
         return {
             errCode: 200,
             message: 'Update playlist success',
         };
     } catch (error) {
+        await t.rollback();
         return {
             errCode: 500,
             message: `Update playlist failed: ${error}`,
@@ -918,8 +948,12 @@ const updatePlaylistService = async (data, user) => {
 };
 
 const deleteSongService = async (data, user) => {
+    const t = await db.sequelize.transaction();
+
     try {
-        const playlist = await db.Playlist.findByPk(data.playlistId);
+        const playlist = await db.Playlist.findOne({
+            where: { id: data.playlistId, userId: user.id },
+        });
         if (!playlist) {
             return {
                 errCode: 404,
@@ -939,34 +973,29 @@ const deleteSongService = async (data, user) => {
                 songId: song.id,
             },
         });
-        if (songPlaylist) {
+        if (!songPlaylist) {
             return {
                 errCode: 409,
-                message: 'The song is already in the playlist.',
-            };
-        }
-        const checkUserPlaylist = await db.UserPlaylist.findOne({
-            where: {
-                userId: user.id,
-                playlistId: playlist.id,
-            },
-        });
-        if (!checkUserPlaylist) {
-            return {
-                errCode: 403,
-                message: 'You do not have permission to perform this action',
+                message: 'The song is not in the playlist yet.',
             };
         }
 
-        await db.PlaylistSong.destroy({
-            where: { playlistId: playlist.id, songId: song.id },
-        });
+        await db.PlaylistSong.destroy(
+            {
+                where: { playlistId: playlist.id, songId: song.id },
+            },
+            { transaction: t },
+        );
+
+        await t.commit();
 
         return {
             errCode: 200,
             message: 'Delete song success',
         };
     } catch (error) {
+        await t.rollback();
+
         return {
             errCode: 500,
             message: `Delete song failed: ${error}`,

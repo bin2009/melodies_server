@@ -19,11 +19,17 @@ router.get('/allGenreName', adminController.getAllGenreName);
 
 router.post('/create/genre', adminController.createGenre);
 router.post('/create/artistGenre', adminController.createArtistGenre);
+
 router.get('/recentUser', adminController.getRecentUser);
 router.get('/recentComment', adminController.getRecentComment);
 router.get('/totalPlayAndCmtYear', adminController.getTotalPlayAndCmtYear);
 router.get('/userGrowth', adminController.getUserGrowth);
 router.get('/total', adminController.getTotal);
 router.get('/todayBestSong', adminController.getTodayBestSong);
+
+router.get('/allSong', adminController.getAllSong);
+router.get('/songDetail/:songId', adminController.getSongDetail);
+router.patch('/update/song', adminController.updateSong);
+router.post('/create/song', adminController.createSong);
 
 module.exports = router;

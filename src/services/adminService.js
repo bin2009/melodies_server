@@ -126,7 +126,7 @@ const getRecentUserService = async (page) => {
         }
 
         const recentUser = await db.User.findAll({
-            attributes: ['id', 'name', 'username', 'image', 'image', 'status'],
+            attributes: ['id', 'name', 'username', 'email', 'image', 'image', 'status', 'createdAt', 'accountType'],
             order: [['createdAt', 'DESC']],
             limit: limit,
             offset: skip,
@@ -149,7 +149,7 @@ const getRecentUserService = async (page) => {
 
 const getRecentCommentService = async (page) => {
     try {
-        const limit = 10;
+        const limit = 8;
         const skip = (page - 1) * limit;
 
         const totalComment = await db.Comment.count();
@@ -202,51 +202,88 @@ const getRecentCommentService = async (page) => {
 
 const getTotalPlayAndCmtYearService = async () => {
     try {
-        const array = [
-            { month: 'Jan', startDate: new Date('2024-10-01'), endDate: new Date('2024-10-02') },
-            { month: 'Feb', startDate: new Date('2024-10-02'), endDate: new Date('2024-10-03') },
-            { month: 'Mar', startDate: new Date('2024-10-03'), endDate: new Date('2024-10-04') },
-            { month: 'Apr', startDate: new Date('2024-10-04'), endDate: new Date('2024-10-05') },
-            { month: 'May', startDate: new Date('2024-10-05'), endDate: new Date('2024-10-06') },
-            { month: 'Jun', startDate: new Date('2024-10-06'), endDate: new Date('2024-10-07') },
-            { month: 'Jul', startDate: new Date('2024-10-07'), endDate: new Date('2024-10-08') },
-            { month: 'Aug', startDate: new Date('2024-10-08'), endDate: new Date('2024-10-09') },
-            { month: 'Sep', startDate: new Date('2024-10-09'), endDate: new Date('2024-10-10') },
-            { month: 'Oct', startDate: new Date('2024-10-10'), endDate: new Date('2024-10-11') },
-            { month: 'Nov', startDate: new Date('2024-10-11'), endDate: new Date('2024-10-12') },
-            { month: 'Dec', startDate: new Date('2024-11-01'), endDate: new Date('2024-11-05') },
-        ];
+        // const array = [
+        //     { month: 'Jan', startDate: new Date('2024-10-01'), endDate: new Date('2024-10-02') },
+        //     { month: 'Feb', startDate: new Date('2024-10-02'), endDate: new Date('2024-10-03') },
+        //     { month: 'Mar', startDate: new Date('2024-10-03'), endDate: new Date('2024-10-04') },
+        //     { month: 'Apr', startDate: new Date('2024-10-04'), endDate: new Date('2024-10-05') },
+        //     { month: 'May', startDate: new Date('2024-10-05'), endDate: new Date('2024-10-06') },
+        //     { month: 'Jun', startDate: new Date('2024-10-06'), endDate: new Date('2024-10-07') },
+        //     { month: 'Jul', startDate: new Date('2024-10-07'), endDate: new Date('2024-10-08') },
+        //     { month: 'Aug', startDate: new Date('2024-10-08'), endDate: new Date('2024-10-09') },
+        //     { month: 'Sep', startDate: new Date('2024-10-09'), endDate: new Date('2024-10-10') },
+        //     { month: 'Oct', startDate: new Date('2024-10-10'), endDate: new Date('2024-10-11') },
+        //     { month: 'Nov', startDate: new Date('2024-10-11'), endDate: new Date('2024-10-12') },
+        //     { month: 'Dec', startDate: new Date('2024-11-01'), endDate: new Date('2024-11-05') },
+        // ];
 
-        let results = [];
+        // let results = [];
 
-        for (let month of array) {
-            const totalPlay = await db.SongPlayHistory.count({
-                where: {
-                    createdAt: {
-                        [Op.and]: [{ [Op.gte]: month.startDate }, { [Op.lt]: month.endDate }],
-                    },
-                },
-            });
+        // for (let month of array) {
+        //     const totalPlay = await db.SongPlayHistory.count({
+        //         where: {
+        //             createdAt: {
+        //                 [Op.and]: [{ [Op.gte]: month.startDate }, { [Op.lt]: month.endDate }],
+        //             },
+        //         },
+        //     });
 
-            const totalComment = await db.Comment.count({
-                where: {
-                    createdAt: {
-                        [Op.and]: [{ [Op.gte]: month.startDate }, { [Op.lt]: month.endDate }],
-                    },
-                },
-            });
+        //     const totalComment = await db.Comment.count({
+        //         where: {
+        //             createdAt: {
+        //                 [Op.and]: [{ [Op.gte]: month.startDate }, { [Op.lt]: month.endDate }],
+        //             },
+        //         },
+        //     });
 
-            results.push({
-                month: month.month,
-                totalPlays: totalPlay,
-                totalComments: totalComment,
+        //     results.push({
+        //         month: month.month,
+        //         totalPlays: totalPlay,
+        //         totalComments: totalComment,
+        //     });
+        // }
+
+        const plays = await db.SongPlayHistory.findAll({
+            attributes: ['createdAt'],
+        });
+
+        const comments = await db.Comment.findAll({
+            attributes: ['createdAt'],
+        });
+
+        const currentDate = new Date();
+        const lastTwelveMonths = [];
+
+        for (let i = 0; i < 12; i++) {
+            const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+            const startDate = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1 + 1);
+            const endDate = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1);
+            // console.log(monthDate);
+            // console.log('start: ', startDate);
+            // console.log('endDate: ', endDate);
+
+            const monthPlayCount = plays.filter((item) => {
+                const itemDate = new Date(item.createdAt);
+                return itemDate >= startDate && itemDate < endDate;
+            }).length;
+
+            const monthCommentCount = comments.filter((item) => {
+                const itemDate = new Date(item.createdAt);
+                return itemDate >= startDate && itemDate < endDate;
+            }).length;
+
+            lastTwelveMonths.push({
+                month: monthDate.toLocaleString('default', { month: 'short' }),
+                year: monthDate.getFullYear(),
+                totalPlay: monthPlayCount || 0,
+                totalComment: monthCommentCount || 0,
             });
         }
 
         return {
             errCode: 200,
             message: 'Get total plays and comments success',
-            data: results,
+            data: lastTwelveMonths,
         };
     } catch (error) {
         return {
@@ -258,6 +295,10 @@ const getTotalPlayAndCmtYearService = async () => {
 
 const getUserGrowthService = async () => {
     try {
+        const totalUser = await db.User.count();
+        const totalUserFree = await db.User.count({ where: { accountType: 'Free' } });
+        const totalUserPremium = await db.User.count({ where: { accountType: 'Premium' } });
+
         const currentDate = new Date();
         const currentMonth = currentDate.getMonth() + 1;
         const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
@@ -286,8 +327,11 @@ const getUserGrowthService = async () => {
             errCode: 200,
             message: 'Get user growth success',
             growth: growth,
-            currentUserCount: currentUserCount,
-            prevUserCount: prevUserCount,
+            totalUser: totalUser,
+            totalUserFree: totalUserFree,
+            totalUserPremium: totalUserPremium,
+            totalUserThisMonth: currentUserCount,
+            totalUserLastMonth: prevUserCount,
         };
     } catch (error) {
         return {
@@ -300,11 +344,11 @@ const getUserGrowthService = async () => {
 const getTotalService = async () => {
     try {
         const data = {
-            totalSongs: (await db.Song.count()) || null,
-            totalArtists: (await db.Artist.count()) || null,
-            totalAlbums: (await db.Album.count()) || null,
-            totalPlaylist: (await db.Playlist.count()) || null,
-            totalUsers: (await db.User.count()) || null,
+            totalSongs: (await db.Song.count()) || 0,
+            totalArtists: (await db.Artist.count()) || 0,
+            totalAlbums: (await db.Album.count()) || 0,
+            totalPlaylist: (await db.Playlist.count()) || 0,
+            totalUsers: (await db.User.count()) || 0,
         };
 
         return {
@@ -326,7 +370,7 @@ const getTodayBestSongService = async () => {
         const topSong = await db.SongPlayHistory.findOne({
             where: {
                 createdAt: {
-                    [Op.gte]: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
+                    [Op.gte]: new Date(today.getFullYear(), today.getMonth() - 1, today.getDate()),
                     [Op.lt]: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1),
                 },
             },
@@ -355,18 +399,288 @@ const getTodayBestSongService = async () => {
             attributes: ['id', 'title', 'releaseDate', 'duration', 'lyric', 'filePathAudio'],
         });
 
+        const { album, artists, ...other } = song.toJSON();
+
+        const result = {
+            ...other,
+            albumId: album.albumId,
+            albumTitle: album.title,
+            images: album.albumImages,
+            artists: artists.map(({ ArtistSong, ...otherArtist }) => ({
+                ...otherArtist,
+                main: ArtistSong?.main || false,
+            })),
+            playCount: topSong.playCount,
+        };
+
         return {
             errCode: 200,
             message: `Get Today's Best Song success`,
-            song: {
-                ...song.toJSON(),
-                playCount: topSong.playCount,
-            },
+            song: result,
         };
     } catch (error) {
         return {
             errCode: 500,
             errMess: `Get Today's Best Song failed: ${error.message}`,
+        };
+    }
+};
+
+const getAllSongService = async (page) => {
+    try {
+        const limit = 10;
+        const skip = (page - 1) * limit;
+
+        const totalSong = await db.Song.count();
+        const totalPage = Math.ceil(totalSong / limit);
+
+        if (page > totalPage || page < 1) {
+            return {
+                errCode: 400,
+                message: 'Requested page number is out of range',
+            };
+        }
+
+        const songs = await db.Song.findAll({
+            attributes: ['id', 'title', 'releaseDate', 'duration', 'lyric', 'filePathAudio', 'createdAt'],
+            include: [
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title'],
+                    include: [{ model: db.AlbumImage, as: 'albumImages', attributes: ['image', 'size'] }],
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name', 'avatar'],
+                    through: { attributes: ['main'] },
+                },
+            ],
+            order: [['createdAt', 'DESC']],
+            limit: limit,
+            offset: skip,
+        });
+
+        const totalPlay = await db.SongPlayHistory.findAll({
+            where: { songId: { [Op.in]: songs.map((s) => s.id) } },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('historyId')), 'totalPlay']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        const totalComment = await db.Comment.findAll({
+            where: { songId: { [Op.in]: songs.map((s) => s.id) } },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('id')), 'totalComment']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        const totalLike = await db.Like.findAll({
+            where: { songId: { [Op.in]: songs.map((s) => s.id) } },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('likeId')), 'totalLike']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        const result = songs.map((s) => {
+            const { album, artists, ...other } = s.toJSON();
+            return {
+                ...other,
+                albumId: album.albumId,
+                albumTitle: album.title,
+                images: album.albumImages,
+                artists: artists.map(({ ArtistSong, ...otherArtist }) => ({
+                    ...otherArtist,
+                    main: ArtistSong?.main || false,
+                })),
+                totalDownload: 0,
+                totalPlay: totalPlay.find((t1) => t1.songId === s.id)?.totalPlay || 0,
+                totalComment: totalComment.find((t2) => t2.songId === s.id)?.totalComment || 0,
+                totalLike: totalLike.find((t3) => t3.songId === s.id)?.totalLike || 0,
+            };
+        });
+
+        return {
+            errCode: 200,
+            message: 'Get all song success',
+            page: page,
+            totalPage: totalPage,
+            song: result,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            errMess: `Get all Song failed: ${error.message}`,
+        };
+    }
+};
+
+const getSongDetailService = async (songId) => {
+    try {
+        const song = await db.Song.findOne({
+            where: { id: songId },
+            attributes: ['id', 'title', 'releaseDate', 'duration', 'lyric', 'filePathAudio', 'createdAt'],
+            include: [
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title'],
+                    include: [{ model: db.AlbumImage, as: 'albumImages', attributes: ['image', 'size'] }],
+                },
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name', 'avatar'],
+                    through: { attributes: ['main'] },
+                },
+            ],
+        });
+
+        const totalPlay = await db.SongPlayHistory.findOne({
+            where: { songId: songId },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('historyId')), 'totalPlay']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        const totalComment = await db.Comment.findOne({
+            where: { songId: songId },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('id')), 'totalComment']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        const totalLike = await db.Like.findOne({
+            where: { songId: songId },
+            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('likeId')), 'totalLike']],
+            group: ['songId'],
+            raw: true,
+        });
+
+        const { album, artists, ...other } = song.toJSON();
+        const result = {
+            ...other,
+            albumId: album.albumId,
+            albumTitle: album.title,
+            images: album.albumImages,
+            artists: artists.map(({ ArtistSong, ...otherArtist }) => ({
+                ...otherArtist,
+                main: ArtistSong?.main || false,
+            })),
+            totalDownload: 0,
+            totalPlay: totalPlay?.totalPlay || 0,
+            totalComment: totalComment?.totalComment || 0,
+            totalLike: totalLike?.totalLike || 0,
+        };
+
+        return {
+            errCode: 200,
+            message: 'Get song detail success',
+            song: result,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            errMess: `Get song detail failed: ${error.message}`,
+        };
+    }
+};
+
+const updateSongService = async (data) => {
+    try {
+        // const
+    } catch (error) {
+        return {
+            errCode: 500,
+            errMess: `Update song failed: ${error.message}`,
+        };
+    }
+};
+
+const createSongService = async (data) => {
+    const t = await db.sequelize.transaction();
+    try {
+        if (!data.title || !data.duration || !data.filePathAudio || !data.mainArtist) {
+            return {
+                errCode: 400,
+                message: 'Missing data',
+            };
+        }
+
+        const checkSong = await db.Song.findOne({ where: { title: data.title } });
+        if (checkSong) {
+            const checkArtist = await db.ArtistSong.findOne({
+                where: { songId: checkSong.id, artistId: data.mainArtist },
+            });
+            if (checkArtist) {
+                return {
+                    errCode: 409,
+                    message: 'Song exits',
+                };
+            }
+        }
+
+        const checkArtistSong = await db.Artist.findAll({
+            where: {
+                id: {
+                    [Op.or]: [data.mainArtist, { [Op.in]: data.subArtist.map((a) => a.artistId) }],
+                },
+            },
+            raw: true,
+        });
+
+        if (checkArtistSong.length !== data.subArtist.length + 1) {
+            return {
+                errCode: 404,
+                message: 'Artist not found',
+            };
+        }
+
+        const song = await db.Song.create(
+            {
+                id: uuidv4(),
+                albumId: data.albumId,
+                title: data.title,
+                duration: data.duration,
+                lyric: data.lyric || null,
+                filePathAudio: data.filePathAudio,
+                privacy: false,
+                releaseDate: new Date(),
+            },
+            { transaction: t },
+        );
+
+        await db.ArtistSong.create(
+            {
+                artistSongId: uuidv4(),
+                songId: song.id,
+                artistId: data.mainArtist,
+                main: true,
+            },
+            { transaction: t },
+        );
+
+        const subArtistSong = data.subArtist.map((a) => ({
+            artistSongId: uuidv4(),
+            artistId: a.artistId,
+            songId: song.id,
+            main: false,
+        }));
+
+        await db.ArtistSong.bulkCreate(subArtistSong, { transaction: t });
+
+        await t.commit();
+
+        return {
+            errCode: 200,
+            message: 'Create song success',
+        };
+    } catch (error) {
+        await t.rollback();
+        return {
+            errCode: 500,
+            errMess: `Update song failed: ${error.message}`,
         };
     }
 };
@@ -384,4 +698,9 @@ module.exports = {
     getUserGrowthService,
     getTotalService,
     getTodayBestSongService,
+    // ----------------
+    getAllSongService,
+    getSongDetailService,
+    updateSongService,
+    createSongService,
 };
