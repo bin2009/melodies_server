@@ -32,4 +32,6 @@ router.get('/songDetail/:songId', adminController.getSongDetail);
 router.patch('/update/song', adminController.updateSong);
 router.post('/create/song', adminController.createSong);
 
+router.get('/allArtist', adminController.getAllArtist);
+
 module.exports = router;

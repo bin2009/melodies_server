@@ -99,6 +99,12 @@ const search = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+const search2 = async (req, res) => {
+    // return res.status(200).json(req.query.query);
+    const response = await userService.serach2Service(req.query.query);
+    return res.status(response.errCode).json(response);
+};
+
 // ---------------------------PLAYLIST------------------------
 
 const getPlaylist = async (req, res) => {
@@ -152,6 +158,7 @@ module.exports = {
     subscription,
     // ----------
     search,
+    search2,
     // ---------
     getPlaylist,
     getPlaylistDetail,

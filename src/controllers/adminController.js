@@ -81,6 +81,14 @@ const createSong = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+const getAllArtist = async (req, res) => {
+    if (!req.query.page) {
+        return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page' });
+    }
+    const response = await adminService.getAllArtistService(req.query.page);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     getAllArtistName,
     getAllGenreName,
@@ -97,4 +105,6 @@ module.exports = {
     getSongDetail,
     updateSong,
     createSong,
+    // ----------------
+    getAllArtist,
 };

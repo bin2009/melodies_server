@@ -589,7 +589,17 @@ const getSongDetailService = async (songId) => {
 
 const updateSongService = async (data) => {
     try {
-        // const
+        const song = await db.Song.findByPk(data.songId);
+        if (!song) {
+            return {
+                errCode: 404,
+                message: 'Song not found',
+            };
+        }
+
+        // if (data.mainArtist) {
+        //     await db.ArtistSong.update(data, {where: })
+        // }
     } catch (error) {
         return {
             errCode: 500,
@@ -640,13 +650,13 @@ const createSongService = async (data) => {
         const song = await db.Song.create(
             {
                 id: uuidv4(),
-                albumId: data.albumId,
+                albumId: data.albumId || null,
                 title: data.title,
                 duration: data.duration,
                 lyric: data.lyric || null,
                 filePathAudio: data.filePathAudio,
                 privacy: false,
-                releaseDate: new Date(),
+                releaseDate: data.releaseDate || new Date(),
             },
             { transaction: t },
         );
@@ -685,6 +695,82 @@ const createSongService = async (data) => {
     }
 };
 
+const getAllArtistService = async (page) => {
+    try {
+        const limit = 10;
+        const skip = (page - 1) * limit;
+
+        const totalArtist = await db.Artist.count();
+        const totalPage = Math.ceil(totalArtist / limit);
+
+        if (page > totalPage || page < 1) {
+            return {
+                errCode: 400,
+                message: 'Requested page number is out of range',
+            };
+        }
+
+        const artists = await db.Artist.findAll({
+            attributes: ['id', 'name', 'avatar', 'bio', 'createdAt'],
+            order: [['createdAt', 'DESC']],
+            limit: limit,
+            offset: skip,
+            raw: true,
+        });
+
+        const totalSongs = await db.ArtistSong.findAll({
+            where: { artistId: { [Op.in]: artists.map((a) => a.id) }, main: true },
+            attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'totalSongs']],
+            group: ['artistId'],
+            raw: true,
+        });
+
+        const totalFollow = await db.Follow.findAll({
+            where: { artistId: { [Op.in]: artists.map((a) => a.id) } },
+            attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('followerId')), 'totalFollow']],
+            group: ['artistId'],
+            raw: true,
+        });
+
+        const result = await Promise.all(
+            artists.map(async (artist) => {
+                const songIds = await db.ArtistSong.findAll({
+                    where: { artistId: artist.id, main: true },
+                    attributes: ['songId'],
+                });
+
+                const songs = await db.Song.findAll({
+                    where: { id: { [Op.in]: songIds.map((id) => id.songId) } },
+                    attributes: ['albumId'],
+                    raw: true,
+                });
+
+                const albumIds = new Set(songs.map((s) => s.albumId));
+
+                return {
+                    ...artist,
+                    totalSong: totalSongs.find((s) => s.artistId === artist.id)?.totalSongs || 0,
+                    totalAlbum: albumIds.size,
+                    totalFollow: totalFollow.find((f) => f.artistId === artist.id)?.totalFollow || 0,
+                };
+            }),
+        );
+
+        return {
+            errCode: 200,
+            message: 'Get all artist success',
+            page: page,
+            totalPage: totalPage,
+            data: result,
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            errMess: `Get all artist failed: ${error.message}`,
+        };
+    }
+};
+
 module.exports = {
     createService,
     getAllArtistNameService,
@@ -703,4 +789,6 @@ module.exports = {
     getSongDetailService,
     updateSongService,
     createSongService,
+    // ------------------
+    getAllArtistService,
 };

@@ -12,6 +12,8 @@ router.get('/search2', (req, res) => {
     res.render('search');
 });
 
+router.get('/search3', userController.search2);
+
 router.get('/search', userController.search);
 
 // ---------------------------SUBSCRIPTION------------------------

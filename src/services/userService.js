@@ -10,6 +10,7 @@ const Follow = db.Follow;
 const sequelize = db.sequelize;
 const removeAccents = require('remove-accents');
 const { Op } = require('sequelize');
+const Fuse = require('fuse.js');
 
 const getUsersService = async (offset) => {
     try {
@@ -1028,6 +1029,158 @@ const deletePlaylistService = async (playlistId, user) => {
     }
 };
 
+const serach2Service = async (query) => {
+    const start = 0;
+    const end = start + 10;
+
+    const [artists, songs, albums] = await Promise.all([
+        db.Artist.findAll({ order: [['createdAt', 'DESC']] }),
+        db.Song.findAll({ order: [['releaseDate', 'DESC']] }),
+        db.Album.findAll({ order: [['releaseDate', 'DESC']] }),
+    ]);
+
+    const dataArtist = artists.map((a) => ({ id: a.id, name: a.name }));
+    const dataSong = songs.map((s) => ({ id: s.id, title: s.title }));
+    const dataAlbum = albums.map((a) => ({ albumId: a.albumId, title: a.title }));
+
+    const options = {
+        keys: ['name'],
+        threshold: 0.8,
+        includeScore: true,
+    };
+    const optionsSong = {
+        keys: ['title'],
+        threshold: 0.5,
+        includeScore: true,
+    };
+    const optionsAlbum = {
+        keys: ['title'],
+        threshold: 0.5,
+        includeScore: true,
+    };
+
+    // Fuse.js
+    const fuseArtist = new Fuse(dataArtist, options);
+    const fuseSong = new Fuse(dataSong, optionsSong);
+    const fuseAlbum = new Fuse(dataAlbum, optionsAlbum);
+
+    // Search
+    const resultArtist = fuseArtist.search(query);
+    const resultSong = fuseSong.search(query);
+    const resultAlbum = fuseAlbum.search(query);
+
+    const combinedResults = [
+        ...resultArtist.map((result) => ({ ...result.item, score: result.score, type: 'artist' })),
+        ...resultSong.map((result) => ({ ...result.item, score: result.score, type: 'song' })),
+        ...resultAlbum.map((result) => ({ ...result.item, score: result.score, type: 'album' })),
+    ].sort((a, b) => a.score - b.score);
+
+    const [topResult, songTopResult, artistData, songData, albumData] = await Promise.all([
+        combinedResults[0].type === 'artist' ? db.Artist.findByPk(combinedResults[0].id) : [],
+        combinedResults[0].type === 'artist'
+            ? db.Song.findAll({
+                  attributes: ['id', 'title', 'releaseDate', 'duration', 'lyric', 'filePathAudio', 'createdAt'],
+                  include: [
+                      {
+                          model: db.ArtistSong,
+                          as: 'artistSong',
+                          where: { artistId: combinedResults[0].id },
+                          attributes: [],
+                      },
+                      {
+                          model: db.Album,
+                          as: 'album',
+                          attributes: ['albumId', 'title', 'releaseDate'],
+                          include: [
+                              {
+                                  model: db.AlbumImage,
+                                  as: 'albumImages',
+                                  attributes: ['image', 'size'],
+                              },
+                          ],
+                      },
+                      {
+                          model: db.Artist,
+                          as: 'artists',
+                          attributes: ['id', 'name'],
+                          through: {
+                              attributes: ['main'],
+                          },
+                      },
+                  ],
+                  order: [['createdAt', 'DESC']],
+                  limit: 5,
+              })
+            : [],
+        db.Artist.findAll({
+            where: { id: { [Op.in]: resultArtist.map((r) => r.item.id).slice(start, end) } },
+            attributes: ['id', 'name', 'avatar', 'bio'],
+        }),
+        db.Song.findAll({
+            where: { id: { [Op.in]: resultSong.map((r) => r.item.id).slice(start, end) } },
+            attributes: ['id', 'title', 'duration', 'lyric', 'filePathAudio', 'releaseDate'],
+            include: [
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    attributes: ['id', 'name'],
+                    through: {
+                        attributes: ['main'],
+                    },
+                },
+                {
+                    model: db.Album,
+                    as: 'album',
+                    attributes: ['albumId', 'title', 'releaseDate', 'albumType'],
+                    include: [{ model: db.AlbumImage, as: 'albumImages', attributes: ['image', 'size'] }],
+                },
+            ],
+        }),
+        db.Album.findAll({
+            where: { albumId: { [Op.in]: resultAlbum.map((a) => a.item.albumId).slice(start, end) } },
+            attributes: ['albumId', 'title', 'releaseDate'],
+            include: [{ model: db.AlbumImage, as: 'albumImages', attributes: ['image', 'size'] }],
+        }),
+    ]);
+
+    const albumDataDetail = await Promise.all(
+        albumData.map(async (album) => {
+            const songOfAlbum = await db.Song.findOne({
+                where: { albumId: album.albumId },
+                attributes: [],
+                include: [
+                    {
+                        model: db.Artist,
+                        as: 'artists',
+                        attributes: ['id', 'name', 'avatar', 'bio'],
+                        through: {
+                            attributes: ['main'],
+                        },
+                    },
+                ],
+                limit: 1,
+            });
+            return {
+                ...album.toJSON(),
+                artists: songOfAlbum.toJSON().artists,
+            };
+        }),
+    );
+
+    return {
+        errCode: 200,
+        topResult: topResult,
+        songTopResult: songTopResult,
+        artistData: resultArtist
+            .map((r) => artistData.find((artist) => artist.id === r.item.id))
+            .filter((artist) => artist),
+        songData: resultSong.map((r) => songData.find((song) => song.id === r.item.id)).filter((song) => song),
+        albumData: resultAlbum
+            .map((r) => albumDataDetail.find((album) => album.albumId === r.item.albumId))
+            .filter((album) => album),
+    };
+};
+
 module.exports = {
     getUsersService,
     getUserService,
@@ -1044,6 +1197,7 @@ module.exports = {
     subscriptionService,
     // -----------------
     serachService,
+    serach2Service,
     // ----------------
     getPlaylistService,
     getPlaylistDetailService,
