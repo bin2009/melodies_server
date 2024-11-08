@@ -2,14 +2,29 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const emailController = require('../controllers/emailController');
-
+const Fuse = require('fuse.js');
+const db = require('../models');
 // middleware
 const authMiddleWare = require('../middleware/authMiddleWare');
 
 // ---------------------------SEARCH------------------------
 
-router.get('/search2', (req, res) => {
-    res.render('search');
+router.get('/search2', async (req, res) => {
+    const artists = await db.Artist.findAll({ order: [['createdAt', 'DESC']] });
+
+    const dataArtist = artists.map((a) => ({ id: a.id, name: a.name }));
+
+    const options = {
+        keys: ['name'],
+        threshold: 0.8,
+        includeScore: true,
+    };
+    const fuseArtist = new Fuse(dataArtist, options);
+    const resultArtist = fuseArtist.search(req.query.query);
+    const combinedResults = [
+        ...resultArtist.map((result) => ({ ...result.item, score: result.score, type: 'artist' })),
+    ];
+    res.send(combinedResults);
 });
 
 router.get('/search3', userController.search2);

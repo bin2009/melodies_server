@@ -1084,7 +1084,7 @@ const serach2Service = async (query) => {
                       {
                           model: db.ArtistSong,
                           as: 'artistSong',
-                          where: { artistId: combinedResults[0].id },
+                          where: { artistId: combinedResults[0].id, main: true },
                           attributes: [],
                       },
                       {
