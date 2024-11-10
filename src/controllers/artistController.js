@@ -29,12 +29,20 @@ const updateArtist = async (req, res) => {
 const getMoreArtist = async (req, res) => {
     const response = await artistService.getMoreArtistService(req.params.artistId);
     return res.status(response.errCode).json(response);
-}
+};
 
 // ----------------------------------------------------------------
 
 const getPopularArtist = async (req, res) => {
     const response = await artistService.getPopularArtistService(req.query.offset);
+    return res.status(response.errCode).json(response);
+};
+
+const searchArtist = async (req, res) => {
+    if (!req.query.page || !req.query.query) {
+        return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page or query' });
+    }
+    const response = await artistService.searchArtistService(req.query.query, req.query.page);
     return res.status(response.errCode).json(response);
 };
 
@@ -46,4 +54,5 @@ module.exports = {
     createArtist,
     getPopularArtist,
     getMoreArtist,
+    searchArtist,
 };

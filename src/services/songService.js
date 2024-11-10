@@ -1,6 +1,7 @@
 const db = require('../models');
 const { Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
+const Fuse = require('fuse.js');
 
 // ---------------------------SONG------------------
 const getAllSongService = async (offset, user) => {
@@ -1430,6 +1431,45 @@ const getWeeklyTopSongsService2 = async (page, user) => {
     }
 };
 
+const searchSongService = async (query, page) => {
+    try {
+        const limit = 10;
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
+        const songs = await db.Song.findAll({ order: [['createdAt', 'DESC']] });
+
+        const options = {
+            keys: ['title'],
+            threshold: 0.8,
+            includeScore: true,
+        };
+        const fuseSong = new Fuse(songs, options);
+        const resultSong = fuseSong.search(query);
+        const totalPage = Math.ceil(resultSong.length / limit);
+
+        if (page < 1 || page > totalPage) {
+            return {
+                errCode: 400,
+                message: 'Requested page number is out of range',
+            };
+        }
+
+        return {
+            errCode: 200,
+            message: 'Search song success',
+            page: page,
+            totalPage: totalPage,
+            songs: resultSong.slice(start, end),
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            errMess: `Search song failed: ${error}`,
+        };
+    }
+};
+
 module.exports = {
     getAllSongService,
     getSongService,
@@ -1456,4 +1496,6 @@ module.exports = {
     getCommentSongService,
     getCommentChildService,
     updateCommentService,
+    // ------------------
+    searchSongService,
 };

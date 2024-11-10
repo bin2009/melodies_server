@@ -5,6 +5,12 @@ const saltRounds = 10;
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
 
+const formatDateToVietnamTime = (date) => {
+    const createdAtVN = new Date(date);
+    const formattedDate = createdAtVN.toLocaleString('sv-SE', { timeZone: 'Asia/Bangkok' }).replace('T', ' ') + '+07';
+    return formattedDate;
+};
+
 const createService = async (data) => {
     try {
         const hashPass = await bcrypt.hash(data.password, saltRounds);
@@ -426,13 +432,40 @@ const getTodayBestSongService = async () => {
     }
 };
 
-const getAllSongService = async (page) => {
+const getAllSongService = async (query, order, page) => {
     try {
         const limit = 10;
         const skip = (page - 1) * limit;
+        const start = (page - 1) * limit;
+        const end = start + limit;
 
         const totalSong = await db.Song.count();
         const totalPage = Math.ceil(totalSong / limit);
+
+        const sortMap = {
+            song: 'title',
+            album: 'albumTitle',
+        };
+
+        const sortMapInt = {
+            createdAt: 'createdAt',
+            duration: 'duration',
+            releaseDate: 'releaseDate',
+            totalDownload: 'totalDownload',
+            totalPlay: 'totalPlay',
+            totalComment: 'totalComment',
+            totalLike: 'totalLike',
+        };
+
+        const sortMapString = ['title', 'albumTitle'];
+        const sortMapNumber = ['duration', 'totalDownload', 'totalPlay', 'totalComment', 'totalLike'];
+        const sortMapDate = ['createdAt', 'releaseDate'];
+
+        // const sortField = sortMap[query] || sortMapInt[query] || 'createdAt';
+        const sortField = query || 'createdAt';
+        order = order || 'high';
+        console.log(sortField);
+        console.log(order);
 
         if (page > totalPage || page < 1) {
             return {
@@ -457,9 +490,9 @@ const getAllSongService = async (page) => {
                     through: { attributes: ['main'] },
                 },
             ],
-            order: [['createdAt', 'DESC']],
-            limit: limit,
-            offset: skip,
+            // order: [['createdAt', 'DESC']],
+            // limit: limit,
+            // offset: skip,
         });
 
         const totalPlay = await db.SongPlayHistory.findAll({
@@ -484,9 +517,14 @@ const getAllSongService = async (page) => {
         });
 
         const result = songs.map((s) => {
-            const { album, artists, ...other } = s.toJSON();
+            const { album, artists, releaseDate, createdAt, ...other } = s.toJSON();
             return {
                 ...other,
+                releaseDate: formatDateToVietnamTime(releaseDate),
+                createdAt: formatDateToVietnamTime(createdAt),
+                // releaseDate: new Date(releaseDate),
+                // createdAt: new Date(createdAt),
+                // ...s.toJSON(),
                 albumId: album.albumId,
                 albumTitle: album.title,
                 images: album.albumImages,
@@ -500,13 +538,34 @@ const getAllSongService = async (page) => {
                 totalLike: totalLike.find((t3) => t3.songId === s.id)?.totalLike || 0,
             };
         });
+        result.sort((a, b) => {
+            if (order === 'high') {
+                if (sortMapDate.includes(sortField)) {
+                    return new Date(b[sortField]) - new Date(a[sortField]);
+                } else if (sortMapString.includes(sortField)) {
+                    return a[sortField].localeCompare(b[sortField]);
+                } else if (sortMapNumber.includes(sortField)) {
+                    return b[sortField] - a[sortField];
+                }
+            } else if (order === 'low') {
+                if (sortMapDate.includes(sortField)) {
+                    return new Date(a[sortField]) - new Date(b[sortField]);
+                } else if (sortMapString.includes(sortField)) {
+                    return b[sortField].localeCompare(a[sortField]);
+                } else if (sortMapNumber.includes(sortField)) {
+                    return a[sortField] - b[sortField];
+                }
+            }
+            return 0;
+        });
 
+        console.log(result.length);
         return {
             errCode: 200,
             message: 'Get all song success',
             page: page,
             totalPage: totalPage,
-            song: result,
+            song: result.slice(start, end),
         };
     } catch (error) {
         return {
@@ -695,13 +754,28 @@ const createSongService = async (data) => {
     }
 };
 
-const getAllArtistService = async (page) => {
+const getAllArtistService = async (query, order, page) => {
     try {
         const limit = 10;
         const skip = (page - 1) * limit;
+        const start = (page - 1) * limit;
+        const end = start + limit;
 
         const totalArtist = await db.Artist.count();
         const totalPage = Math.ceil(totalArtist / limit);
+
+        const sortMap = {
+            name: 'name',
+            song: 'totalSong',
+            album: 'totalAlbum',
+            follow: 'totalFollow',
+            date: 'createdAt',
+        };
+
+        const sortField = sortMap[query] || 'createdAt';
+        order = order || 'high';
+        console.log(sortField);
+        console.log(order);
 
         if (page > totalPage || page < 1) {
             return {
@@ -712,9 +786,9 @@ const getAllArtistService = async (page) => {
 
         const artists = await db.Artist.findAll({
             attributes: ['id', 'name', 'avatar', 'bio', 'createdAt'],
-            order: [['createdAt', 'DESC']],
-            limit: limit,
-            offset: skip,
+            // order: [['createdAt', 'DESC']],
+            // limit: limit,
+            // offset: skip,
             raw: true,
         });
 
@@ -747,8 +821,11 @@ const getAllArtistService = async (page) => {
 
                 const albumIds = new Set(songs.map((s) => s.albumId));
 
+                const { createdAt, ...other } = artist;
+
                 return {
-                    ...artist,
+                    ...other,
+                    createdAt: formatDateToVietnamTime(createdAt),
                     totalSong: totalSongs.find((s) => s.artistId === artist.id)?.totalSongs || 0,
                     totalAlbum: albumIds.size,
                     totalFollow: totalFollow.find((f) => f.artistId === artist.id)?.totalFollow || 0,
@@ -756,12 +833,33 @@ const getAllArtistService = async (page) => {
             }),
         );
 
+        result.sort((a, b) => {
+            if (order === 'high') {
+                if (sortField === 'createdAt') {
+                    return new Date(b[sortField]) - new Date(a[sortField]);
+                } else if (sortField === 'name') {
+                    return a[sortField].localeCompare(b[sortField]);
+                } else {
+                    return b[sortField] - a[sortField];
+                }
+            } else if (order === 'low') {
+                if (sortField === 'createdAt') {
+                    return new Date(a[sortField]) - new Date(b[sortField]);
+                } else if (sortField === 'name') {
+                    return b[sortField].localeCompare(a[sortField]);
+                } else {
+                    return a[sortField] - b[sortField];
+                }
+            }
+            return 0;
+        });
+
         return {
             errCode: 200,
             message: 'Get all artist success',
             page: page,
             totalPage: totalPage,
-            data: result,
+            artists: result.slice(start, end),
         };
     } catch (error) {
         return {
@@ -786,6 +884,7 @@ module.exports = {
     getTodayBestSongService,
     // ----------------
     getAllSongService,
+    // getAllSongService2,
     getSongDetailService,
     updateSongService,
     createSongService,

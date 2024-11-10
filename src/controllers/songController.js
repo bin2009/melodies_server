@@ -130,6 +130,14 @@ const getWeeklyTopSongs2 = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+const searchSong = async (req, res) => {
+    if (!req.query.page || !req.query.query) {
+        return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page or query' });
+    }
+    const response = await songService.searchSongService(req.query.query, req.query.page);
+    return res.status(response.errCode).json(response);
+};
+
 module.exports = {
     getAllSong,
     getSong,
@@ -156,4 +164,6 @@ module.exports = {
     getCommentSong,
     getCommentChild,
     updateComment,
+    // ------------
+    searchSong,
 };

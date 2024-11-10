@@ -15,6 +15,7 @@ router.get('/songs/newRaleaseSong', authMiddleWare.optionalVerifyToken, songCont
 router.get('/songs/random', songController.getSongRandom);
 
 // ---------------------------SONG------------------
+router.get('/songs/search', songController.searchSong);
 router.get('/songs/', authMiddleWare.optionalVerifyToken, songController.getAllSong);
 router.get('/songs/:id', authMiddleWare.optionalVerifyToken, songController.getSong);
 router.get('/songs/otherByArtist/:artistId', authMiddleWare.optionalVerifyToken, songController.getOtherSongByArtist);

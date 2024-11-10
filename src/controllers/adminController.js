@@ -62,7 +62,7 @@ const getAllSong = async (req, res) => {
     if (!req.query.page) {
         return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page' });
     }
-    const response = await adminService.getAllSongService(req.query.page);
+    const response = await adminService.getAllSongService(req.query.query, req.query.order, req.query.page);
     return res.status(response.errCode).json(response);
 };
 
@@ -85,7 +85,7 @@ const getAllArtist = async (req, res) => {
     if (!req.query.page) {
         return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page' });
     }
-    const response = await adminService.getAllArtistService(req.query.page);
+    const response = await adminService.getAllArtistService(req.query.query, req.query.order, req.query.page);
     return res.status(response.errCode).json(response);
 };
 
@@ -102,6 +102,7 @@ module.exports = {
     getTodayBestSong,
     // ----------------
     getAllSong,
+    // getAllSong2,
     getSongDetail,
     updateSong,
     createSong,

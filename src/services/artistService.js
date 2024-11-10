@@ -1,6 +1,7 @@
 const db = require('../models');
 const { Op, where } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
+const Fuse = require('fuse.js');
 
 const getAllArtistService = async (offset) => {
     try {
@@ -531,6 +532,45 @@ const getPopularArtistService = async (offset) => {
     }
 };
 
+const searchArtistService = async (query, page) => {
+    try {
+        const limit = 10;
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
+        const artists = await db.Artist.findAll({ order: [['createdAt', 'DESC']] });
+
+        const options = {
+            keys: ['name'],
+            threshold: 0.8,
+            includeScore: true,
+        };
+        const fuseArtist = new Fuse(artists, options);
+        const resultArtist = fuseArtist.search(query);
+        const totalPage = Math.ceil(resultArtist.length / limit);
+
+        if (page < 1 || page > totalPage) {
+            return {
+                errCode: 400,
+                message: 'Requested page number is out of range',
+            };
+        }
+
+        return {
+            errCode: 200,
+            message: 'Search song success',
+            page: page,
+            totalPage: totalPage,
+            artists: resultArtist.slice(start, end),
+        };
+    } catch (error) {
+        return {
+            errCode: 500,
+            message: `Search artists failed: ${error.message}`,
+        };
+    }
+};
+
 module.exports = {
     getAllArtistService,
     getArtistService,
@@ -540,4 +580,5 @@ module.exports = {
     getMoreArtistService,
     // ------------------
     getPopularArtistService,
+    searchArtistService,
 };
