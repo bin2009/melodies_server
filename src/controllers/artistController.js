@@ -1,58 +1,161 @@
-const artistService = require('../services/artistService');
-const statusCodes = require('../utils/statusCodes');
+import { StatusCodes } from 'http-status-codes';
+import ApiError from '~/utils/ApiError';
 
-const getAllArtist = async (req, res) => {
-    const response = await artistService.getAllArtistService(req.query.offset);
-    return res.status(response.errCode).json(response);
-};
+import { artistService } from '~/services/artistService';
 
-const getArtist = async (req, res) => {
-    const response = await artistService.getArtistService(req.params.id);
-    return res.status(response.errCode).json(response);
-};
-
-const createArtist = async (req, res) => {
-    const response = await artistService.createArtistService(req.body);
-    return res.status(response.errCode).json(response);
-};
-
-const deleteArtist = async (req, res) => {
-    const response = await artistService.deleteArtistService(req.params.id);
-    return res.status(response.errCode).json(response);
-};
-
-const updateArtist = async (req, res) => {
-    const response = await artistService.updateArtistService(req.body);
-    return res.status(response.errCode).json(response);
-};
-
-const getMoreArtist = async (req, res) => {
-    const response = await artistService.getMoreArtistService(req.params.artistId);
-    return res.status(response.errCode).json(response);
-};
-
-// ----------------------------------------------------------------
-
-const getPopularArtist = async (req, res) => {
-    const response = await artistService.getPopularArtistService(req.query.offset);
-    return res.status(response.errCode).json(response);
-};
-
-const searchArtist = async (req, res) => {
-    if (!req.query.page || !req.query.query) {
-        return res.status(400).json({ errCode: 400, message: 'Missing required query parameters: page or query' });
+const getAllArtist = async (req, res, next) => {
+    try {
+        if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
+        const artists = await artistService.getAllArtistService({
+            sortBy: req.query.sortBy,
+            sortOrder: req.query.sortOrder,
+            page: req.query.page,
+            user: req.user,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get all artists successfully',
+            ...artists,
+        });
+    } catch (error) {
+        next(error);
     }
-    const response = await artistService.searchArtistService(req.query.query, req.query.page);
-    return res.status(response.errCode).json(response);
 };
 
-module.exports = {
+const getPopularArtist = async (req, res, next) => {
+    try {
+        if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
+
+        const artists = await artistService.getPopularArtistService({ page: req.query.page, user: req.user });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get popular artists successfully',
+            ...artists,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getArtist = async (req, res, next) => {
+    try {
+        const artist = await artistService.getArtistService({ artistId: req.params.id });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get artist successfully',
+            artist: artist,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getSongOfArtist = async (req, res, next) => {
+    try {
+        const songs = await artistService.getSongOfArtistService({ artistId: req.params.id });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get song of artist successfully',
+            songs: songs,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getPopSong = async (req, res, next) => {
+    try {
+        const response = await artistService.getPopSongService({
+            artistId: req.params.artistId,
+            page: req.query.page,
+            user: req.user,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get pop song from artist success',
+            ...response,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getAlbumFromArtist = async (req, res, next) => {
+    try {
+        if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
+        const response = await artistService.getAlbumFromArtistService({
+            artistId: req.params.artistId,
+            page: req.query.page,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'get album from artist success',
+            ...response,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getSingleFromArtist = async (req, res, next) => {
+    try {
+        if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
+        const response = await artistService.getSingleFromArtistService({
+            artistId: req.params.artistId,
+            page: req.query.page,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get single from artist success',
+            ...response,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getArtistFeat = async (req, res, next) => {
+    try {
+        if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
+        const response = await artistService.getArtistFeatService({
+            artistId: req.params.artistId,
+            page: req.query.page,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get artist feat success',
+            ...response,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getArtistSameGenre = async (req, res, next) => {
+    try {
+        if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
+        const response = await artistService.getArtistSameGenreService({
+            artistId: req.params.artistId,
+            page: req.query.page,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get artist same genre success',
+            ...response,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const artistController = {
     getAllArtist,
     getArtist,
-    deleteArtist,
-    updateArtist,
-    createArtist,
+    getSongOfArtist,
     getPopularArtist,
-    getMoreArtist,
-    searchArtist,
+    getPopSong,
+    getAlbumFromArtist,
+    getSingleFromArtist,
+    getArtistFeat,
+    getArtistSameGenre,
 };

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Test Double Encryption and Decryption</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1-crypto-js.js"></script>
+        <!-- Đảm bảo CryptoJS được tải -->
+    </head>
+    <body>
+        <h1>Test Double Encryption and Decryption</h1>
+
+        <!-- Form nhập URL cần mã hóa/giải mã -->
+        <div>
+            <label for="urlInput">Enter URL to encrypt or decrypt:</label>
+            <input type="text" id="urlInput" placeholder="Enter URL here" />
+        </div>
+
+        <button id="encryptBtn">Encrypt URL</button>
+        <button id="decryptBtn">Decrypt URL</button>
+
+        <p id="encryptedUrl">Encrypted URL:</p>
+        <p id="decryptedUrl">Decrypted URL:</p>
+
+        <script>
+            // Danh sách secretKey
+            const secretKeys = {
+                key1: 'your-secret-key-1',
+                key2: 'your-secret-key-2',
+            };
+
+            // Hàm giải mã với 2 secretKey
+            function decryptURL(encryptedURL, secretKey1, secretKey2) {
+                const [ivEncoded, encryptedStep2] = encryptedURL.split(':');
+                const iv = CryptoJS.enc.Base64.parse(ivEncoded);
+
+                // Giải mã lần 2 với secretKey2
+                const decryptedStep2 = CryptoJS.AES.decrypt(encryptedStep2, CryptoJS.enc.Utf8.parse(secretKey2), {
+                    iv: iv,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7,
+                });
+                const decryptedStep2String = decryptedStep2.toString(CryptoJS.enc.Utf8);
+
+                // Giải mã lần 1 với secretKey1
+                const decryptedStep1 = CryptoJS.AES.decrypt(decryptedStep2String, CryptoJS.enc.Utf8.parse(secretKey1), {
+                    iv: iv,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7,
+                });
+
+                return decryptedStep1.toString(CryptoJS.enc.Utf8); // Trả về URL gốc
+            }
+
+            // Hàm mã hóa URL với 2 secretKey
+            function encryptURL(url, secretKey1, secretKey2) {
+                const iv = CryptoJS.lib.WordArray.random(16); // IV ngẫu nhiên
+
+                // Mã hóa lần 1 với secretKey1
+                const encryptedStep1 = CryptoJS.AES.encrypt(url, CryptoJS.enc.Utf8.parse(secretKey1), {
+                    iv: iv,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7,
+                }).toString();
+
+                // Mã hóa lần 2 với secretKey2
+                const encryptedStep2 = CryptoJS.AES.encrypt(encryptedStep1, CryptoJS.enc.Utf8.parse(secretKey2), {
+                    iv: iv,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7,
+                }).toString();
+
+                return `${iv.toString(CryptoJS.enc.Base64)}:${encryptedStep2}`;
+            }
+
+            // Mã hóa URL khi nhấn nút
+            function encryptUrlHandler() {
+                const url = document.getElementById('urlInput').value;
+
+                if (url) {
+                    // Mã hóa URL với 2 secretKey
+                    const encryptedURL = encryptURL(url, secretKeys.key1, secretKeys.key2);
+                    document.getElementById('encryptedUrl').textContent = `Encrypted URL: ${encryptedURL}`;
+                    document.getElementById('decryptedUrl').textContent = ''; // Clear decrypted URL
+                } else {
+                    alert('Please enter a URL to encrypt!');
+                }
+            }
+
+            // Giải mã URL khi nhấn nút
+            function decryptUrlHandler() {
+                const encryptedURL = document.getElementById('encryptedUrl').textContent.replace('Encrypted URL: ', '');
+
+                if (encryptedURL) {
+                    // Giải mã URL với 2 secretKey
+                    const decryptedURL = decryptURL(encryptedURL, secretKeys.key1, secretKeys.key2);
+                    document.getElementById('decryptedUrl').textContent = `Decrypted URL: ${decryptedURL}`;
+                } else {
+                    alert('Please encrypt a URL first!');
+                }
+            }
+
+            // Lắng nghe sự kiện nhấn nút để gọi hàm
+            document.getElementById('encryptBtn').addEventListener('click', encryptUrlHandler);
+            document.getElementById('decryptBtn').addEventListener('click', decryptUrlHandler);
+        </script>
+    </body>
+</html>

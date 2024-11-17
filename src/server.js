@@ -1,30 +1,31 @@
-// // require('dotenv').config();
-// const express = require('express');
-// const app = express();
-// // const bodyParser = require('body-parser');
-// // const cors = require('cors');
-// // const cookieParser = require('cookie-parser');
-// const connection = require('./config/database');
+// require('dotenv').config();
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import { corsOptions } from './config/cors';
+import cookieParser from 'cookie-parser';
+import bodyParser from 'body-parser';
+import connection from '~/config/database';
+import { errorHandlingMiddleware } from './middleware/errorHandlingMiddleware';
 
-// const routebin = require('./routes/api');
-// app.use('/', routebin);
+import authRoute from '~/routes/authRoute';
+import adminRoute from '~/routes/adminRoute';
+import songRoute from '~/routes/songRoute';
+import userRoute from '~/routes/userRoute';
+import artistRoute from '~/routes/artistRoute';
+import albumRoute from '~/routes/albumRoute';
 
-// connection();
-// const port = 3000;
-
-// app.listen(port, () => {
-//     console.log(`Listening on port: ${port}`);
-// });
-
-require('dotenv').config();
-const express = require('express');
 const app = express();
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const cookieParser = require('cookie-parser');
-const connection = require('./config/database');
 
+const corsOptions2 = {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    credentials: true,
+};
+// app.use(cors(corsOptions2));
 app.use(cors());
+// app.options('*', cors(corsOptions));
+// app.use(cors({ origin: 'http://171.251.5.239:20099' }));
 app.use(cookieParser());
 
 // http & socketio
@@ -44,48 +45,25 @@ app.use(
 );
 
 // database
-// require('./models');
 connection();
 
 // config view
 const configViewEngine = require('./config/viewEngine');
 configViewEngine(app);
 
-// config route
-const userRoute = require('./routes/userRoute');
-const songRoute = require('./routes/songRoute');
-const authRoute = require('./routes/authRoute');
-const artistRoute = require('./routes/artistRoute');
-const albumRoute = require('./routes/albumRoute');
-const adsRoute = require('./routes/adsRoute');
-const adminRoute = require('./routes/adminRoute');
-// const payRoute = require('./routes/payRoute');
-app.use('/api/admin', adminRoute);
-app.use('/api/user', userRoute);
+// confi route
 app.use('/api/auth', authRoute);
-app.use('/api/album', albumRoute);
-app.use('/api/ads', adsRoute);
+app.use('/api/admin', adminRoute);
 app.use('/api', songRoute);
-app.use('/api', artistRoute);
-// app.use('/api/pay', payRoute);
+app.use('/api', userRoute);
+app.use('/api/artist', artistRoute);
+app.use('/api/album', albumRoute);
+
+// handle error
+app.use(errorHandlingMiddleware);
 
 // initialize server
 const port = process.env.PORT || 3000;
-// const server = http.createServer(app);
-// const io = new Server(server);
-
-// // socket
-// io.on('connection', (socket) => {
-//     console.log('A user connected: ', socket.id);
-
-//     socket.on('chat message', (msg) => {
-//         io.emit('chat message', msg);
-//     });
-
-//     socket.on('disconnect', () => {
-//         console.log('user has left');
-//     });
-// });
 
 app.listen(port, () => {
     console.log(`Listening on port: ${port}`);

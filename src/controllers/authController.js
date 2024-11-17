@@ -1,7 +1,7 @@
 const authService = require('../services/authService');
-const statusCodes = require('../utils/statusCodes');
 
 const login = async (req, res) => {
+    console.log('login: ', req.body);
     const response = await authService.loginService(req.body);
     const { refreshToken, errCode, ...other } = response;
 

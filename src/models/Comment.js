@@ -9,15 +9,19 @@ module.exports = (sequelize, DataTypes) => {
          */
         static associate(models) {
             // define association here
-            Comment.belongsToMany(models.User, {
-                through: 'Report',
-                as: 'reportedByUsers',
-                foreignKey: 'commentId',
-                otherKey: 'userId',
-            });
+            // Comment.belongsToMany(models.User, {
+            //     through: 'Report',
+            //     as: 'reportedByUsers',
+            //     foreignKey: 'commentId',
+            //     otherKey: 'userId',
+            // });
             Comment.belongsTo(models.User, {
                 foreignKey: 'userId',
                 as: 'user',
+            });
+            Comment.belongsTo(models.Song, {
+                foreignKey: 'songId',
+                as: 'song',
             });
         }
     }

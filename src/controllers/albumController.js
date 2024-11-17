@@ -1,29 +1,56 @@
-const albumService = require('../services/albumService');
+import { StatusCodes } from 'http-status-codes';
+import ApiError from '~/utils/ApiError';
 
-const getMoreAlbum = async (req, res) => {
-    const albumId = req.params.id;
-    // if (!albumId) {
-    //     return res.status(400).json({
-    //         errCode: 400,
-    //         message: 'Album id required',
-    //     });
-    // }
-    const response = await albumService.getMoreAlbumService(albumId);
-    return res.status(response.errCode).json(response);
+import { albumService } from '~/services/albumService';
+
+const getTopAlbum = async (req, res, next) => {
+    try {
+        if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
+        const result = await albumService.getTopAlbumService({ page: req.query.page });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get top album success',
+            ...result,
+        });
+    } catch (error) {
+        next(error);
+    }
 };
 
-const getAllAlbum = async (req, res) => {
-    const response = await albumService.getAllAlbumService(req.query.offset);
-    return res.status(response.errCode).json(response);
+const getAlbum = async (req, res, next) => {
+    try {
+        if (!req.params.albumId) throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: album id');
+        const album = await albumService.getAlbumService({ albumId: req.params.albumId });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get album success',
+            album: album,
+        });
+    } catch (error) {
+        next(error);
+    }
 };
 
-const getTopAlbum = async (req, res) => {
-    const response = await albumService.getTopAlbumService(req.query.offset);
-    return res.status(response.errCode).json(response);
+const getAlbumAnother = async (req, res, next) => {
+    try {
+        if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
+        if (!req.params.albumId) throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: album id');
+        const albumAnother = await albumService.getAlbumAnotherService({
+            albumId: req.params.albumId,
+            page: req.query.page,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get album another success',
+            ...albumAnother,
+        });
+    } catch (error) {
+        next(error);
+    }
 };
 
-module.exports = {
-    getMoreAlbum,
-    getAllAlbum,
+export const albumController = {
     getTopAlbum,
+    getAlbum,
+    getAlbumAnother,
 };

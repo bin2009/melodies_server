@@ -54,6 +54,10 @@ module.exports = (sequelize, DataTypes) => {
                 foreignKey: 'userId',
                 as: 'comments',
             });
+            User.hasMany(models.SongPlayHistory, {
+                foreignKey: 'userId',
+                as: 'songs',
+            });
         }
     }
     User.init(

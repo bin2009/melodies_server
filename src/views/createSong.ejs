@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Create Song</title>
+        <style>
+            .sub-artist-input {
+                margin-bottom: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Create Song</h1>
+        <form id="createSongForm">
+            <div>
+                <label for="title">Title:</label>
+                <input type="text" id="title" name="title" />
+            </div>
+            <div>
+                <label for="duration">Duration:</label>
+                <input type="text" id="duration" name="duration" />
+            </div>
+            <div>
+                <label for="mainArtistId">Main Artist ID:</label>
+                <input type="text" id="mainArtistId" name="mainArtistId" />
+            </div>
+            <div id="subArtistsContainer">
+                <label for="subArtistId">Sub Artist ID:</label>
+                <div class="sub-artist-input">
+                    <input type="text" name="subArtistIds" placeholder="Enter sub artist ID" />
+                    <button type="button" onclick="removeSubArtistInput(this)">Remove</button>
+                </div>
+            </div>
+            <button type="button" onclick="addSubArtistInput()">Add Sub Artist</button>
+            <div>
+                <label for="audioFile">Audio File:</label>
+                <input type="file" id="audioFile" name="audioFile" accept="audio/*" />
+            </div>
+            <div>
+                <label for="releaseDate">Release Date</label>
+                <input type="date" class="form-control" id="releaseDate" name="releaseDate" required />
+            </div>
+            <button type="submit">Create Song</button>
+        </form>
+        <p id="statusMessage"></p>
+
+        <script>
+            function addSubArtistInput() {
+                const container = document.getElementById('subArtistsContainer');
+                const subArtistInput = document.createElement('div');
+                subArtistInput.className = 'sub-artist-input';
+                subArtistInput.innerHTML = `
+                <input type="text" name="subArtistIds" placeholder="Enter sub artist ID" required>
+                <button type="button" onclick="removeSubArtistInput(this)">Remove</button>
+            `;
+                container.appendChild(subArtistInput);
+            }
+
+            function removeSubArtistInput(button) {
+                const subArtistInput = button.parentElement;
+                subArtistInput.remove();
+            }
+
+            document.getElementById('createSongForm').addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                const title = document.getElementById('title').value;
+                const duration = document.getElementById('duration').value;
+                const mainArtistId = document.getElementById('mainArtistId').value;
+                const releaseDate = document.getElementById('releaseDate').value;
+                const subArtistIds = Array.from(document.getElementsByName('subArtistIds')).map((input) => ({
+                    artistId: input.value,
+                }));
+                const audioFile = document.getElementById('audioFile').files[0];
+                const statusMessage = document.getElementById('statusMessage');
+
+                if (!audioFile) {
+                    statusMessage.textContent = 'Please select an audio file to upload.';
+                    return;
+                }
+
+                const data = {
+                    title: title,
+                    duration: duration,
+                    mainArtistId: mainArtistId,
+                    subArtistIds: subArtistIds,
+                    releaseDate: releaseDate,
+                };
+
+                const formData = new FormData();
+                formData.append('data', JSON.stringify(data));
+                formData.append('audioFile', audioFile);
+
+                try {
+                    const response = await fetch('/api/admin/create/song', {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        statusMessage.textContent = 'Song created successfully.';
+                    } else {
+                        statusMessage.textContent = `Error: ${result.message}`;
+                    }
+                } catch (error) {
+                    statusMessage.textContent = `Error: ${error.message}`;
+                }
+            });
+        </script>
+    </body>
+</html>

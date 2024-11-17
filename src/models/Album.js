@@ -10,7 +10,16 @@ module.exports = (sequelize, DataTypes) => {
         static associate(models) {
             // define association here
             Album.hasMany(models.AlbumImage, { foreignKey: 'albumId', as: 'albumImages' });
-            Album.hasMany(models.Song, { foreignKey: 'albumId', as: 'songs' });
+            Album.belongsToMany(models.Song, {
+                through: 'AlbumSong',
+                as: 'songs',
+                foreignKey: 'albumId',
+                otherKey: 'songId',
+            });
+            Album.hasMany(models.AlbumSong, {
+                foreignKey: 'albumId',
+                as: 'albumSong',
+            });
         }
     }
     Album.init(

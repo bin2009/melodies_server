@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Create Album</title>
+        <style>
+            .song-id-input {
+                margin-bottom: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Create Album</h1>
+        <form id="createAlbumForm">
+            <div>
+                <label for="title">Title:</label>
+                <input type="text" id="title" name="title" required />
+            </div>
+            <div>
+                <label for="mainArtistId">Main artist:</label>
+                <input type="text" id="mainArtistId" name="mainArtistId" required />
+            </div>
+            <div>
+                <label for="type">Type:</label>
+                <select id="type" name="type" required>
+                    <option value="ep">EP</option>
+                    <option value="single">Single</option>
+                    <option value="album">Album</option>
+                </select>
+            </div>
+            <div>
+                <label for="albumCover">Album Cover:</label>
+                <input type="file" id="albumCover" name="albumCover" accept="image/*" required />
+            </div>
+            <div id="songsContainer">
+                <label for="songId">Song ID:</label>
+                <div class="song-id-input">
+                    <input type="text" name="songIds" placeholder="Enter song ID" required />
+                    <button type="button" onclick="removeSongInput(this)">Remove</button>
+                </div>
+            </div>
+            <div>
+                <label for="releaseDate">Release Date</label>
+                <input type="date" class="form-control" id="releaseDate" name="releaseDate" required />
+            </div>
+            <button type="button" onclick="addSongInput()">Add Song</button>
+            <button type="submit">Create Album</button>
+        </form>
+        <p id="statusMessage"></p>
+
+        <script>
+            function addSongInput() {
+                const container = document.getElementById('songsContainer');
+                const songInput = document.createElement('div');
+                songInput.className = 'song-id-input';
+                songInput.innerHTML = `
+                <input type="text" name="songIds" placeholder="Enter song ID" required>
+                <button type="button" onclick="removeSongInput(this)">Remove</button>
+            `;
+                container.appendChild(songInput);
+            }
+
+            function removeSongInput(button) {
+                const songInput = button.parentElement;
+                songInput.remove();
+            }
+
+            document.getElementById('createAlbumForm').addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                const title = document.getElementById('title').value;
+                const type = document.getElementById('type').value;
+                const mainArtistId = document.getElementById('mainArtistId').value;
+                const releaseDate = document.getElementById('releaseDate').value;
+
+                const albumCover = document.getElementById('albumCover').files[0];
+                const songIds = Array.from(document.getElementsByName('songIds')).map((input) => ({
+                    songId: input.value,
+                }));
+                const statusMessage = document.getElementById('statusMessage');
+
+                if (!albumCover) {
+                    statusMessage.textContent = 'Please select an album cover to upload.';
+                    return;
+                }
+
+                const data = {
+                    title: title,
+                    mainArtistId: mainArtistId,
+                    type: type,
+                    releaseDate: releaseDate,
+                    songIds: songIds,
+                };
+
+                const formData = new FormData();
+                formData.append('data', JSON.stringify(data));
+                formData.append('albumCover', albumCover);
+
+                try {
+                    const response = await fetch('/api/admin/create/album', {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        statusMessage.textContent = 'Album created successfully.';
+                    } else {
+                        statusMessage.textContent = `Error: ${result.message}`;
+                    }
+                } catch (error) {
+                    statusMessage.textContent = `Error: ${error.message}`;
+                }
+            });
+        </script>
+    </body>
+</html>

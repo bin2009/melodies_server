@@ -13,9 +13,15 @@ const { Sequelize, Model } = require('sequelize');
 //     },
 // });
 
-const sequelize = new Sequelize('melodies_music', 'postgres', '290321', {
+const sequelize = new Sequelize('pbl6', 'postgres', '290321', {
     host: 'localhost',
     dialect: 'postgres',
+    timezone: '+07:00',
+    dialectOptions: {
+        useUTC: false,
+        timezone: 'Asia/Bangkok',
+    },
+    logging: false,
 });
 
 const connection = async () => {

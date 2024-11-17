@@ -1,36 +1,251 @@
+import { StatusCodes } from 'http-status-codes';
+import ApiError from '~/utils/ApiError';
+
+import { userService } from '~/services/userService';
+import { playlistService } from '~/services/playlistService';
+import { songService } from '~/services/songService';
+
+import emailController from '~/controllers/emailController';
+
 const statusCodes = require('../utils/statusCodes');
-const userService = require('../services/userService');
 
-const emailController = require('./emailController');
+const getInfoUser = async (req, res, next) => {
+    try {
+        const user = await userService.getInfoUserService(req.user);
 
-// ---------------------------USER------------------------
-
-const getAllUser = async (req, res) => {
-    const response = await userService.getUsersService(req.query.offset);
-    return res.status(response.errCode).json(response);
-};
-
-const getUser = async (req, res) => {
-    const response = await userService.getUserService(req.user.id);
-    return res.status(response.errCode).json(response);
-};
-
-const deleteUser = async (req, res) => {
-    const userId = req.params.id;
-    if (!userId) {
-        return res.status(400).json({
-            errCode: 400,
-            message: 'User id required',
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get info user success',
+            user: user,
         });
+    } catch (error) {
+        next(error);
     }
-    const response = await userService.deleteUserService(userId);
-    return res.status(response.errCode).json(response);
+};
+const getPlaylist = async (req, res, next) => {
+    try {
+        if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
+
+        const playlists = await userService.getPlaylistService({ user: req.user });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get playlist by user success',
+            ...playlists,
+        });
+    } catch (error) {
+        next(error);
+    }
 };
 
-const updateUser = async (req, res) => {
-    const response = await userService.updateUserService(req.body);
-    console.log(req.body);
-    return res.status(response.errCode).json(response);
+const getPlaylistDetail = async (req, res, next) => {
+    try {
+        if (!req.params.playlistId) throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: playlist id');
+
+        const checkPlaylist = await playlistService.checkPlaylistExists(req.params.playlistId);
+        if (!checkPlaylist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
+
+        const playlist = await userService.getPlaylistDetailService({
+            playlistId: req.params.playlistId,
+            user: req.user,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get playlist detail successfully',
+            ...playlist,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getSongOfPlaylist = async (req, res, next) => {
+    try {
+        if (!req.params.playlistId) throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: playlist id');
+
+        const checkPlaylist = await playlistService.checkPlaylistExists(req.params.playlistId);
+        if (!checkPlaylist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
+
+        const songs = await userService.getSongOfPlaylistService({
+            playlistId: req.params.playlistId,
+            user: req.user,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get songs of playlist success',
+            songsOfPlaylist: songs,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const createPlaylist = async (req, res, next) => {
+    try {
+        const playlist = await userService.createPlaylistService({ data: req.body, user: req.user });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Create playlist success',
+            ...playlist,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const addSongPlaylist = async (req, res, next) => {
+    try {
+        // check missing data
+        if (!req.body.playlistId || !req.body.songId)
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: playlist id or song id');
+        // check playlist
+        const checkPlaylist = await playlistService.checkPlaylistExists(req.body.playlistId);
+        if (!checkPlaylist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
+        // check song
+        const checkSong = await songService.checkSongExists(req.body.songId);
+        if (!checkSong) throw new ApiError(StatusCodes.NOT_FOUND, 'Song not found');
+
+        await userService.addSongPlaylistService({ data: req.body, user: req.user });
+        const playlist = await userService.getPlaylistDetailService({
+            playlistId: req.body.playlistId,
+            user: req.user,
+        });
+
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Add song playlist success',
+            ...playlist,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const updatePlaylist = async (req, res, next) => {
+    try {
+        console.log('update playlsit', req.body);
+        console.log('update playlsit', req.file);
+        const { playlistId, data } = req.body;
+
+        if (!playlistId) throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: playlist id');
+        // check playlist
+        const checkPlaylist = await playlistService.checkPlaylistExists(playlistId);
+        if (!checkPlaylist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
+
+        const playlist = await userService.updatePlaylistService({
+            playlistId: playlistId,
+            updateData: JSON.parse(data),
+            user: req.user,
+            file: req.file,
+        });
+        // const playlist = await userService.getPlaylistDetailService({
+        //     playlistId: playlistId,
+        //     user: req.user,
+        // });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Update playlist success',
+            playlist: playlist,
+            // url: url,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteSong = async (req, res, next) => {
+    try {
+        if (!req.body.playlistId || !req.body.songId)
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: playlist id or song id');
+        // check playlist
+        const checkPlaylist = await playlistService.checkPlaylistExists(req.body.playlistId);
+        if (!checkPlaylist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
+        // check song
+        const checkSong = await songService.checkSongExists(req.body.songId);
+        if (!checkSong) throw new ApiError(StatusCodes.NOT_FOUND, 'Song not found');
+
+        await userService.deleteSongService({ data: req.body, user: req.user });
+        const playlist = await userService.getPlaylistDetailService({
+            playlistId: req.body.playlistId,
+            user: req.user,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Delete song from playlist success',
+            ...playlist,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deletePlaylist = async (req, res, next) => {
+    try {
+        if (!req.params.playlistId) throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: playlist id');
+        // check playlist
+        const checkPlaylist = await playlistService.checkPlaylistExists(req.params.playlistId);
+        if (!checkPlaylist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
+
+        await userService.deletePlaylistService({ playlistId: req.params.playlistId, user: req.user });
+        const playlists = await userService.getPlaylistService({ user: req.user });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Delete playlist success',
+            ...playlists,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ----------------------actions
+
+const playTime = async (req, res, next) => {
+    try {
+        await userService.playTimeService({ data: req.body, user: req.user });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Play time successfully',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const likedSong = async (req, res, next) => {
+    try {
+        const liked = await userService.likedSongService({ data: req.body, user: req.user });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: liked ? 'Like Successfully' : 'Delete like successfully',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const followedArtist = async (req, res, next) => {
+    try {
+        const follow = await userService.followedArtistService({ data: req.body, user: req.user });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: follow ? 'Follow Successfully' : 'Delete follow successfully',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const comment = async (req, res, next) => {
+    try {
+        const comment = await userService.commentService({ data: req.body, user: req.user });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Comment successfully',
+            comment: comment,
+        });
+    } catch (error) {
+        next(error);
+    }
 };
 
 const register = async (req, res) => {
@@ -48,123 +263,23 @@ const register = async (req, res) => {
     }
 };
 
-const changePassword = async (req, res) => {
-    const data = req.body;
-    if (!data.oldPass || !data.newPass) {
-        return res.status(400).json({
-            errCode: 400,
-            messaeg: 'Missing data',
-        });
-    }
-    const response = await userService.changePasswordService(req.body, req.user);
-    return res.status(response.errCode).json(response);
-};
-
-// ---------------------------HOME------------------------
-
-// ---------------------------WORKING WITH MUSIC------------------------
-const playTime = async (req, res) => {
-    const response = await userService.playTimeService(req.body, req.user);
-    return res.status(response.errCode).json(response);
-};
-
-const likedSong = async (req, res) => {
-    const response = await userService.likedSongService(req.body, req.user);
-    return res.status(response.errCode).json(response);
-};
-
-const followedArtist = async (req, res) => {
-    const response = await userService.followedArtistService(req.body, req.user);
-    return res.status(response.errCode).json(response);
-};
-
-const comment = async (req, res) => {
-    const response = await userService.commentService(req.body, req.user);
-    return res.status(response.errCode).json(response);
-};
-
-// ---------------------------SUBSCRIPTION------------------------
-
-const subscription = async (req, res) => {
-    console.log('hah');
-    console.log(req.user, req.body.packageId);
-    // return res.send('hah');
-    const response = await userService.subscriptionService(req.user, req.body.packageId);
-    return res.status(response.errCode).json(response);
-};
-
-const search = async (req, res) => {
-    // return res.status(200).json(req.query.query);
-    const response = await userService.serachService(req.query.query);
-    return res.status(response.errCode).json(response);
-};
-
-const search2 = async (req, res) => {
-    // return res.status(200).json(req.query.query);
-    const response = await userService.serach2Service(req.query.query);
-    return res.status(response.errCode).json(response);
-};
-
-// ---------------------------PLAYLIST------------------------
-
-const getPlaylist = async (req, res) => {
-    const response = await userService.getPlaylistService(req.query.page, req.user);
-    return res.status(response.errCode).json(response);
-};
-
-const getPlaylistDetail = async (req, res) => {
-    const response = await userService.getPlaylistDetailService(req.params.playlistId);
-    return res.status(response.errCode).json(response);
-};
-
-const createPlaylist = async (req, res) => {
-    const response = await userService.createPlaylistService(req.body, req.user);
-    return res.status(response.errCode).json(response);
-};
-
-const addSongPlaylist = async (req, res) => {
-    const response = await userService.addSongPlaylistService(req.body, req.user);
-    return res.status(response.errCode).json(response);
-};
-
-const updatePlaylist = async (req, res) => {
-    const response = await userService.updatePlaylistService(req.body, req.user);
-    return res.status(response.errCode).json(response);
-};
-
-const deleteSong = async (req, res) => {
-    const response = await userService.deleteSongService(req.body, req.user);
-    return res.status(response.errCode).json(response);
-};
-
-const deletePlaylist = async (req, res) => {
-    const response = await userService.deletePlaylistService(req.params.playlistId, req.user);
-    return res.status(response.errCode).json(response);
-};
-
-module.exports = {
-    getAllUser,
-    getUser,
-    updateUser,
-    deleteUser,
-    register,
-    // -----------
-    playTime,
-    likedSong,
-    followedArtist,
-    comment,
-    // --------------
-    changePassword,
-    subscription,
-    // ----------
-    search,
-    search2,
-    // ---------
+export const userController = {
+    getInfoUser,
     getPlaylist,
     getPlaylistDetail,
+    getSongOfPlaylist,
     createPlaylist,
     addSongPlaylist,
     updatePlaylist,
     deleteSong,
     deletePlaylist,
+
+    // ---------actions
+    playTime,
+    likedSong,
+    followedArtist,
+    comment,
+
+    // -------- ....
+    register,
 };

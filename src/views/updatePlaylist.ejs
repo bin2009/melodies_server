@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Update Playlist</title>
+    </head>
+    <body>
+        <h1>Update Playlist</h1>
+        <form id="updatePlaylistForm">
+            <input type="text" id="playlisId" name="playlisId" placeholder="Playlist id" required />
+            <input type="text" id="playlistName" name="playlistName" placeholder="Playlist Name" required />
+            <input type="text" id="title" name="title" placeholder="Title" />
+            <input type="text" id="description" name="description" placeholder="description" />
+            <input type="file" id="playlistAvatar" name="playlistAvatar" required />
+            <button type="submit">Update Playlist</button>
+        </form>
+        <p id="statusMessage"></p>
+
+        <script>
+            document.getElementById('updatePlaylistForm').addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                const playlistId = document.getElementById('playlisId').value;
+                const playlistName = document.getElementById('playlistName').value;
+                const title = document.getElementById('title').value;
+                const description = document.getElementById('description').value;
+                const playlistAvatar = document.getElementById('playlistAvatar').files[0];
+                const statusMessage = document.getElementById('statusMessage');
+
+                // const updateData = {
+                //     playlistId: playlistId,
+                //     data: {
+                //         playlistName: playlistName,
+                //         title: title,
+                //         description: description,
+                //     },
+                // };
+
+                const data = {
+                    playlistName: playlistName,
+                    title: title,
+                    description: description,
+                };
+
+                if (!playlistAvatar) {
+                    statusMessage.textContent = 'Please select an image to upload.';
+                    return;
+                }
+
+                const formData = new FormData();
+                // formData.append('playlistName', playlistName);
+                formData.append('playlistId', playlistId);
+                formData.append('data', JSON.stringify(data));
+                formData.append('playlistAvatar', playlistAvatar);
+
+                try {
+                    const response = await fetch('/api/user/playlist/update', {
+                        method: 'PATCH',
+                        body: formData,
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        statusMessage.textContent = 'Playlist updated successfully.';
+                    } else {
+                        statusMessage.textContent = `Error: ${result.message}`;
+                    }
+                } catch (error) {
+                    statusMessage.textContent = `Error: ${error.message}`;
+                }
+            });
+        </script>
+    </body>
+</html>
