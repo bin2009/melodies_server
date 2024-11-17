@@ -2,14 +2,14 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
     async up(queryInterface, Sequelize) {
-        await queryInterface.removeColumn('Playlist', 'userId');
+        await queryInterface.removeColumn('Song', 'albumId');
     },
     async down(queryInterface, Sequelize) {
-        await queryInterface.addColumn('Playlist', 'userId', {
+        await queryInterface.addColumn('Song', 'albumId', {
             type: Sequelize.UUID,
             references: {
-                model: 'User',
-                key: 'id',
+                model: 'Album',
+                key: 'albumId',
             },
             allowNull: false,
         });

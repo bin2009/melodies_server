@@ -3,26 +3,26 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
     async up(queryInterface, Sequelize) {
-        await queryInterface.createTable('UserPlaylist', {
+        await queryInterface.createTable('AlbumSong', {
             id: {
                 type: Sequelize.UUID,
                 primaryKey: true,
                 allowNull: false,
                 defaultValue: Sequelize.UUIDV4,
             },
-            userId: {
+            songId: {
                 type: Sequelize.UUID,
                 references: {
-                    model: 'User',
+                    model: 'Song',
                     key: 'id',
                 },
                 allowNull: false,
             },
-            playlistId: {
+            albumId: {
                 type: Sequelize.UUID,
                 references: {
-                    model: 'Playlist',
-                    key: 'id',
+                    model: 'Album',
+                    key: 'albumId',
                 },
                 allowNull: false,
             },
@@ -40,6 +40,6 @@ module.exports = {
     },
 
     async down(queryInterface, Sequelize) {
-        await queryInterface.dropTable('UserPlaylist');
+        await queryInterface.dropTable('AlbumSong');
     },
 };

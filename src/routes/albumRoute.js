@@ -1,10 +1,10 @@
-const express = require('express');
-const router = express.Router();
-const albumController = require('../controllers/albumController');
+import express from 'express';
+const Router = express.Router();
 
-router.get('/more/:id', albumController.getMoreAlbum);
-router.get('/', albumController.getAllAlbum);
+import { albumController } from '~/controllers/albumController';
 
-router.get('/top', albumController.getTopAlbum);
+Router.route('/top').get(albumController.getTopAlbum);
+Router.route('/:albumId').get(albumController.getAlbum);
+Router.route('/albumAnother/:albumId').get(albumController.getAlbumAnother);
 
-module.exports = router;
+export default Router;

@@ -39,6 +39,12 @@ const loginService = async (data) => {
                 message: 'Wrong password',
             };
         }
+        // if (user.status2 !== 'normal') {
+        //     return {
+        //         errCode: 403,
+        //         message: 'Your account is locked',
+        //     };
+        // }
         if (user && validPass) {
             // kiểm tra đã login chưa
             const checkLogin = await client.get(String(user.id));

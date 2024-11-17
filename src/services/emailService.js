@@ -68,7 +68,7 @@ const emailOtpService = async (email) => {
     const otp = generateOtp();
     try {
         await sendOtp(email, otp);
-        await client.setEx(String(email), 300, String(otp));
+        await client.setEx(String(email), 60, String(otp));
         return {
             errCode: 0,
             errMess: 'OTP sent to your email',

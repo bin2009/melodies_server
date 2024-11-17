@@ -1,7 +1,11 @@
-const jwt = require('jsonwebtoken');
-const db = require('../models');
-const User = db.User;
-const emailController = require('../controllers/emailController');
+import jwt from 'jsonwebtoken';
+import db from '~/models';
+import { StatusCodes } from 'http-status-codes';
+
+// const jwt = require('jsonwebtoken');
+// const db = require('../models');
+// const User = db.User;
+// const emailController = require('../controllers/emailController');
 
 const verifyToken = (req, res, next) => {
     const token = req.headers['authorization'];
@@ -10,49 +14,69 @@ const verifyToken = (req, res, next) => {
         const accessToken = token.split(' ')[1];
         jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
             if (err) {
-                return res.status(403).json({
-                    errCode: 403,
-                    message: 'Token is not valid',
+                return res.status(StatusCodes.FORBIDDEN).json({
+                    status: 'error',
+                    message: 'Access denied',
                 });
             }
             req.user = user;
             next();
         });
     } else {
-        return res.status(401).json({
-            errCode: 401,
+        return res.status(StatusCodes.UNAUTHORIZED).json({
+            status: 'error',
             message: "You're not authenticated",
         });
     }
 };
 
-const verifyUser = (req, res, next) => {};
-
 const verifyTokenAndAdmin = (req, res, next) => {
     verifyToken(req, res, () => {
-        console.log(req.user);
         if (req.user.role === 'Admin') {
             next();
         } else {
-            return res.status(403).json("You're not allowed");
+            return res.status(StatusCodes.FORBIDDEN).json({
+                status: 'error',
+                message: "You're not allowed",
+            });
         }
     });
 };
 
-const verifyTokenUserOrAdmin = (req, res, next) => {
+const verifyTokenAndAuthorization = (req, res, next) => {
     verifyToken(req, res, () => {
         if (req.user.id == req.params.id || req.user.role === 'Admin') {
             next();
         } else {
-            return res.status(403).json("You're not allowed");
+            return res.status(StatusCodes.FORBIDDEN).json({
+                status: 'error',
+                message: "You're not allowed",
+            });
         }
     });
 };
 
+const optionalVerifyToken = async (req, res, next) => {
+    const token = req.headers['authorization'];
+
+    if (token) {
+        const accessToken = token.split(' ')[1];
+        jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+            if (err) {
+                return res.status(StatusCodes.FORBIDDEN).json({
+                    status: 'error',
+                    message: 'Token is not valid',
+                });
+            }
+            req.user = user;
+        });
+    }
+    next();
+};
 const checkEmailExits = async (req, res, next) => {
     try {
         const { email } = req.body;
-        const user = await User.findOne({ where: { email: email } });
+        const user = await db.User.findOne({ where: { email: email } });
         if (user) {
             return res.status(400).json({
                 errCode: 3,
@@ -68,30 +92,18 @@ const checkEmailExits = async (req, res, next) => {
     }
 };
 
-const optionalVerifyToken = async (req, res, next) => {
-    const token = req.headers['authorization'];
-
-    if (!token) {
-        return next();
-    }
-
-    const accessToken = token.split(' ')[1];
-    jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).json({
-                errCode: 403,
-                message: 'Token is not valid',
-            });
-        }
-        req.user = user;
-        next();
-    });
-};
-
-module.exports = {
+export const authMiddleWare = {
     verifyToken,
     verifyTokenAndAdmin,
-    verifyTokenUserOrAdmin,
-    checkEmailExits,
+    verifyTokenAndAuthorization,
     optionalVerifyToken,
+    checkEmailExits,
 };
+
+// module.exports = {
+//     verifyToken,
+//     verifyTokenAndAdmin,
+//     verifyTokenUserOrAdmin,
+//     checkEmailExits,
+//     optionalVerifyToken,
+// };

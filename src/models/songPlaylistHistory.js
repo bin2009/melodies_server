@@ -13,6 +13,10 @@ module.exports = (sequelize, DataTypes) => {
                 foreignKey: 'songId',
                 as: 'song',
             });
+            SongPlayHistory.belongsTo(models.User, {
+                foreignKey: 'userId',
+                as: 'user',
+            });
         }
     }
     SongPlayHistory.init(

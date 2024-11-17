@@ -9,7 +9,13 @@ module.exports = (sequelize, DataTypes) => {
          */
         static associate(models) {
             // define association here
-            Song.belongsTo(models.Album, { foreignKey: 'albumId', as: 'album' });
+            // Song.belongsTo(models.Album, { foreignKey: 'albumId', as: 'album' });
+            Song.belongsToMany(models.Album, {
+                through: 'AlbumSong',
+                as: 'album',
+                foreignKey: 'songId',
+                otherKey: 'albumId',
+            });
             Song.belongsToMany(models.Artist, {
                 through: 'ArtistSong',
                 as: 'artists',
@@ -52,6 +58,10 @@ module.exports = (sequelize, DataTypes) => {
                 foreignKey: 'songId',
                 as: 'artistSong',
             });
+            Song.hasMany(models.Comment, {
+                foreignKey: 'songId',
+                as: 'comments',
+            });
         }
     }
     Song.init(
@@ -61,14 +71,14 @@ module.exports = (sequelize, DataTypes) => {
                 primaryKey: true,
                 defaultValue: DataTypes.UUIDV4,
             },
-            albumId: {
-                type: DataTypes.UUID,
-                references: {
-                    model: 'Album',
-                    key: 'albumId',
-                },
-                allowNull: true,
-            },
+            // albumId: {
+            //     type: DataTypes.UUID,
+            //     references: {
+            //         model: 'Album',
+            //         key: 'albumId',
+            //     },
+            //     allowNull: true,
+            // },
             title: {
                 type: DataTypes.STRING,
                 allowNull: false,

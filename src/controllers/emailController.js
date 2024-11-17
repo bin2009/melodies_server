@@ -1,4 +1,4 @@
-const statusCodes = require('../utils/statusCodes');
+const statusCodes = require('~/utils/statusCodes');
 const emailService = require('../services/emailService');
 
 const checkEmailExits = async (req, res) => {

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Tạo Thể Loại cho Nghệ Sĩ</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+                padding: 20px;
+                background-color: #f4f4f4;
+            }
+            form {
+                background: #fff;
+                padding: 20px;
+                border-radius: 5px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            }
+            label {
+                display: block;
+                margin-bottom: 10px;
+            }
+            select {
+                width: 100%;
+                padding: 10px;
+                margin-bottom: 20px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }
+            button {
+                background-color: #5cb85c;
+                color: white;
+                padding: 10px 15px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            button:hover {
+                background-color: #4cae4c;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Tạo Thể Loại cho Nghệ Sĩ</h1>
+        <form id="categoryForm" action="/api/admin/create/artistGenre" method="POST">
+            <label for="artist">Chọn Nghệ Sĩ:</label>
+            <select id="artist" name="artistId" required>
+                <option value="">-- Chọn Nghệ Sĩ --</option>
+            </select>
+
+            <label for="genres">Chọn Thể Loại:</label>
+            <select id="genres" name="genres" multiple required>
+                <!-- Thể loại sẽ được thêm vào đây -->
+            </select>
+            <small>Giữ Ctrl (hoặc Cmd) để chọn nhiều thể loại.</small>
+
+            <button type="submit">Tạo</button>
+        </form>
+
+        <script>
+            // Lấy danh sách nghệ sĩ từ API
+            fetch('/api/admin/allArtistName')
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.errCode === 200) {
+                        const artistSelect = document.getElementById('artist');
+                        data.artists.forEach((a) => {
+                            const option = document.createElement('option');
+                            option.value = a.id; // Sử dụng id của nghệ sĩ
+                            option.textContent = a.name; // Sử dụng tên của nghệ sĩ
+                            artistSelect.appendChild(option);
+                        });
+                    } else {
+                        console.error('Lỗi khi lấy nghệ sĩ:', data.message);
+                    }
+                })
+                .catch((error) => console.error('Lỗi khi gọi API nghệ sĩ:', error));
+
+            // Lấy danh sách thể loại từ API
+            fetch('/api/admin/allGenreName')
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.errCode === 200) {
+                        const categoriesSelect = document.getElementById('genres');
+                        data.genres.forEach((genre) => {
+                            const option = document.createElement('option');
+                            option.value = genre.genreId; // Giả sử mỗi thể loại có thuộc tính id
+                            option.textContent = genre.name; // Giả sử mỗi thể loại có thuộc tính name
+                            categoriesSelect.appendChild(option);
+                        });
+                    } else {
+                        console.error('Lỗi khi lấy thể loại:', data.message);
+                    }
+                })
+                .catch((error) => console.error('Lỗi khi gọi API thể loại:', error));
+        </script>
+    </body>
+</html>

@@ -1,543 +1,537 @@
-const db = require('../models');
-const { Op, where } = require('sequelize');
-const { v4: uuidv4 } = require('uuid');
+import db from '~/models';
+import { Op } from 'sequelize';
+import ApiError from '~/utils/ApiError';
+import { StatusCodes } from 'http-status-codes';
+import { v4 as uuidv4 } from 'uuid';
 
-const getAllArtistService = async (offset) => {
-    try {
-        const artists = await db.Artist.findAll({
-            attributes: ['id', 'name', 'avatar', 'createdAt'],
-            include: [
-                {
-                    model: db.Genre,
-                    as: 'genres',
-                    attributes: ['genreId', 'name'],
-                    through: {
-                        attributes: [],
-                    },
-                },
-            ],
-            order: [['createdAt', 'DESC']],
-            limit: 10,
-            offset: 10 * offset,
-        });
+import { timeFormatter } from '~/validations/timeFormatter';
+import { albumService } from './albumService';
+import { songService } from './songService';
+import { genreService } from './genreService';
+import { awsService } from './awsService';
 
-        const artistIds = artists.map((record) => record.id);
-
-        const followCount = await db.Follow.findAll({
-            where: {
-                artistId: {
-                    [Op.in]: artistIds,
-                },
-            },
-            attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('followerId')), 'followCount']],
-            group: ['artistId'],
-            raw: true,
-        });
-
-        const followCountMap = followCount.reduce((acc, record) => {
-            acc[record.artistId] = record.followCount;
-            return acc;
-        }, {});
-
-        const artistWithFollow = artists.map((artist) => ({
-            ...artist.toJSON(),
-            followCount: followCountMap[artist.id] || 0,
-        }));
-
-        return {
-            errCode: 200,
-            message: 'Get all artists',
-            artists: artistWithFollow,
-        };
-    } catch (error) {
-        return {
-            errCode: 500,
-            message: `Get all artists failed: ${error.message}`,
-        };
-    }
+const checkArtistExits = async (artistId) => {
+    console.log('check artist : ', artistId);
+    return await db.Artist.findByPk(artistId);
 };
 
-const getArtistService = async (artistId) => {
-    try {
-        const artist = await db.Artist.findOne({
-            where: { id: artistId },
-            attributes: ['id', 'name', 'avatar', 'createdAt'],
-            include: [
-                {
-                    model: db.Genre,
-                    as: 'genres',
-                    attributes: ['genreId', 'name'],
-                    through: {
-                        attributes: [],
-                    },
-                },
-            ],
-        });
-
-        const followCountResult = await db.Follow.findAll({
-            where: { artistId: artist.id },
-            attributes: [[db.Sequelize.fn('COUNT', db.Sequelize.col('followerId')), 'followCount']],
-            group: ['artistId'],
-            raw: true,
-        });
-
-        const followCount = followCountResult.length > 0 ? followCountResult[0].followCount : 0;
-
-        const artistWithFollow = {
-            ...artist.toJSON(),
-            followCount: parseInt(followCount, 10) || 0,
-        };
-
-        return {
-            errCode: 200,
-            message: 'Get artist successfully',
-            artists: artistWithFollow,
-        };
-    } catch (error) {
-        return {
-            errCode: 500,
-            message: `Get artist failed: ${error.message}`,
-        };
-    }
+const fetchArtistCount = async ({ conditions = {} } = {}) => {
+    const count = await db.Artist.count({ where: conditions });
+    return count;
 };
 
-const createArtistService = async (data) => {
-    try {
-        if (!data.genres || data.genres.length === 0) {
-            return {
-                errCode: 400,
-                message: 'No genres provided',
-            };
-        }
-
-        const artist = await db.Artist.findOne({
-            where: {
-                name: {
-                    [Op.iLike]: `%${data.name.trim()}%`,
-                },
-            },
-            attributes: ['name'],
-            include: [
-                {
-                    model: db.Genre,
-                    as: 'genres',
-                    where: { genreId: data.genres[0].genreId },
-                    attributes: [],
-                    through: {
-                        attributes: [],
-                    },
-                },
-            ],
-        });
-
-        if (!artist) {
-            const newArtist = await db.Artist.create({
-                id: uuidv4(),
-                name: data.name,
-                avatar: data.avatar,
-                bio: data.bio,
-            });
-
-            const genreArtist = data.genres
-                .filter((genre) => genre.genreId)
-                .map((genre, index) => {
-                    return {
-                        artistId: newArtist.id,
-                        genreId: genre.genreId,
-                    };
-                });
-
-            await db.ArtistGenre.bulkCreate(genreArtist);
-
-            return {
-                errCode: 200,
-                message: 'Artist created successfully',
-                newArtist: newArtist,
-            };
-        }
-
-        return {
-            errCode: 409,
-            message: 'Artist exits',
-        };
-    } catch (error) {
-        return {
-            errCode: 500,
-            message: `Create artist failed: ${error.message}`,
-        };
-    }
+const fetchArtistName = async ({ conditions = {} } = {}) => {
+    const artists = await db.Artist.findAll({
+        where: conditions,
+        attributes: ['id', 'name', 'avatar'],
+        order: [['createdAt', 'DESC']],
+        raw: true,
+    });
+    return artists;
 };
 
-const deleteArtistService = async (artistId) => {
-    try {
-        const artist = await db.Artist.findOne({ where: { id: artistId } });
-        if (artist) {
-            await db.ArtistGenre.destroy({ where: { artistId: artistId } });
-            await db.Artist.destroy({ where: { id: artistId } });
-
-            return {
-                errCode: 200,
-                message: 'Delete artist successfully',
-            };
-        } else {
-            return {
-                errCode: 404,
-                message: 'Artist not found',
-            };
-        }
-    } catch (error) {
-        return {
-            errCode: 500,
-            message: `Delete artist failed: ${error.message}`,
-        };
-    }
+const fetchFollowCount = async ({
+    limit,
+    offset,
+    order = [[db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'DESC']],
+    group = ['artistId'],
+    conditions = {},
+    mode = 'findAll',
+} = {}) => {
+    const artistIds = await db.Follow[mode]({
+        where: conditions,
+        attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('followerId')), 'followCount']],
+        group: group,
+        order: order,
+        limit: limit,
+        offset: offset,
+        raw: true,
+    });
+    return artistIds;
 };
 
-const updateArtistService = async (data) => {
-    try {
-        const artist = await db.Artist.findOne({ where: { id: data.id } });
-        if (artist) {
-            if (!data.genres || data.genres.length === 0) {
-                await db.Artist.update(data.updateData, { where: { id: data.id } });
-            } else {
-                await db.ArtistGenre.destroy({ where: { artistId: data.id } });
-
-                const genreArtist = data.genres
-                    .filter((genre) => genre.genreId)
-                    .map((genre, index) => {
-                        return {
-                            artistId: data.id,
-                            genreId: genre.genreId,
-                        };
-                    });
-
-                await db.ArtistGenre.bulkCreate(genreArtist);
-
-                await db.Artist.update(data.updateData, { where: { id: data.id } });
-            }
-            return {
-                errCode: 200,
-                message: 'Update artist successfully',
-            };
-        } else {
-            return {
-                errCode: 404,
-                message: 'Artist not found',
-            };
-        }
-    } catch (error) {
-        return {
-            errCode: 500,
-            message: `Update artist failed: ${error.message}`,
-        };
-    }
+const fetchSongCount = async ({
+    conditions = {},
+    limit,
+    offset,
+    order = [[db.Sequelize.fn('COUNT', db.Sequelize.col('artistSongId')), 'DESC']],
+    group = ['artistId'],
+    mode = 'findAll',
+} = {}) => {
+    const artists = await db.ArtistSong[mode]({
+        where: conditions,
+        attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('artistSongId')), 'totalSongs']],
+        group: group,
+        limit: limit,
+        offset: offset,
+        order: order,
+        raw: true,
+    });
+    return artists;
 };
 
-const getMoreArtistService = async (artistId) => {
-    try {
-        const artist = await db.Artist.findByPk(artistId, {
-            include: [
-                {
-                    model: db.ArtistGenre,
-                    as: 'artistGenres',
-                    attributes: ['genreId'],
-                },
-            ],
-            attributes: ['id', 'name', 'avatar'],
-        });
-
-        if (!artist) {
-            return {
-                errCode: 404,
-                message: 'Artist not found',
-            };
-        }
-
-        // lấy ra song của artist
-        const songs = await db.ArtistSong.findAll({
-            where: { artistId: artist.id, main: true },
-            attributes: ['songId', 'artistId'],
-            include: [
-                {
-                    model: db.Song,
-                    as: 'song',
-                    attributes: ['id', 'albumId'],
-                },
-            ],
-        });
-
-        const songIds = songs.map((record) => record.songId);
-
-        // lấy ra 5 bài hát có view cao nhất
-        const songsTop10View = await db.SongPlayHistory.findAll({
-            where: {
-                songId: {
-                    [Op.in]: songIds,
-                },
-            },
-            attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'viewCount']],
-            group: ['songId'],
-            order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'DESC']],
-            limit: 10,
-            // raw: true,
-        });
-
-        const songTop10ViewIds = songsTop10View.map((rec) => rec.songId);
-
-        const popSong = await db.Song.findAll({
-            where: {
-                id: {
-                    [Op.in]: songTop10ViewIds,
-                },
-            },
-            attributes: [
-                'id',
-                'title',
-                'releaseDate',
-                'duration',
-                'lyric',
-                'filePathAudio',
-                [db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'viewCount'],
-            ],
-            // attributes: {
-            //     exclude: ['createdAt', 'updatedAt'],
-            //     include: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'viewCount']],
-            // },
-            include: [
-                {
-                    model: db.SongPlayHistory,
-                    as: 'playHistory',
+const fetchArtist = async ({
+    conditions = {},
+    mode = 'findAll',
+    limit,
+    offset,
+    order = [['createdAt', 'DESC']],
+} = {}) => {
+    const artists = await db.Artist[mode]({
+        where: conditions,
+        attributes: ['id', 'name', 'avatar', 'bio', 'createdAt'],
+        include: [
+            {
+                model: db.Genre,
+                as: 'genres',
+                attributes: ['genreId', 'name'],
+                through: {
                     attributes: [],
                 },
-                {
-                    model: db.Album,
-                    as: 'album',
-                    attributes: ['albumId', 'title'],
-                    include: [
-                        {
-                            model: db.AlbumImage,
-                            as: 'albumImages',
-                            attributes: ['image', 'size'],
-                        },
-                    ],
-                },
-                {
-                    model: db.Artist,
-                    as: 'artists',
-                    attributes: ['id', 'name', 'avatar'],
-                    through: {
-                        attributes: ['main'],
-                    },
-                },
-            ],
-            group: [
-                'Song.id',
-                'album.albumId',
-                'album.albumImages.albumImageId',
-                'artists.id',
-                'artists->ArtistSong.artistSongId',
-            ],
-            order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'DESC']],
-        });
-
-        // // list album của nghệ sĩ từ list song id
-        // lấy ra list song của album
-        // lấy ra list id album tương ứng
-
-        const albumIds = [...new Set(songs.map((record) => record.song.albumId))];
-
-        const artistAlbum = await db.Album.findAll({
-            where: {
-                albumId: {
-                    [Op.in]: albumIds,
-                },
-                albumType: {
-                    [Op.or]: ['album', 'ep'],
-                },
             },
-            attributes: ['albumId', 'title', 'releaseDate', 'albumType'],
-            include: [
-                {
-                    model: db.AlbumImage,
-                    as: 'albumImages',
-                    attributes: ['image', 'size'],
-                },
-            ],
-            order: [['releaseDate', 'DESC']],
-            limit: 10,
-        });
-
-        const artistSingle = await db.Album.findAll({
-            where: {
-                albumId: {
-                    [Op.in]: albumIds,
-                },
-                albumType: 'single',
-            },
-            attributes: ['albumId', 'title', 'releaseDate', 'albumType'],
-            include: [
-                {
-                    model: db.AlbumImage,
-                    as: 'albumImages',
-                    attributes: ['image', 'size'],
-                },
-            ],
-            order: [['releaseDate', 'DESC']],
-            limit: 10,
-        });
-
-        // lấy ra các artist feat cùng
-        // lấy ra các bài hát -> tìm ra các nghệ sĩ khác main -> lấy thông tin
-        // songIds
-        const artistFeatIds = await db.ArtistSong.findAll({
-            where: {
-                songId: {
-                    [Op.in]: songIds,
-                },
-                artistId: {
-                    [Op.not]: artist.id,
-                },
-            },
-            attributes: ['songId', 'artistId'],
-        });
-
-        const artistFeat = await db.Artist.findAll({
-            where: {
-                id: {
-                    [Op.in]: artistFeatIds.map((rec) => rec.artistId),
-                },
-            },
-            attributes: ['id', 'name', 'avatar'],
-        });
-
-        // lấy ra các artist cùng thể loại
-        const genreIds = artist.artistGenres.map((record) => record.genreId);
-
-        const artistSameGenreIds = await db.ArtistGenre.findAll({
-            where: {
-                genreId: {
-                    [Op.in]: genreIds,
-                },
-                artistId: {
-                    [Op.not]: artist.id,
-                },
-            },
-            attributes: ['artistId'],
-        });
-
-        const artistSameGenre = await db.Artist.findAll({
-            where: {
-                id: {
-                    [Op.in]: artistSameGenreIds.map((record) => record.artistId),
-                },
-            },
-            attributes: ['id', 'name', 'avatar'],
-        });
-
-        const totalSong = await db.ArtistSong.count({
-            where: {
-                artistId: artist.id,
-                main: true,
-            },
-        });
-
-        const totalFollow = await db.Follow.count({ where: { artistId: artist.id } });
-
-        const artistDetail = {
-            ...artist.toJSON(),
-            // artistFeatIds: artistFeatIds,
-            // songs: songs,
-            // albumIds: albumIds,
-            // genreIds: genreIds,
-            totalSong: totalSong,
-            totalFollow: totalFollow,
-            popSong: popSong,
-            artistAlbum: artistAlbum,
-            artistSingle: artistSingle,
-            artistFeat: artistFeat,
-            artistSameGenre: artistSameGenre,
-        };
-
-        // Loại bỏ thuộc tính artistGenres
-        const { artistGenres, ...artistDetailWithoutGenres } = artistDetail;
-
-        return {
-            errCode: 200,
-            message: 'Get more artist successfully',
-            artist: artistDetailWithoutGenres,
-        };
-    } catch (error) {
-        return {
-            errCode: 500,
-            message: `Get more artist failed: ${error.message}`,
-        };
-    }
+        ],
+        order: order,
+        limit: limit,
+        offset: offset,
+    });
+    return artists;
 };
 
-// ---------------------------------------------------------------------
+const fetchUserFollowArtist = async ({ userId, artistIds } = {}) => {
+    const artIds = await db.Follow.findAll({
+        where: { userId: userId, artistId: { [Op.in]: artistIds.map((a) => a.artistId) } },
+        attributes: ['artistId'],
+    });
+    return artIds;
+};
 
-const getPopularArtistService = async (offset) => {
+const fetchSongIdsByArtist = async ({ artistId, main = true } = {}) => {
+    const songIds = await db.ArtistSong.findAll({
+        where: { artistId: artistId, main: main },
+        attributes: ['songId'],
+    });
+    return songIds;
+};
+
+const fetchMainArtist = async ({ conditions = {} } = {}) => {
+    const artistId = await db.ArtistSong.findOne({
+        where: conditions,
+        attributes: ['artistId'],
+        raw: true,
+    });
+    return artistId;
+};
+
+const fetchSArtistFeatByArtist = async ({ conditions = {}, limit, offset, order = [['createdAt', 'DESC']] } = {}) => {
+    const artistIds = await db.ArtistSong.findAll({
+        where: conditions,
+        attributes: ['artistId'],
+        limit: limit,
+        offset: offset,
+        order: order,
+        raw: true,
+    });
+    return artistIds;
+};
+
+const fetchGenreIdsByArtist = async ({ conditions = {} } = {}) => {
+    const genreIds = await db.ArtistGenre.findAll({
+        where: conditions,
+        attributes: ['genreId'],
+        raw: true,
+    });
+    return genreIds;
+};
+
+const fetchArtistIdsByGenre = async ({ conditions = {} } = {}) => {
+    const artistIds = await db.ArtistGenre.findAll({
+        where: conditions,
+        attributes: ['artistId'],
+        raw: true,
+    });
+    return artistIds;
+};
+const getPopularArtistService = async ({ limit = 10, page = 1, user } = {}) => {
     try {
-        const topArtist = await db.Follow.findAll({
-            attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'followCount']],
-            group: ['artistId'],
-            order: [[db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'DESC']],
-            limit: 10,
-            offset: 10 * offset,
-            raw: true,
-        });
+        const offset = (page - 1) * limit;
+        const [totalArtist, topArtist] = await Promise.all([
+            fetchArtistCount(),
+            fetchFollowCount({ limit: limit, offset: offset }),
+        ]);
 
-        const topArtistId = topArtist.map((record) => record.artistId);
+        const [popularArtists, followed] = await Promise.all([
+            fetchArtist({
+                conditions: { id: { [Op.in]: topArtist.map((record) => record.artistId) } },
+            }),
+            user && fetchUserFollowArtist({ userId: user.id, artistIds: topArtist }),
+        ]);
 
-        const popularArtists = await db.Artist.findAll({
-            where: {
-                id: {
-                    [Op.in]: topArtistId,
-                },
-            },
-            attributes: ['id', 'name', 'avatar', 'bio'],
-            include: [
-                {
-                    model: db.Genre,
-                    as: 'genres',
-                    attributes: ['genreId', 'name'],
-                    through: {
-                        attributes: [],
-                    },
-                },
-            ],
-        });
+        const followedMap = new Set(followed?.map((f) => f.artistId));
 
         const artistMap = popularArtists.reduce((acc, artist) => {
             acc[artist.id] = artist.toJSON();
             return acc;
         }, {});
 
-        const popularArtistsWithFollowCount = topArtistId.map((artistId) => ({
-            ...artistMap[artistId],
-            followCount: topArtist.find((record) => record.artistId === artistId).followCount,
+        const result = topArtist.map((rec) => ({
+            ...artistMap[rec.artistId],
+            followCount: rec.followCount,
+            followed: user && followedMap.has(rec.artistId),
         }));
 
         return {
-            errCode: 200,
-            message: 'Get popular artists successfully',
-            popularArtist: popularArtistsWithFollowCount,
+            page: page,
+            totalPage: Math.ceil(totalArtist / limit),
+            popularArtist: result,
         };
     } catch (error) {
-        return {
-            errCode: 500,
-            message: `Get popular artists failed: ${error.message}`,
-        };
+        throw error;
     }
 };
 
-module.exports = {
+const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user, limit = 10 } = {}) => {
+    try {
+        const offset = (page - 1) * limit;
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
+        const sortByMap = ['name', 'totalSong', 'totalAlbum', 'totalFollow'];
+        const sortOrderMap = ['desc', 'asc'];
+
+        if (!sortOrderMap.includes(sortOrder))
+            throw new ApiError(
+                StatusCodes.BAD_REQUEST,
+                'Invalid "sort order" value. Allowed values are: "high", "low".',
+            );
+        if (sortBy && !sortByMap.includes(sortBy))
+            throw new ApiError(
+                StatusCodes.BAD_REQUEST,
+                'Invalid "sort by" value. Allowed values are: "name", "totalSong", "totalAlbum", "totalFollow".',
+            );
+
+        const sort = sortOrder === 'desc' ? [['createdAt', 'DESC']] : [['createdAt', 'ASC']];
+        const artists = await fetchArtist({ order: sort });
+
+        const [totalSongs, totalFollow] = await Promise.all([
+            fetchSongCount({ conditions: { artistId: { [Op.in]: artists.map((a) => a.id) }, main: true } }),
+            fetchFollowCount({ conditions: { artistId: { [Op.in]: artists.map((a) => a.id) } } }),
+        ]);
+
+        const totalSongsMap = totalSongs.reduce((acc, curr) => {
+            acc[curr.artistId] = curr.totalSongs;
+            return acc;
+        }, {});
+        const totalFollowMap = totalFollow.reduce((acc, curr) => {
+            acc[curr.artistId] = curr.followCount;
+            return acc;
+        }, {});
+
+        const result = await Promise.all(
+            artists.map(async (artist) => {
+                const songIds = await fetchSongIdsByArtist({ artistId: artist.id });
+                const albums = await albumService.fetchAlbumIds({
+                    songConditions: { id: songIds.map((s) => s.songId) },
+                });
+                const { createdAt, ...other } = artist.toJSON();
+                return {
+                    ...other,
+                    createdAt: timeFormatter.formatDateToVietnamTime(createdAt),
+                    totalSong: totalSongsMap[artist.id] ?? 0,
+                    totalAlbum: albums.length,
+                    totalFollow: totalFollowMap[artist.id] ?? 0,
+                };
+            }),
+        );
+
+        if (sortBy) {
+            result.sort((a, b) => {
+                if (sortBy === 'name') {
+                    return sortOrder === 'desc'
+                        ? b[sortBy].localeCompare(a[sortBy])
+                        : a[sortBy].localeCompare(b[sortBy]);
+                } else {
+                    return sortOrder === 'desc' ? b[sortBy] - a[sortBy] : a[sortBy] - b[sortBy];
+                }
+            });
+        }
+
+        return {
+            page: page,
+            totalPage: Math.ceil(artists.length / limit),
+            artists: result.slice(start, end),
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+const getArtistService = async ({ artistId } = {}) => {
+    try {
+        const checkArtist = await checkArtistExits(artistId);
+        if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
+
+        const [artist, totalFollow, totalSong] = await Promise.all([
+            fetchArtist({ mode: 'findOne', conditions: { id: artistId } }),
+            fetchFollowCount({ mode: 'findOne', conditions: { artistId: artistId } }),
+            fetchSongCount({ mode: 'findOne', conditions: { artistId: artistId, main: true } }),
+        ]);
+
+        const data = {
+            ...artist.toJSON(),
+            totalFollow: parseInt(totalFollow.followCount) || 0,
+            totalSong: parseInt(totalSong.totalSongs) || 0,
+        };
+
+        return data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+const getPopSongService = async ({ artistId, page = 1, user, limit = 10 } = {}) => {
+    try {
+        const offset = (page - 1) * limit;
+        const checkArtist = await checkArtistExits(artistId);
+        if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
+
+        const songsOfArtist = await fetchSongIdsByArtist({ artistId: artistId });
+        console.log(songsOfArtist.length);
+        const songIds = await songService.fetchSongPlayCount({
+            conditions: { songId: { [Op.in]: songsOfArtist.map((s) => s.songId) } },
+            limit: limit,
+            offset: offset,
+        });
+        console.log(songIds.length);
+
+        const songs = await songService.fetchSongs({
+            conditions: { id: { [Op.in]: songIds.map((s) => s.songId) } },
+            additionalAttributes: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'viewCount']],
+            group: [
+                'Song.id',
+                'album.albumId',
+                'album.albumImages.albumImageId',
+                'artists.id',
+                'artists->ArtistSong.artistSongId',
+                'artists->genres.genreId',
+            ],
+        });
+
+        const songsMap = songs.reduce((acc, record) => {
+            acc[record.id] = record.toJSON();
+            return acc;
+        }, {});
+
+        const result = songIds.map((song) => ({
+            ...songsMap[song.songId],
+        }));
+
+        return {
+            page: page,
+            totalPage: Math.ceil(songsOfArtist.length / limit),
+            popSong: result,
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+const getAlbumFromArtistService = async ({ artistId, page = 1, limit = 10 } = {}) => {
+    try {
+        const start = (page - 1) * limit;
+        const end = start + limit;
+        const checkArtist = await checkArtistExits(artistId);
+        if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
+
+        const songsOfArtist = await fetchSongIdsByArtist({ artistId: artistId });
+
+        const albums = await albumService.fetchAlbumIds({
+            songConditions: { id: songsOfArtist.map((s) => s.songId) },
+            conditions: { albumType: { [Op.not]: 'single' } },
+        });
+
+        return {
+            page: page,
+            totalPage: Math.ceil(albums.length / limit),
+            artistAlbum: albums.slice(start, end),
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+const getSingleFromArtistService = async ({ artistId, page = 1, limit = 10 } = {}) => {
+    try {
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
+        const checkArtist = await checkArtistExits(artistId);
+        if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
+
+        const songsOfArtist = await fetchSongIdsByArtist({ artistId: artistId });
+
+        const singles = await albumService.fetchAlbumIds({
+            songConditions: { id: songsOfArtist.map((s) => s.songId) },
+            conditions: { albumType: { [Op.eq]: 'single' } },
+        });
+
+        return {
+            page: page,
+            totalPage: Math.ceil(singles.length / limit),
+            artistSingle: singles.slice(start, end),
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+const getArtistFeatService = async ({ artistId, page = 1, limit = 10 } = {}) => {
+    try {
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
+        const checkArtist = await checkArtistExits(artistId);
+        if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
+
+        const songIds = await fetchSongIdsByArtist({ artistId: artistId });
+
+        const artistFeatIds = await fetchSArtistFeatByArtist({
+            conditions: { songId: { [Op.in]: songIds.map((i) => i.songId) }, main: false },
+        });
+        const artistFeat = await fetchArtist({ conditions: { id: { [Op.in]: artistFeatIds.map((a) => a.artistId) } } });
+
+        return {
+            page: page,
+            totalPage: Math.ceil(artistFeatIds.length / limit),
+            data: artistFeat.slice(start, end),
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+const getArtistSameGenreService = async ({ artistId, page = 1, limit = 10 } = {}) => {
+    try {
+        const offset = (page - 1) * limit;
+
+        const checkArtist = await checkArtistExits(artistId);
+        if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
+
+        const genreIds = await fetchGenreIdsByArtist({ conditions: { artistId: artistId } });
+        const genre = await genreService.fetchGenre({
+            conditions: { genreId: { [Op.in]: genreIds.map((g) => g.genreId) } },
+        });
+        const artistsIds = await fetchArtistIdsByGenre({
+            conditions: {
+                [Op.and]: [{ genreId: { [Op.in]: genre.map((g) => g.genreId) } }, { artistId: { [Op.not]: artistId } }],
+            },
+        });
+
+        const artistsIdsMap = new Set(artistsIds.map((a) => a.artistId));
+        const artistIdsArray = [...artistsIdsMap];
+
+        const artists = await fetchArtist({
+            limit: limit,
+            offset: offset,
+            conditions: { id: { [Op.in]: artistIdsArray } },
+        });
+
+        return {
+            page: page,
+            totalPage: Math.ceil(artistIdsArray.length / limit),
+            artistSameGenre: artists,
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+const createArtistService = async ({ data, file } = {}) => {
+    const transaction = await db.sequelize.transaction();
+    let avatarUrl = null;
+
+    try {
+        let id = uuidv4();
+        if (file) {
+            avatarUrl = await awsService.uploadArtistAvatar(id, file);
+        }
+
+        const existingGenres = await genreService.checkGenreExists({
+            mode: 'findAll',
+            conditions: { genreId: { [Op.in]: data.genres.map((g) => g.genreId) } },
+        });
+
+        if (existingGenres.length !== data.genres.length)
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Genre not found');
+
+        const artist = await db.Artist.create(
+            {
+                id: id,
+                name: data.name,
+                avatar: avatarUrl,
+                bio: data.bio,
+            },
+            { transaction },
+        );
+
+        await Promise.all(
+            data.genres.map(async (gen) => {
+                await db.ArtistGenre.create(
+                    {
+                        artistGenreId: uuidv4(),
+                        artistId: artist.id,
+                        genreId: gen.genreId,
+                    },
+                    { transaction },
+                );
+            }),
+        );
+
+        await transaction.commit();
+        return await fetchArtist({ conditions: { id: artist.id } });
+    } catch (error) {
+        await transaction.rollback();
+        if (avatarUrl) {
+            await awsService.deleteFile(avatarUrl);
+        }
+        throw error;
+    }
+};
+
+const getSongOfArtistService = async ({ artistId } = {}) => {
+    try {
+        const songs = await db.Song.findAll({
+            include: [
+                {
+                    model: db.Artist,
+                    as: 'artists',
+                    where: { id: artistId },
+                    attributes: [],
+                    through: { attributes: [] },
+                },
+            ],
+            attributes: ['id', 'title'],
+        });
+        return songs;
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const artistService = {
+    checkArtistExits,
+    fetchArtist,
+    fetchArtistName,
+    fetchMainArtist,
+    fetchSongIdsByArtist,
     getAllArtistService,
     getArtistService,
-    deleteArtistService,
-    updateArtistService,
-    createArtistService,
-    getMoreArtistService,
-    // ------------------
     getPopularArtistService,
+    getPopSongService,
+    getAlbumFromArtistService,
+    getSingleFromArtistService,
+    getArtistFeatService,
+    getArtistSameGenreService,
+    createArtistService,
+    // ----------------
+    getSongOfArtistService,
 };

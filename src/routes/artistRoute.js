@@ -1,17 +1,18 @@
-const express = require('express');
-const router = express.Router();
-const artistController = require('../controllers/artistController');
-const authMiddWare = require('../middleware/authMiddleWare');
+import express from 'express';
+const Router = express.Router();
 
-router.get('/artist/popular', artistController.getPopularArtist);
-// ----------------------------------------------
+import { authMiddleWare } from '~/middleware/authMiddleWare';
+import { artistController } from '~/controllers/artistController';
 
-router.get('/artist/', artistController.getAllArtist);
-router.get('/artist/:id', artistController.getArtist);
-router.post('/artist/create', authMiddWare.verifyTokenAndAdmin, artistController.createArtist);
-router.delete('/artist/delete/:id', authMiddWare.verifyTokenAndAdmin, artistController.deleteArtist);
-router.patch('/artist/update', artistController.updateArtist);
+Router.route('/allArtist').get(authMiddleWare.optionalVerifyToken, artistController.getAllArtist);
+Router.route('/popular').get(authMiddleWare.optionalVerifyToken, artistController.getPopularArtist);
+Router.route('/:id').get(authMiddleWare.optionalVerifyToken, artistController.getArtist);
+Router.route('/song/:id').get(artistController.getSongOfArtist);
 
-router.get('/artist/more/:artistId', artistController.getMoreArtist)
+Router.route('/popSong/:artistId').get(authMiddleWare.optionalVerifyToken, artistController.getPopSong);
+Router.route('/album/:artistId').get(authMiddleWare.optionalVerifyToken, artistController.getAlbumFromArtist);
+Router.route('/single/:artistId').get(authMiddleWare.optionalVerifyToken, artistController.getSingleFromArtist);
+Router.route('/feat/:artistId').get(authMiddleWare.optionalVerifyToken, artistController.getArtistFeat);
+Router.route('/sameGenre/:artistId').get(authMiddleWare.optionalVerifyToken, artistController.getArtistSameGenre);
 
-module.exports = router;
+export default Router;
