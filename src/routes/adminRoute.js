@@ -29,6 +29,7 @@ async function calculateDuration(req, res, next) {
     }
 }
 
+Router.route('/create/admin').post(adminController.createAdmin);
 Router.route('/create/genre').post(adminController.createGenre);
 Router.route('/create/artist').post(upload.single('avatar'), adminController.createArtist);
 Router.route('/create/song').post(
@@ -56,7 +57,7 @@ Router.route('/allUser').get(adminController.getAllUser);
 // Router.route('/songDetail/:songId').get(adminController.getSongDetail);
 
 Router.route('/test').get((req, res) => {
-    res.render('createAlbum');
+    res.render('createSong');
 });
 Router.route('/data').post(upload.single('avatar'), (req, res, next) => {
     try {

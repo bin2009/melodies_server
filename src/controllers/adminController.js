@@ -81,6 +81,19 @@ const createAlbum = async (req, res, next) => {
     }
 };
 
+const createAdmin = async (req, res, next) => {
+    try {
+        await adminService.createAdminService({ data: req.body });
+
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Create admin success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const getRecentUser = async (req, res, next) => {
     try {
         if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
@@ -222,6 +235,7 @@ export const adminController = {
     createArtist,
     createSong,
     createAlbum,
+    createAdmin,
     // --------------
     getRecentUser,
     getRecentComment,

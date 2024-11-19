@@ -4,12 +4,15 @@ import { StatusCodes } from 'http-status-codes';
 import { v4 as uuidv4 } from 'uuid';
 import ApiError from '~/utils/ApiError';
 import sharp from 'sharp';
+import bcrypt from 'bcryptjs';
 
 import { artistService } from './artistService';
 import { albumService } from './albumService';
 import { userService } from './userService';
 import { awsService } from './awsService';
 import { songService } from './songService';
+
+const saltRounds = 10;
 
 const fetchAlbumSong = async ({ conditions = {}, limit, offset, order, mode = 'findAll' } = {}) => {
     const albumIds = await db.AlbumSong[mode]({
@@ -431,6 +434,21 @@ const createAlbum = async ({ data, file } = {}) => {
     }
 };
 
+const createAdminService = async ({ data } = {}) => {
+    try {
+        const hashPass = await bcrypt.hash(data.password, saltRounds);
+        data.password = hashPass;
+        data.role = 'Admin';
+        data.statusPassword = false;
+        data.accountType = 'Free';
+        data.status = true;
+
+        await db.User.create(data);
+    } catch (error) {
+        throw error;
+    }
+};
+
 export const adminService = {
     fetchAlbumSong,
     // ---------------
@@ -445,4 +463,5 @@ export const adminService = {
     // ------------create
     createSongService,
     createAlbum,
+    createAdminService,
 };
