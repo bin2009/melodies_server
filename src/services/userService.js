@@ -133,14 +133,14 @@ const getPlaylistService = async ({ page = 1, user, limit = 7 } = {}) => {
 
 const getPlaylistDetailService = async ({ playlistId, user } = {}) => {
     try {
-        const [playlist, songIds] = await Promise.all([
+        const [playlist, songIds, findUser] = await Promise.all([
             playlistService.fetchAllPlaylist({ mode: 'findOne', conditions: { id: playlistId } }),
             playlistService.fetchAllSongIdsFromPlaylist({ conditions: { playlistId: playlistId } }),
+            db.User.findByPk(user.id),
         ]);
         const songs = await songService.fetchSongs({ conditions: { id: { [Op.in]: songIds.map((s) => s.songId) } } });
 
         const totalTime = songs.reduce((acc, song) => acc + parseInt(song.duration), 0);
-
         // const songInfo = songs.map((s) => {
         //     const { artists, ...other } = s.toJSON();
         //     return {
@@ -158,7 +158,8 @@ const getPlaylistDetailService = async ({ playlistId, user } = {}) => {
             name: playlist.title ?? null,
             createdAt: playlist.createdAt,
             userId: user.id,
-            username: user.username ?? null,
+            // username: user.username ?? null,
+            username: findUser.username ?? null,
             // image: songs[0]?.album ?? null,
             image: playlist.playlistImage,
             description: playlist.description ?? null,

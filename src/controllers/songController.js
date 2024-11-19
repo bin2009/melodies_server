@@ -197,6 +197,12 @@ const getCommentChild = async (req, res, next) => {
     }
 };
 
+const search = async (req, res) => {
+    // return res.status(200).json(req.query.query);
+    const response = await songService.serach2Service(req.query.query);
+    return res.status(response.errCode).json(response);
+};
+
 export const songController = {
     getAllSong,
     getSong,
@@ -208,4 +214,6 @@ export const songController = {
     getSongSameGenre,
     getCommentSong,
     getCommentChild,
+    // ------------
+    search,
 };

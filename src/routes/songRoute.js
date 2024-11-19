@@ -75,8 +75,8 @@ Router.route('/songs/weeklytopsongs').get(authMiddleWare.optionalVerifyToken, so
 Router.route('/songs/trending').get(authMiddleWare.optionalVerifyToken, songController.getTrendingSongs);
 Router.route('/songs/newRaleaseSong').get(authMiddleWare.optionalVerifyToken, songController.getNewReleaseSongs);
 
-Router.route('/songs/random').get();
-Router.route('/songs/search').get();
+// Router.route('/songs/random').get();
+Router.route('/songs/search').get(authMiddleWare.optionalVerifyToken, songController.search);
 
 Router.route('/songs').get(authMiddleWare.optionalVerifyToken, songController.getAllSong);
 Router.route('/song/:id').get(songController.getSong);
@@ -96,6 +96,6 @@ Router.route('/songs/comment/replies/:parentId').get(
     authMiddleWare.optionalVerifyToken,
     songController.getCommentChild,
 );
-Router.route('/songs/comment/update').patch();
+// Router.route('/songs/comment/update').patch();
 
 export default Router;
