@@ -8,6 +8,7 @@ import { userService } from '~/services/userService';
 import { commentService } from '~/services/commentService';
 import { albumService } from '~/services/albumService';
 import db from '~/models';
+import { packageService } from '~/services/packageService';
 
 const createGenre = async (req, res, next) => {
     try {
@@ -91,6 +92,21 @@ const createAdmin = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Create admin success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const createPackage = async (req, res, next) => {
+    try {
+        const data = req.body;
+
+        const result = await packageService.createPackageService({ data: data });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Create package success',
+            package: result,
         });
     } catch (error) {
         next(error);
@@ -233,12 +249,26 @@ const getAllUser = async (req, res, next) => {
     }
 };
 
+const getAllPackage = async (req, res, next) => {
+    try {
+        const packages = await packageService.fetchAllPackage();
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get all packages success',
+            packages: packages,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const adminController = {
     createGenre,
     createArtist,
     createSong,
     createAlbum,
     createAdmin,
+    createPackage,
     // --------------
     getRecentUser,
     getRecentComment,
@@ -249,6 +279,7 @@ export const adminController = {
     getAllGenreName,
     getAllArtistName,
     getAllUser,
+    getAllPackage,
     // ------------
     getAllAlbum,
 };

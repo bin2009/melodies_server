@@ -50,6 +50,7 @@ Router.route('/create/song').post(
     // multerErrorHandler,
 );
 Router.route('/create/album').post(upload.single('albumCover'), adminController.createAlbum);
+Router.route('/create/package').post(appValidations.validateCreatePackage, adminController.createPackage);
 
 Router.route('/recentUser').get(adminController.getRecentUser);
 Router.route('/recentComment').get(adminController.getRecentComment);
@@ -63,10 +64,12 @@ Router.route('/allGenre').get(adminController.getAllGenreName);
 Router.route('/allArtistName').get(adminController.getAllArtistName);
 Router.route('/allUser').get(adminController.getAllUser);
 
+Router.route('/allPackage').get(adminController.getAllPackage);
+
 // Router.route('/songDetail/:songId').get(adminController.getSongDetail);
 
 Router.route('/test').get((req, res) => {
-    res.render('createSong');
+    res.render('createPackage');
 });
 Router.route('/data').post(upload.single('avatar'), (req, res, next) => {
     try {

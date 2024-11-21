@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Create New Package</title>
+    </head>
+    <body>
+        <h1>Create New Package</h1>
+        <form id="createPackageForm">
+            <label for="time">Time:</label>
+            <select id="time" name="time" required>
+                <option value="week">Week</option>
+                <option value="3month">3 Months</option></select
+            ><br /><br />
+
+            <label for="description">Description:</label>
+            <input type="text" id="description" name="description" /><br /><br />
+
+            <label for="downloads">Downloads:</label>
+            <input type="number" id="downloads" name="downloads" /><br /><br />
+
+            <label for="uploads">Uploads:</label>
+            <input type="number" id="uploads" name="uploads" /><br /><br />
+
+            <label for="room">Room:</label>
+            <input type="number" id="room" name="room" /><br /><br />
+
+            <label for="fare">Fare:</label>
+            <input type="text" id="fare" name="fare" /><br /><br />
+
+            <button type="submit">Create Package</button>
+        </form>
+
+        <script>
+            document.getElementById('createPackageForm').addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                const form = event.target;
+                const formData = new FormData(form);
+
+                const data = {
+                    time: formData.get('time'),
+                    description: formData.get('description'),
+                    downloads: formData.get('downloads') || null,
+                    uploads: formData.get('uploads') || null,
+                    room: formData.get('room') || null,
+                    fare: parseFloat(formData.get('fare')) || null,
+                };
+
+                try {
+                    const response = await fetch('/api/admin/create/package', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data),
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        alert('Package created successfully!');
+                    } else {
+                        alert('Error creating package: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error creating package');
+                }
+            });
+        </script>
+    </body>
+</html>

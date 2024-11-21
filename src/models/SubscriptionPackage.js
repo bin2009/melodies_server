@@ -25,7 +25,7 @@ module.exports = (sequelize, DataTypes) => {
                 defaultValue: DataTypes.UUIDV4,
             },
             time: {
-                type: DataTypes.ENUM('7 Day', '1 Month', '3 Month'),
+                type: DataTypes.ENUM('week', '3month'),
                 allowNull: false,
             },
             fare: {
@@ -36,9 +36,17 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.TEXT,
                 allowNull: false,
             },
-            type: {
-                type: DataTypes.ENUM('Basic', 'Premium'),
-                allowNull: false,
+            downloads: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+            },
+            uploads: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+            },
+            room: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
             },
         },
         {
