@@ -3,7 +3,9 @@ const Router = express.Router();
 import multer from 'multer';
 const upload = multer();
 // import mm from 'music-metadata';
-const mm = require('music-metadata');
+// import { Readable } from 'stream';
+// import * as mm from 'music-metadata';
+import { parseBuffer } from 'music-metadata';
 
 import { appValidations } from '~/validations/appValidation';
 // import { audioUpload, multerErrorHandler } from '~/config/multerConfig';
@@ -17,11 +19,18 @@ async function calculateDuration(req, res, next) {
         console.log('No file uploaded');
         return next();
     }
-    console.log('File:', req.file); // Kiểm tra thông tin tệp
+    console.log('Check file:', req.file); // Kiểm tra thông tin tệp
     try {
-        const metadata = await mm.parseBuffer(req.file.buffer, { mimeType: req.file.mimetype });
-        req.body.duration = metadata.format.duration; // duration in seconds
-        console.log('Duration:', req.body.duration);
+        // lấy buffer từ tệp đã tải lên
+        const buffer = req.file.buffer;
+        console.log('buffer: ', buffer);
+        const mimeType = req.file.mimetype;
+        console.log('mimeType: ', mimeType);
+
+        const metadata = await parseBuffer(buffer, mimeType);
+        // console.log('metadata', metadata);
+        req.duration = metadata.format.duration; // duration in seconds
+        console.log('Duration:', req.duration);
         next();
     } catch (error) {
         console.error('Error calculating duration:', error);

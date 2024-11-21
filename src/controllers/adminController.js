@@ -42,14 +42,17 @@ const createArtist = async (req, res, next) => {
 
 const createSong = async (req, res, next) => {
     try {
-        // const { mainArtistId, subArtistIds } = req.body;
         const { data } = req.body;
         const parsedData = JSON.parse(data);
-        console.log('data create song: ', parsedData);
+
+        if (parsedData.type === 'single' && parsedData.songIds.length > 1) {
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Type single just has only one song');
+        }
 
         await adminService.createSongService({
             data: parsedData,
             file: req.file,
+            duration: parseInt(req.duration * 1000),
         });
         res.status(StatusCodes.OK).json({
             status: 'success',

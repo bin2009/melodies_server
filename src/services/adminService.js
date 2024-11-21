@@ -303,7 +303,7 @@ const getAllUserService = async ({ page = 1, limit = 10 } = {}) => {
     }
 };
 
-const createSongService = async ({ data, file } = {}) => {
+const createSongService = async ({ data, file, duration } = {}) => {
     const transaction = await db.sequelize.transaction();
     let filePathAudio = null;
     const songId = uuidv4();
@@ -330,8 +330,8 @@ const createSongService = async ({ data, file } = {}) => {
             {
                 id: songId,
                 title: data.title,
-                // duration: data.duration,
-                duration: 123,
+                duration: duration,
+                // duration: 123,
                 filePathAudio: filePathAudio,
                 releaseDate: data.releaseDate,
             },

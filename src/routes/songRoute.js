@@ -71,12 +71,21 @@ import { userController } from '~/controllers/userController';
 //     })
 //     .post(userValidations.registerUserValidation, userController.registerUser);
 
+function decodeQueryString(req, res, next) {
+    if (req.query && Object.keys(req.query).length > 0) {
+        for (let key in req.query) {
+            req.query[key] = decodeURIComponent(req.query[key]);
+        }
+    }
+    next();
+}
+
 Router.route('/songs/weeklytopsongs').get(authMiddleWare.optionalVerifyToken, songController.getWeeklyTopSongs);
 Router.route('/songs/trending').get(authMiddleWare.optionalVerifyToken, songController.getTrendingSongs);
 Router.route('/songs/newRaleaseSong').get(authMiddleWare.optionalVerifyToken, songController.getNewReleaseSongs);
 
 // Router.route('/songs/random').get();
-Router.route('/songs/search').get(authMiddleWare.optionalVerifyToken, songController.search);
+Router.route('/songs/search').get(authMiddleWare.optionalVerifyToken, decodeQueryString, songController.search);
 
 Router.route('/songs').get(authMiddleWare.optionalVerifyToken, songController.getAllSong);
 Router.route('/song/:id').get(songController.getSong);
