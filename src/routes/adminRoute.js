@@ -38,6 +38,8 @@ async function calculateDuration(req, res, next) {
     }
 }
 
+// ----------- create
+
 Router.route('/create/admin').post(adminController.createAdmin);
 Router.route('/create/genre').post(adminController.createGenre);
 Router.route('/create/artist').post(upload.single('avatar'), adminController.createArtist);
@@ -52,6 +54,16 @@ Router.route('/create/song').post(
 Router.route('/create/album').post(upload.single('albumCover'), adminController.createAlbum);
 Router.route('/create/package').post(appValidations.validateCreatePackage, adminController.createPackage);
 
+// ----------- update
+
+Router.route('/update/album/:albumId').patch(upload.single('albumCover'), adminController.updateAlbum);
+// Router.route('/upadte/:songId').patch(adminController.updateSong)
+
+// ----------- delete
+
+Router.route('/delete/album/:albumId').delete(adminController.deleteAlbum);
+
+// -----------------------------------
 Router.route('/recentUser').get(adminController.getRecentUser);
 Router.route('/recentComment').get(adminController.getRecentComment);
 Router.route('/totalPlayAndCmtYear').get(adminController.getTotalPlayAndCmtYear);
@@ -67,9 +79,16 @@ Router.route('/allUser').get(adminController.getAllUser);
 Router.route('/allPackage').get(adminController.getAllPackage);
 
 // Router.route('/songDetail/:songId').get(adminController.getSongDetail);
-
-Router.route('/test').get((req, res) => {
-    res.render('createPackage');
+import db from '~/models';
+import { albumService } from '~/services/albumService';
+Router.route('/test/:albumId').get(async (req, res) => {
+    // const album = await db.Album.findByPk(req.params.albumId);
+    const album = await albumService.getAlbumService({ albumId: req.params.albumId });
+    res.render('updateAlbum', { album: album });
+    // res.send(album);
+});
+Router.route('/test2').get(async (req, res) => {
+    res.render('createAlbum');
 });
 Router.route('/data').post(upload.single('avatar'), (req, res, next) => {
     try {

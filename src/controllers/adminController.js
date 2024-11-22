@@ -113,6 +113,45 @@ const createPackage = async (req, res, next) => {
     }
 };
 
+// -----------------------------------------------------------------------------------------------
+
+const updateAlbum = async (req, res, next) => {
+    try {
+        console.log('file: ', req.file);
+        // res.send('ahah');
+        const result = await adminService.updateAlbumService({
+            albumId: req.params.albumId,
+            data: JSON.parse(req.body.data),
+            file: req.file,
+        });
+        const album = await albumService.getAlbumService({ albumId: req.params.albumId, mode: 'findOne' });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Update album success',
+            album: album,
+            ...result,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// -----------------------------------------------------------------------------------------------
+
+const deleteAlbum = async (req, res, next) => {
+    try {
+        await adminService.deleteAlbumService({ albumId: req.params.albumId });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Delte album success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// -----------------------------------------------------------------------------------------------
+
 const getRecentUser = async (req, res, next) => {
     try {
         if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
@@ -200,7 +239,7 @@ const getAllAlbum = async (req, res, next) => {
         const response = await adminService.getAllAlbumService(req.query.query, req.query.order, req.query.page);
         res.status(StatusCodes.OK).json({
             status: 'success',
-            message: `Get Today's Best Song success`,
+            message: `Get all album success`,
             ...response,
         });
     } catch (error) {
@@ -269,6 +308,10 @@ export const adminController = {
     createAlbum,
     createAdmin,
     createPackage,
+    // ----------------
+    updateAlbum,
+    // --------------
+    deleteAlbum,
     // --------------
     getRecentUser,
     getRecentComment,

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Album</title>
+</head>
+<body>
+    <h1>Update Album</h1>
+    <form id="updateAlbumForm">
+        <input type="hidden" id="albumId" name="albumId" value="<%= album.albumId %>">
+        
+        <label for="title">Title:</label>
+        <input type="text" id="title" name="title" value="<%= album.title %>" required><br><br>
+        
+        <label for="releaseDate">Release Date:</label>
+        <input type="date" id="releaseDate" name="releaseDate" value="<%= album.releaseDate.toISOString().split('T')[0] %>"><br><br>
+        
+        <label for="albumType">Album Type:</label>
+        <select id="albumType" name="albumType" required>
+            <option value="album" <%= album.albumType === 'album' ? 'selected' : '' %>>Album</option>
+            <option value="single" <%= album.albumType === 'single' ? 'selected' : '' %>>Single</option>
+            <option value="ep" <%= album.albumType === 'ep' ? 'selected' : '' %>>EP</option>
+        </select><br><br>
+
+        <label for="albumCover">Current Album Cover:</label><br>
+        <% if (album.albumImages) { %>
+            <img src="<%= album.albumImages[0].image %>" alt="Album Cover" style="max-width: 200px;"><br><br>
+        <% } %>
+        
+        <label for="albumCover">Update Album Cover:</label>
+        <input type="file" id="albumCover" name="albumCover" accept="image/*"><br><br>
+        
+        <label for="songs">Songs:</label>
+        <div id="songsContainer">
+            <% album.songs.forEach(function(song, index) { %>
+                <div class="song-input" key="index">
+                    <input type="text" name="songIds" value="<%= song.id %>" readonly>
+                    <button type="button" onclick="removeSongInput(this)">Remove</button>
+                </div>
+            <% }); %>
+        </div>
+        <button type="button" onclick="addSongInput()">Add Song</button><br><br>
+        
+        <button type="submit">Update Album</button>
+    </form>
+
+    <script>
+        function addSongInput() {
+            const container = document.getElementById('songsContainer');
+            const songInput = document.createElement('div');
+            songInput.className = 'song-input';
+            songInput.innerHTML = `
+                <input type="text" name="songIds" placeholder="Enter song ID" required>
+                <button type="button" onclick="removeSongInput(this)">Remove</button>
+            `;
+            container.appendChild(songInput);
+        }
+
+        function removeSongInput(button) {
+            const songInput = button.parentElement;
+            songInput.remove();
+        }
+
+        document.getElementById('updateAlbumForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const form = event.target;
+            const formData = new FormData(form);
+
+            const data = {
+                albumId: formData.get('albumId'),
+                title: formData.get('title'),
+                releaseDate: formData.get('releaseDate'),
+                albumType: formData.get('albumType'),
+                songIds: Array.from(formData.getAll('songIds'))
+            };
+
+            formData.append('data', JSON.stringify(data));
+
+            try {
+                const response = await fetch(`/api/admin/update/album/${formData.get('albumId')}`, {
+                    method: 'PATCH',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert('Album updated successfully!');
+                } else {
+                    alert('Error updating album: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating album');
+            }
+        });
+    </script>
+</body>
+</html>

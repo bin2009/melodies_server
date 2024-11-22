@@ -207,18 +207,25 @@ const getAllAlbumService = async (query, order, page) => {
                     where: { albumId: album.albumId },
                     attributes: ['songId'],
                 });
+
+                if (!firstSongOfAlbum) {
+                    return {
+                        ...album.toJSON(),
+                        totalSong: 0,
+                        mainArtist: null,
+                    };
+                }
+
                 const mainArtistId = await artistService.fetchMainArtist({
                     conditions: { songId: firstSongOfAlbum.songId, main: true },
                 });
 
                 const totalSong = await db.AlbumSong.count({ where: { albumId: album.albumId } });
 
-                const mainArtist =
-                    mainArtistId &&
-                    (await artistService.fetchArtist({
-                        mode: 'findOne',
-                        conditions: { id: mainArtistId.artistId },
-                    }));
+                const mainArtist = await artistService.fetchArtist({
+                    mode: 'findOne',
+                    conditions: { id: mainArtistId.artistId },
+                });
                 return {
                     ...album.toJSON(),
                     totalSong: totalSong,
@@ -449,6 +456,121 @@ const createAdminService = async ({ data } = {}) => {
     }
 };
 
+// -----------------------------------------------------------------------------------------------
+
+const updateAlbumService = async ({ albumId, data, file } = {}) => {
+    const transaction = await db.sequelize.transaction();
+    try {
+        // check album
+        const checkAlbum = await db.Album.findByPk(albumId);
+        if (!checkAlbum) throw new ApiError(StatusCodes.NOT_FOUND, 'Album not found');
+
+        // update album
+        const [[affectedCount, updatedRows], songsOfAlbum] = await Promise.all([
+            db.Album.update(data, { where: { albumId: albumId }, returning: true }, { transaction }),
+            db.AlbumSong.findAll({ where: { albumId: albumId }, attributes: ['songId'] }),
+        ]);
+
+        const songIdsOfAlbum = songsOfAlbum?.map((rec) => rec.songId);
+        console.log('Songs of album: ', songIdsOfAlbum);
+
+        const songIds = data.songIds ?? [];
+        const songsAdd = songIds?.filter((id) => !songIdsOfAlbum.includes(id));
+        const songsDel = songIdsOfAlbum?.filter((id) => !songIds.includes(id));
+
+        // xóa bài hát ra khỏi album
+        if (songsDel.length > 0)
+            await db.AlbumSong.destroy({ where: { albumId: albumId, songId: { [Op.in]: songsDel } } }, { transaction });
+
+        // thêm mới bài hát -> check song exits -> check cùng nghê sĩ chính
+        if (songsAdd.length > 0) {
+            const foundSongs = (
+                await db.Song.findAll({ where: { id: { [Op.in]: songsAdd } }, attributes: ['id'] })
+            ).map((s) => s.id);
+
+            const invalidSongIds = songsAdd.filter((id) => !foundSongs.includes(id));
+            if (invalidSongIds.length > 0) {
+                throw new ApiError(StatusCodes.BAD_REQUEST, `Song IDs do not exist: ${invalidSongIds.join(', ')}`);
+            }
+
+            const checkArtist = await db.ArtistSong.findAll({
+                where: { songId: { [Op.in]: songsAdd }, main: true },
+                attributes: ['artistId'],
+            });
+            const checkArtistSet = new Set(checkArtist.map((s) => s.artistId));
+            console.log('checkArtistSet: ', checkArtistSet);
+            if (checkArtistSet.size > 1)
+                throw new ApiError(StatusCodes.BAD_REQUEST, 'Album containing only songs by 1 main artist');
+
+            if (songIdsOfAlbum.length !== 0) {
+                const mainArtist = await db.Artist.findOne({
+                    include: [
+                        {
+                            model: db.ArtistSong,
+                            as: 'artistSong',
+                            where: { songId: songIdsOfAlbum[0], main: true },
+                            attributes: [],
+                        },
+                    ],
+                    attributes: ['id'],
+                    raw: true,
+                });
+                const check = checkArtistSet.has(mainArtist.id);
+                if (!check) throw new ApiError(StatusCodes.BAD_REQUEST, 'Album containing only songs by 1 main artist');
+            }
+
+            const addPromises = songsAdd.map((songId) =>
+                db.AlbumSong.create({ albumId: albumId, songId: songId }, { transaction }),
+            );
+            await Promise.all(addPromises);
+        }
+
+        if (file) {
+            await awsService.copyFolder(`PBL6/ALBUM/${albumId}`, `PBL6/COPY/${albumId}`);
+            await awsService.deleteFolder(`PBL6/ALBUM/${albumId}`);
+            const [path, size] = await Promise.all([
+                awsService.uploadAlbumCover('', albumId, file),
+                (await sharp(file.buffer).metadata()).width,
+                awsService.deleteFolder(`PBL6/COPY/${albumId}/`),
+            ]);
+            await db.AlbumImage.update({ image: path, size: size }, { where: { albumId: albumId } });
+        }
+        await transaction.commit();
+
+        return {
+            songsAdd: songsAdd,
+            songsDel: songsDel,
+        };
+    } catch (error) {
+        await transaction.rollback();
+        if (file) {
+            await awsService.copyFolder(`PBL6/COPY/${albumId}/`, `PBL6/ALBUM/${albumId}/`);
+            await awsService.deleteFolder(`PBL6/COPY/${albumId}/`);
+        }
+        throw error;
+    }
+};
+
+// -----------------------------------------------------------------------------------------------
+
+const deleteAlbumService = async ({ albumId } = {}) => {
+    const transaction = await db.sequelize.transaction();
+    try {
+        await awsService.deleteFolder(`PBL6/ALBUM/${albumId}`);
+
+        await Promise.all([
+            db.AlbumSong.destroy({ where: { albumId: albumId } }, { transaction }),
+            db.AlbumImage.destroy({ where: { albumId: albumId } }, { transaction }),
+        ]);
+        await db.Album.destroy({ where: { albumId: albumId } }, { transaction });
+
+        await transaction.commit();
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
+};
+
 export const adminService = {
     fetchAlbumSong,
     // ---------------
@@ -464,4 +586,8 @@ export const adminService = {
     createSongService,
     createAlbum,
     createAdminService,
+    // -----------------
+    updateAlbumService,
+    // -----------------
+    deleteAlbumService,
 };
