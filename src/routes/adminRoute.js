@@ -57,11 +57,13 @@ Router.route('/create/package').post(appValidations.validateCreatePackage, admin
 // ----------- update
 
 Router.route('/update/album/:albumId').patch(upload.single('albumCover'), adminController.updateAlbum);
+Router.route('/update/artist/:artistId').patch(upload.single('avatar'), adminController.updateArtist);
 // Router.route('/upadte/:songId').patch(adminController.updateSong)
 
 // ----------- delete
 
 Router.route('/delete/album/:albumId').delete(adminController.deleteAlbum);
+Router.route('/delete/artist/:artistId').post(adminController.deleteArtist);
 
 // -----------------------------------
 Router.route('/recentUser').get(adminController.getRecentUser);
@@ -81,14 +83,17 @@ Router.route('/allPackage').get(adminController.getAllPackage);
 // Router.route('/songDetail/:songId').get(adminController.getSongDetail);
 import db from '~/models';
 import { albumService } from '~/services/albumService';
-Router.route('/test/:albumId').get(async (req, res) => {
-    // const album = await db.Album.findByPk(req.params.albumId);
-    const album = await albumService.getAlbumService({ albumId: req.params.albumId });
-    res.render('updateAlbum', { album: album });
+import { artistService } from '~/services/artistService';
+Router.route('/test/:artistId').get(async (req, res) => {
+    const artist = await artistService.getArtistService({ artistId: req.params.artistId });
+    res.render('updateArtist', { artist: artist });
     // res.send(album);
+
+    // const album = await albumService.getAlbumService({ albumId: req.params.albumId });
+    // res.render('updateAlbum', { album: album });
 });
 Router.route('/test2').get(async (req, res) => {
-    res.render('createAlbum');
+    res.render('create');
 });
 Router.route('/data').post(upload.single('avatar'), (req, res, next) => {
     try {

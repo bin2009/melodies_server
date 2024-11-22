@@ -531,11 +531,11 @@ const updateAlbumService = async ({ albumId, data, file } = {}) => {
             const [path, size] = await Promise.all([
                 awsService.uploadAlbumCover('', albumId, file),
                 (await sharp(file.buffer).metadata()).width,
-                awsService.deleteFolder(`PBL6/COPY/${albumId}/`),
             ]);
             await db.AlbumImage.update({ image: path, size: size }, { where: { albumId: albumId } });
         }
         await transaction.commit();
+        await awsService.deleteFolder(`PBL6/COPY/${albumId}`);
 
         return {
             songsAdd: songsAdd,
@@ -544,8 +544,74 @@ const updateAlbumService = async ({ albumId, data, file } = {}) => {
     } catch (error) {
         await transaction.rollback();
         if (file) {
-            await awsService.copyFolder(`PBL6/COPY/${albumId}/`, `PBL6/ALBUM/${albumId}/`);
-            await awsService.deleteFolder(`PBL6/COPY/${albumId}/`);
+            await awsService.copyFolder(`PBL6/COPY/${albumId}`, `PBL6/ALBUM/${albumId}`);
+            await awsService.deleteFolder(`PBL6/COPY/${albumId}`);
+        }
+        throw error;
+    }
+};
+
+const updateArtistService = async ({ artistId, data, file } = {}) => {
+    const transaction = await db.sequelize.transaction();
+    try {
+        // check artist
+        const checkArtist = await db.Artist.findByPk(artistId);
+        if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
+
+        // update artist
+        const [[], genresOfArtist] = await Promise.all([
+            db.Artist.update(data, { where: { id: artistId }, returning: true }, { transaction }),
+            db.ArtistGenre.findAll({ where: { artistId: artistId }, attributes: ['genreId'] }),
+        ]);
+
+        const genreIdsOfArtist = genresOfArtist?.map((rec) => rec.genreId);
+        console.log('genre ids of artist: ', genreIdsOfArtist);
+
+        const genreIds = data.genres ?? [];
+        const genresAdd = genreIds?.filter((id) => !genreIdsOfArtist.includes(id));
+        const genresDel = genreIdsOfArtist?.filter((id) => !genreIds.includes(id));
+
+        // xóa genre ra khỏi artist
+        if (genresDel.length > 0)
+            await db.ArtistGenre.destroy(
+                { where: { artistId: artistId, genreId: { [Op.in]: genresDel } } },
+                { transaction },
+            );
+
+        if (genresAdd.length > 0) {
+            const foundGenres = (
+                await db.Genre.findAll({ where: { genreId: { [Op.in]: genresAdd } }, attributes: ['genreId'] })
+            ).map((s) => s.genreId);
+
+            const invalidGenreIds = genresAdd.filter((id) => !foundGenres.includes(id));
+            if (invalidGenreIds.length > 0) {
+                throw new ApiError(StatusCodes.BAD_REQUEST, `Genre IDs do not exist: ${invalidGenreIds.join(', ')}`);
+            }
+
+            const addPromises = genresAdd.map((genreId) =>
+                db.ArtistGenre.create({ artistId: artistId, genreId: genreId }, { transaction }),
+            );
+            await Promise.all(addPromises);
+        }
+
+        if (file) {
+            await awsService.copyFolder(`PBL6/ARTIST/${artistId}`, `PBL6/COPY/ARTIST/${artistId}`);
+            await awsService.deleteFolder(`PBL6/ARTIST/${artistId}`);
+            const path = await awsService.uploadArtistAvatar(artistId, file);
+            await db.Artist.update({ avatar: path }, { where: { id: artistId } });
+        }
+
+        await transaction.commit();
+        await awsService.deleteFolder(`PBL6/COPY/ARTIST/${artistId}`);
+        return {
+            genresAdd: genresAdd,
+            genresDel: genresDel,
+        };
+    } catch (error) {
+        await transaction.rollback();
+        if (file) {
+            await awsService.copyFolder(`PBL6/COPY/ARTIST/${artistId}/`, `PBL6/ARTIST/${artistId}/`);
+            await awsService.deleteFolder(`PBL6/COPY/ARTIST/${artistId}`);
         }
         throw error;
     }
@@ -571,6 +637,14 @@ const deleteAlbumService = async ({ albumId } = {}) => {
     }
 };
 
+const deleteArtistService = async ({ artistId } = {}) => {
+    try {
+        await db.Artist.update({ hide: true }, { where: { id: artistId } });
+    } catch (error) {
+        throw error;
+    }
+};
+
 export const adminService = {
     fetchAlbumSong,
     // ---------------
@@ -588,6 +662,8 @@ export const adminService = {
     createAdminService,
     // -----------------
     updateAlbumService,
+    updateArtistService,
     // -----------------
     deleteAlbumService,
+    deleteArtistService,
 };

@@ -33,8 +33,8 @@ module.exports = (sequelize, DataTypes) => {
             });
             Artist.hasMany(models.ArtistGenre, {
                 foreignKey: 'artistId',
-                as: 'artistGenres'
-            })
+                as: 'artistGenres',
+            });
         }
     }
     Artist.init(
@@ -64,7 +64,12 @@ module.exports = (sequelize, DataTypes) => {
             date: {
                 type: DataTypes.DATE,
                 allowNull: true,
-            }
+            },
+            hide: {
+                type: DataTypes.BOOLEAN,
+                allowNull: true,
+                defaultValue: false,
+            },
         },
         {
             sequelize,

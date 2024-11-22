@@ -136,6 +136,27 @@ const updateAlbum = async (req, res, next) => {
     }
 };
 
+const updateArtist = async (req, res, next) => {
+    try {
+        console.log('file update artist: ', req.file);
+        const result = await adminService.updateArtistService({
+            artistId: req.params.artistId,
+            data: JSON.parse(req.body.data),
+            file: req.file,
+        });
+        // res.send('ahha');
+        const artist = await artistService.getArtistService({ artistId: req.params.artistId });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Update album success',
+            artist: artist,
+            ...result,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // -----------------------------------------------------------------------------------------------
 
 const deleteAlbum = async (req, res, next) => {
@@ -144,6 +165,18 @@ const deleteAlbum = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Delte album success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteArtist = async (req, res, next) => {
+    try {
+        await adminService.deleteArtistService({ artistId: req.params.artistId });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Hide artist success',
         });
     } catch (error) {
         next(error);
@@ -310,8 +343,10 @@ export const adminController = {
     createPackage,
     // ----------------
     updateAlbum,
+    updateArtist,
     // --------------
     deleteAlbum,
+    deleteArtist,
     // --------------
     getRecentUser,
     getRecentComment,
