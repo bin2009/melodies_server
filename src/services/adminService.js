@@ -617,18 +617,25 @@ const updateArtistService = async ({ artistId, data, file } = {}) => {
     }
 };
 
+const updateSongService = async ({ songId } = {}) => {
+    try {
+    } catch (error) {
+        throw error;
+    }
+};
+
 // -----------------------------------------------------------------------------------------------
 
-const deleteAlbumService = async ({ albumId } = {}) => {
+const deleteAlbumService = async ({ albumIds } = {}) => {
     const transaction = await db.sequelize.transaction();
     try {
-        await awsService.deleteFolder(`PBL6/ALBUM/${albumId}`);
+        await Promise.all(albumIds.map((albumId) => awsService.deleteFolder(`PBL6/ALBUM/${albumId}`)));
 
         await Promise.all([
-            db.AlbumSong.destroy({ where: { albumId: albumId } }, { transaction }),
-            db.AlbumImage.destroy({ where: { albumId: albumId } }, { transaction }),
+            db.AlbumSong.destroy({ where: { albumId: { [Op.in]: albumIds } } }, { transaction }),
+            db.AlbumImage.destroy({ where: { albumId: { [Op.in]: albumIds } } }, { transaction }),
         ]);
-        await db.Album.destroy({ where: { albumId: albumId } }, { transaction });
+        await db.Album.destroy({ where: { albumId: { [Op.in]: albumIds } } }, { transaction });
 
         await transaction.commit();
     } catch (error) {
@@ -637,9 +644,9 @@ const deleteAlbumService = async ({ albumId } = {}) => {
     }
 };
 
-const deleteArtistService = async ({ artistId } = {}) => {
+const deleteArtistService = async ({ artistIds } = {}) => {
     try {
-        await db.Artist.update({ hide: true }, { where: { id: artistId } });
+        await db.Artist.update({ hide: true }, { where: { id: { [Op.in]: artistIds } } });
     } catch (error) {
         throw error;
     }
@@ -663,6 +670,7 @@ export const adminService = {
     // -----------------
     updateAlbumService,
     updateArtistService,
+    updateSongService,
     // -----------------
     deleteAlbumService,
     deleteArtistService,

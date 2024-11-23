@@ -58,12 +58,12 @@ Router.route('/create/package').post(appValidations.validateCreatePackage, admin
 
 Router.route('/update/album/:albumId').patch(upload.single('albumCover'), adminController.updateAlbum);
 Router.route('/update/artist/:artistId').patch(upload.single('avatar'), adminController.updateArtist);
-// Router.route('/upadte/:songId').patch(adminController.updateSong)
+Router.route('/upadte/song/:songId').patch(adminController.updateSong);
 
 // ----------- delete
 
-Router.route('/delete/album/:albumId').delete(adminController.deleteAlbum);
-Router.route('/delete/artist/:artistId').post(adminController.deleteArtist);
+Router.route('/delete/album').delete(adminController.deleteAlbum);
+Router.route('/delete/artist').post(adminController.deleteArtist);
 
 // -----------------------------------
 Router.route('/recentUser').get(adminController.getRecentUser);
@@ -84,16 +84,17 @@ Router.route('/allPackage').get(adminController.getAllPackage);
 import db from '~/models';
 import { albumService } from '~/services/albumService';
 import { artistService } from '~/services/artistService';
-Router.route('/test/:artistId').get(async (req, res) => {
-    const artist = await artistService.getArtistService({ artistId: req.params.artistId });
-    res.render('updateArtist', { artist: artist });
+import { songService } from '~/services/songService';
+Router.route('/test/:albumId').get(async (req, res) => {
+    // const artist = await artistService.getArtistService({ artistId: req.params.artistId });
+    // res.render('updateArtist', { artist: artist });
     // res.send(album);
-
-    // const album = await albumService.getAlbumService({ albumId: req.params.albumId });
-    // res.render('updateAlbum', { album: album });
+    const album = await albumService.getAlbumService({ albumId: req.params.albumId });
+    res.render('updateAlbum', { album: album });
+    // const song = await songService.
 });
 Router.route('/test2').get(async (req, res) => {
-    res.render('create');
+    res.render('createAlbum');
 });
 Router.route('/data').post(upload.single('avatar'), (req, res, next) => {
     try {

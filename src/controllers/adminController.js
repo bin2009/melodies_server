@@ -157,14 +157,21 @@ const updateArtist = async (req, res, next) => {
     }
 };
 
+const updateSong = async (req, res, next) => {
+    try {
+    } catch (error) {
+        next(error);
+    }
+};
+
 // -----------------------------------------------------------------------------------------------
 
 const deleteAlbum = async (req, res, next) => {
     try {
-        await adminService.deleteAlbumService({ albumId: req.params.albumId });
+        await adminService.deleteAlbumService({ albumIds: req.body.albumIds });
         res.status(StatusCodes.OK).json({
             status: 'success',
-            message: 'Delte album success',
+            message: 'Delete album success',
         });
     } catch (error) {
         next(error);
@@ -173,7 +180,7 @@ const deleteAlbum = async (req, res, next) => {
 
 const deleteArtist = async (req, res, next) => {
     try {
-        await adminService.deleteArtistService({ artistId: req.params.artistId });
+        await adminService.deleteArtistService({ artistIds: req.body.artistIds });
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Hide artist success',
@@ -344,6 +351,7 @@ export const adminController = {
     // ----------------
     updateAlbum,
     updateArtist,
+    updateSong,
     // --------------
     deleteAlbum,
     deleteArtist,
