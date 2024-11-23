@@ -52,7 +52,7 @@ const uploadSong = async (mainArtistId, songId, file) => {
 
 const uploadAlbumCover = async (mainArtistId, albumId, file) => {
     console.log('upload album cover', file);
-    const fileName = `PBL6/ARTIST/${mainArtistId}/ALBUM/${albumId}_${file.originalname}`;
+    const fileName = `PBL6/ALBUM/${albumId}/${file.originalname}`;
     const params = {
         Bucket: process.env.DO_SPACES_BUCKET,
         Key: fileName,
@@ -65,6 +65,7 @@ const uploadAlbumCover = async (mainArtistId, albumId, file) => {
 };
 
 const deleteFile = async (filePath) => {
+    console.log('file path: ', filePath);
     const bucketName = 'audiomelodies'; // Tên bucket
     const key = filePath.substring(filePath.indexOf(bucketName) + bucketName.length + 1); // Lấy key
 
@@ -101,6 +102,42 @@ const deleteFolder = async (folderPath) => {
     if (listedObjects.IsTruncated) await deleteFolder(folderPath);
 };
 
+const copyFile = async (sourceKey, destinationKey) => {
+    const bucketName = process.env.DO_SPACES_BUCKET;
+
+    const params = {
+        Bucket: bucketName,
+        CopySource: `${bucketName}/${sourceKey}`,
+        Key: destinationKey,
+        ACL: 'public-read', // Đặt quyền truy cập công khai
+    };
+
+    return s3.copyObject(params).promise();
+};
+
+const copyFolder = async (sourceFolder, destinationFolder) => {
+    const bucketName = process.env.DO_SPACES_BUCKET;
+
+    const listParams = {
+        Bucket: bucketName,
+        Prefix: sourceFolder,
+    };
+
+    const listedObjects = await s3.listObjectsV2(listParams).promise();
+    console.log('test: ', destinationFolder);
+    console.log('test: ', listedObjects);
+
+    if (listedObjects.Contents.length === 0) return;
+
+    const copyPromises = listedObjects.Contents.map(({ Key }) => {
+        const destinationKey = Key.replace(sourceFolder, destinationFolder);
+        console.log('copy: ', destinationKey);
+        return copyFile(Key, destinationKey);
+    });
+    await Promise.all(copyPromises);
+    if (listedObjects.IsTruncated) await copyFolder(sourceFolder, destinationFolder);
+};
+
 export const awsService = {
     uploadArtistAvatar,
     uploadPlaylistAvatar,
@@ -108,4 +145,6 @@ export const awsService = {
     uploadAlbumCover,
     deleteFile,
     deleteFolder,
+    copyFile,
+    copyFolder,
 };

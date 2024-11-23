@@ -9,22 +9,14 @@ const checkAlbumExists = async (albumId) => {
     return await db.Album.findByPk(albumId);
 };
 
-const fetchAlbumIds = async ({
-    conditions = {},
-    songConditions = {},
-    order = [['createdAt', 'DESC']],
-    mode = 'findAll',
-    songAttributes = [],
-    albumSongAttribute = [],
-} = {}) => {
+const fetchAlbumIds = async ({ conditions = {}, order = [['createdAt', 'DESC']], mode = 'findAll' } = {}) => {
     const albums = await db.Album[mode]({
         where: conditions,
         include: [
             {
                 model: db.Song,
                 as: 'songs',
-                where: songConditions,
-                attributes: songAttributes,
+                attributes: [],
                 through: { attributes: [] },
             },
             {
@@ -38,9 +30,6 @@ const fetchAlbumIds = async ({
                 attributes: [],
             },
         ],
-        // attributes: { include: [[db.Sequelize.fn('COUNT', db.Sequelize.col('albumSong.songId')), 'songNumber']] },
-        // attributes: { include: [[db.Sequelize.fn('COUNT', db.Sequelize.col('albumSong.id')), 'totalSong']] },
-        group: ['Album.albumId', 'albumImages.albumImageId', 'albumSong.songId', 'songs.id'],
         subQuery: false,
         order: order,
     });
@@ -147,7 +136,7 @@ const getTopAlbumService = async ({ page = 1, limit = 10 } = {}) => {
     }
 };
 
-const getAlbumService = async ({ albumId } = {}) => {
+const getAlbumService = async ({ albumId, mode = 'findAll' } = {}) => {
     try {
         const checkAlbum = await checkAlbumExists(albumId);
         if (!checkAlbum) throw new ApiError(StatusCodes.NOT_FOUND, 'Album not found');
@@ -157,14 +146,23 @@ const getAlbumService = async ({ albumId } = {}) => {
             fetchAlbumSong({ conditions: { albumId: albumId } }),
         ]);
 
+        if (!songsIds || songsIds.length === 0) {
+            return {
+                ...album.toJSON(),
+                artistMain: null,
+                totalDuration: 0,
+                songs: [],
+            };
+        }
+
         const [songs, mainArtistId] = await Promise.all([
             songService.fetchSongs({ conditions: { id: { [Op.in]: songsIds.map((s) => s.songId) } } }),
             artistService.fetchMainArtist({
-                conditions: { songId: songsIds[0].songId, main: true },
+                conditions: { songId: songsIds[0]?.songId, main: true },
             }),
         ]);
         const totalDuration = songs.reduce((total, song) => total + parseInt(song.duration), 0);
-        const mainArtist = await artistService.fetchArtist({ conditions: { id: mainArtistId.artistId } });
+        const mainArtist = await artistService.fetchArtist({ conditions: { id: mainArtistId.artistId }, mode: mode });
 
         const result = {
             ...album.toJSON(),

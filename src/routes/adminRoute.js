@@ -3,7 +3,9 @@ const Router = express.Router();
 import multer from 'multer';
 const upload = multer();
 // import mm from 'music-metadata';
-const mm = require('music-metadata');
+// import { Readable } from 'stream';
+// import * as mm from 'music-metadata';
+import { parseBuffer } from 'music-metadata';
 
 import { appValidations } from '~/validations/appValidation';
 // import { audioUpload, multerErrorHandler } from '~/config/multerConfig';
@@ -17,17 +19,26 @@ async function calculateDuration(req, res, next) {
         console.log('No file uploaded');
         return next();
     }
-    console.log('File:', req.file); // Kiểm tra thông tin tệp
+    console.log('Check file:', req.file); // Kiểm tra thông tin tệp
     try {
-        const metadata = await mm.parseBuffer(req.file.buffer, { mimeType: req.file.mimetype });
-        req.body.duration = metadata.format.duration; // duration in seconds
-        console.log('Duration:', req.body.duration);
+        // lấy buffer từ tệp đã tải lên
+        const buffer = req.file.buffer;
+        console.log('buffer: ', buffer);
+        const mimeType = req.file.mimetype;
+        console.log('mimeType: ', mimeType);
+
+        const metadata = await parseBuffer(buffer, mimeType);
+        // console.log('metadata', metadata);
+        req.duration = metadata.format.duration; // duration in seconds
+        console.log('Duration:', req.duration);
         next();
     } catch (error) {
         console.error('Error calculating duration:', error);
         next(error);
     }
 }
+
+// ----------- create
 
 Router.route('/create/admin').post(adminController.createAdmin);
 Router.route('/create/genre').post(adminController.createGenre);
@@ -41,7 +52,20 @@ Router.route('/create/song').post(
     // multerErrorHandler,
 );
 Router.route('/create/album').post(upload.single('albumCover'), adminController.createAlbum);
+Router.route('/create/package').post(appValidations.validateCreatePackage, adminController.createPackage);
 
+// ----------- update
+
+Router.route('/update/album/:albumId').patch(upload.single('albumCover'), adminController.updateAlbum);
+Router.route('/update/artist/:artistId').patch(upload.single('avatar'), adminController.updateArtist);
+Router.route('/upadte/song/:songId').patch(adminController.updateSong);
+
+// ----------- delete
+
+Router.route('/delete/album').delete(adminController.deleteAlbum);
+Router.route('/delete/artist').post(adminController.deleteArtist);
+
+// -----------------------------------
 Router.route('/recentUser').get(adminController.getRecentUser);
 Router.route('/recentComment').get(adminController.getRecentComment);
 Router.route('/totalPlayAndCmtYear').get(adminController.getTotalPlayAndCmtYear);
@@ -54,10 +78,23 @@ Router.route('/allGenre').get(adminController.getAllGenreName);
 Router.route('/allArtistName').get(adminController.getAllArtistName);
 Router.route('/allUser').get(adminController.getAllUser);
 
-// Router.route('/songDetail/:songId').get(adminController.getSongDetail);
+Router.route('/allPackage').get(adminController.getAllPackage);
 
-Router.route('/test').get((req, res) => {
-    res.render('createSong');
+// Router.route('/songDetail/:songId').get(adminController.getSongDetail);
+import db from '~/models';
+import { albumService } from '~/services/albumService';
+import { artistService } from '~/services/artistService';
+import { songService } from '~/services/songService';
+Router.route('/test/:albumId').get(async (req, res) => {
+    // const artist = await artistService.getArtistService({ artistId: req.params.artistId });
+    // res.render('updateArtist', { artist: artist });
+    // res.send(album);
+    const album = await albumService.getAlbumService({ albumId: req.params.albumId });
+    res.render('updateAlbum', { album: album });
+    // const song = await songService.
+});
+Router.route('/test2').get(async (req, res) => {
+    res.render('createAlbum');
 });
 Router.route('/data').post(upload.single('avatar'), (req, res, next) => {
     try {

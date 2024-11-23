@@ -88,7 +88,27 @@ const validateUploadSong = async (req, res, next) => {
 
 const validateGenre = async () => {};
 
+const validateCreatePackage = async (req, res, next) => {
+    const correctCondition = Joi.object({
+        time: Joi.string().valid('week', '3month').required(),
+        fare: Joi.number().required().precision(3),
+        description: Joi.string().trim().max(10).strict().required(),
+        downloads: Joi.number().integer().optional().allow(null).max(50),
+        uploads: Joi.number().integer().optional().allow(null).max(50),
+        room: Joi.number().integer().optional().allow(null).max(50),
+    });
+
+    try {
+        await correctCondition.validateAsync(req.body, { abortEarly: false, convert: true });
+        next();
+    } catch (error) {
+        next(new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, new Error(error).message));
+    }
+    return;
+};
+
 export const appValidations = {
     createArtist,
     validateUploadSong,
+    validateCreatePackage,
 };

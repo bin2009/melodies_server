@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Update Artist</title>
+    </head>
+    <body>
+        <h1>Update Artist</h1>
+        <form id="updateArtistForm">
+            <input type="hidden" id="artistId" name="artistId" value="<%= artist.id %>" />
+
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" value="<%= artist.name %>" required /><br /><br />
+
+            <label for="bio">Bio:</label>
+            <textarea id="bio" name="bio" required><%= artist.bio %></textarea><br /><br />
+
+            <label for="genres">Genres:</label>
+            <div id="genresContainer">
+                <% artist.genres.forEach(function(genre, index) { %>
+                <div class="genre-input" key="index">
+                    <input type="text" name="genres" value="<%= genre.genreId %>" readonly />
+                    <button type="button" onclick="removeGenreInput(this)">Remove</button>
+                </div>
+                <% }); %>
+            </div>
+            <button type="button" onclick="addGenreInput()">Add Genre</button><br /><br />
+
+            <label for="avatar">Current Artist Image:</label><br />
+            <% if (artist.avatar) { %>
+            <img src="<%= artist.avatar %>" alt="Artist Image" style="max-width: 200px" /><br /><br />
+            <% } %>
+
+            <label for="avatar">Update Artist Image:</label>
+            <input type="file" id="avatar" name="avatar" accept="image/*" /><br /><br />
+
+            <button type="submit">Update Artist</button>
+        </form>
+
+        <script>
+            function addGenreInput() {
+                const container = document.getElementById('genresContainer');
+                const genreInput = document.createElement('div');
+                genreInput.className = 'genre-input';
+                genreInput.innerHTML = `
+                <input type="text" name="genres" placeholder="Enter genre" required>
+                <button type="button" onclick="removeGenreInput(this)">Remove</button>
+            `;
+                container.appendChild(genreInput);
+            }
+
+            function removeGenreInput(button) {
+                const genreInput = button.parentElement;
+                genreInput.remove();
+            }
+
+            document.getElementById('updateArtistForm').addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                const form = event.target;
+                const formData = new FormData(form);
+
+                const data = {
+                    artistId: formData.get('artistId'),
+                    name: formData.get('name'),
+                    bio: formData.get('bio'),
+                    genres: Array.from(formData.getAll('genres')),
+                };
+
+                formData.append('data', JSON.stringify(data));
+
+                try {
+                    const response = await fetch(`/api/admin/update/artist/${formData.get('artistId')}`, {
+                        method: 'PATCH',
+                        body: formData,
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        alert('Artist updated successfully!');
+                    } else {
+                        alert('Error updating artist: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error updating artist');
+                }
+            });
+        </script>
+    </body>
+</html>

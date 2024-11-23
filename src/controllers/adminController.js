@@ -8,6 +8,7 @@ import { userService } from '~/services/userService';
 import { commentService } from '~/services/commentService';
 import { albumService } from '~/services/albumService';
 import db from '~/models';
+import { packageService } from '~/services/packageService';
 
 const createGenre = async (req, res, next) => {
     try {
@@ -42,14 +43,17 @@ const createArtist = async (req, res, next) => {
 
 const createSong = async (req, res, next) => {
     try {
-        // const { mainArtistId, subArtistIds } = req.body;
         const { data } = req.body;
         const parsedData = JSON.parse(data);
-        console.log('data create song: ', parsedData);
+
+        if (parsedData.type === 'single' && parsedData.songIds.length > 1) {
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Type single just has only one song');
+        }
 
         await adminService.createSongService({
             data: parsedData,
             file: req.file,
+            duration: parseInt(req.duration * 1000),
         });
         res.status(StatusCodes.OK).json({
             status: 'success',
@@ -93,6 +97,100 @@ const createAdmin = async (req, res, next) => {
         next(error);
     }
 };
+
+const createPackage = async (req, res, next) => {
+    try {
+        const data = req.body;
+
+        const result = await packageService.createPackageService({ data: data });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Create package success',
+            package: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// -----------------------------------------------------------------------------------------------
+
+const updateAlbum = async (req, res, next) => {
+    try {
+        console.log('file: ', req.file);
+        // res.send('ahah');
+        const result = await adminService.updateAlbumService({
+            albumId: req.params.albumId,
+            data: JSON.parse(req.body.data),
+            file: req.file,
+        });
+        const album = await albumService.getAlbumService({ albumId: req.params.albumId, mode: 'findOne' });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Update album success',
+            album: album,
+            ...result,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const updateArtist = async (req, res, next) => {
+    try {
+        console.log('file update artist: ', req.file);
+        const result = await adminService.updateArtistService({
+            artistId: req.params.artistId,
+            data: JSON.parse(req.body.data),
+            file: req.file,
+        });
+        // res.send('ahha');
+        const artist = await artistService.getArtistService({ artistId: req.params.artistId });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Update album success',
+            artist: artist,
+            ...result,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const updateSong = async (req, res, next) => {
+    try {
+    } catch (error) {
+        next(error);
+    }
+};
+
+// -----------------------------------------------------------------------------------------------
+
+const deleteAlbum = async (req, res, next) => {
+    try {
+        await adminService.deleteAlbumService({ albumIds: req.body.albumIds });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Delete album success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteArtist = async (req, res, next) => {
+    try {
+        await adminService.deleteArtistService({ artistIds: req.body.artistIds });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Hide artist success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// -----------------------------------------------------------------------------------------------
 
 const getRecentUser = async (req, res, next) => {
     try {
@@ -181,7 +279,7 @@ const getAllAlbum = async (req, res, next) => {
         const response = await adminService.getAllAlbumService(req.query.query, req.query.order, req.query.page);
         res.status(StatusCodes.OK).json({
             status: 'success',
-            message: `Get Today's Best Song success`,
+            message: `Get all album success`,
             ...response,
         });
     } catch (error) {
@@ -230,12 +328,33 @@ const getAllUser = async (req, res, next) => {
     }
 };
 
+const getAllPackage = async (req, res, next) => {
+    try {
+        const packages = await packageService.fetchAllPackage();
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get all packages success',
+            packages: packages,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const adminController = {
     createGenre,
     createArtist,
     createSong,
     createAlbum,
     createAdmin,
+    createPackage,
+    // ----------------
+    updateAlbum,
+    updateArtist,
+    updateSong,
+    // --------------
+    deleteAlbum,
+    deleteArtist,
     // --------------
     getRecentUser,
     getRecentComment,
@@ -246,6 +365,7 @@ export const adminController = {
     getAllGenreName,
     getAllArtistName,
     getAllUser,
+    getAllPackage,
     // ------------
     getAllAlbum,
 };

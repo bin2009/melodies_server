@@ -105,15 +105,16 @@ const addSongPlaylist = async (req, res, next) => {
         if (!checkSong) throw new ApiError(StatusCodes.NOT_FOUND, 'Song not found');
 
         await userService.addSongPlaylistService({ data: req.body, user: req.user });
-        const playlist = await userService.getPlaylistDetailService({
-            playlistId: req.body.playlistId,
-            user: req.user,
-        });
+        const newSong = await songService.fetchSongs({ conditions: { id: req.body.songId }, mode: 'findOne' });
+        // const playlist = await userService.getPlaylistDetailService({
+        //     playlistId: req.body.playlistId,
+        //     user: req.user,
+        // });
 
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Add song playlist success',
-            ...playlist,
+            newSong: newSong,
         });
     } catch (error) {
         next(error);

@@ -278,8 +278,8 @@ const getArtistService = async ({ artistId } = {}) => {
 
         const data = {
             ...artist.toJSON(),
-            totalFollow: parseInt(totalFollow.followCount) || 0,
-            totalSong: parseInt(totalSong.totalSongs) || 0,
+            totalFollow: totalFollow ? parseInt(totalFollow.followCount) : 0,
+            totalSong: totalSong ? parseInt(totalSong.totalSongs) : 0,
         };
 
         return data;
