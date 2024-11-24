@@ -5,6 +5,9 @@ import cors from 'cors';
 import { corsOptions } from './config/cors';
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
+import http from 'http';
+import { Server } from 'socket.io';
+
 import connection from '~/config/database';
 import { errorHandlingMiddleware } from './middleware/errorHandlingMiddleware';
 
@@ -14,6 +17,7 @@ import songRoute from '~/routes/songRoute';
 import userRoute from '~/routes/userRoute';
 import artistRoute from '~/routes/artistRoute';
 import albumRoute from '~/routes/albumRoute';
+import roomRoute from '~/routes/roomRoute';
 
 const app = express();
 
@@ -27,10 +31,6 @@ app.use(cors());
 // app.options('*', cors(corsOptions));
 // app.use(cors({ origin: 'http://171.251.5.239:20099' }));
 app.use(cookieParser());
-
-// http & socketio
-const http = require('http');
-const { Server } = require('socket.io');
 
 // redis
 const { connectRedis } = require('./services/redisService');
@@ -58,13 +58,28 @@ app.use('/api', songRoute);
 app.use('/api', userRoute);
 app.use('/api/artist', artistRoute);
 app.use('/api/album', albumRoute);
+app.use('/api/room', roomRoute);
 
 // handle error
 app.use(errorHandlingMiddleware);
 
 // initialize server
 const port = process.env.PORT || 3000;
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+    },
+});
 
-app.listen(port, () => {
+// const { handleSocketConnection } = require('~/controllers/roomController');
+// io.on('connection', (socket) => {
+//     handleSocketConnection(socket, io);
+// });
+
+import { configureSocket } from '~/config/socketConfig';
+configureSocket(io);
+
+server.listen(port, () => {
     console.log(`Listening on port: ${port}`);
 });

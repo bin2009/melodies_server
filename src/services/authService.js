@@ -8,11 +8,15 @@ const { Op } = require('sequelize');
 const emailService = require('../services/emailService');
 
 const generateAccessToken = (user) => {
-    return jwt.sign({ id: user.id, role: user.role }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' });
+    return jwt.sign({ id: user.id, role: user.role, username: user.username }, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: '1d',
+    });
 };
 
 const generateRefreshToken = (user) => {
-    return jwt.sign({ id: user.id, role: user.role }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+    return jwt.sign({ id: user.id, role: user.role, username: user.username }, process.env.REFRESH_TOKEN_SECRET, {
+        expiresIn: '7d',
+    });
 };
 
 const generateToken = (user) => {

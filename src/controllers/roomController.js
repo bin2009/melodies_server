@@ -1,30 +1,16 @@
-const { getRedisClient } = require('../services/redisService');
+// import { roomService } from '~/services/roomService';
+import roomService from '~/services/roomService';
 
-const createRoom = (req, res) => {
-    const roomCode = Math.random().toString(36).substring(2, 8);
-    res.json({ roomCode });
+const createRoom = async (req, res, next) => {
+    try {
+        console.log('user: ', req.user);
+        const roomId = roomService.createRoomService(req.user);
+        res.status(200).json({ roomId: roomId });
+    } catch (error) {
+        next(error);
+    }
 };
 
-const checkRoom = (req, res) => {
-    const { roomCode } = req.params;
-    // const redisClient = getRedisClient();
-    // redisClient.exists(`room:${roomCode}`, (err, reply) => {
-    //     if (reply === 1) {
-    //         res.json({ exists: true });
-    //     } else {
-    //         res.json({ exists: false });
-    //     }
-    // });
-
-    console.log('>>>>>check: ', roomCode);
-};
-
-const chatRoom = (req, res) => {
-    res.render('chatRoom.ejs');
-};
-
-module.exports = {
+export const roomController = {
     createRoom,
-    checkRoom,
-    chatRoom,
 };
