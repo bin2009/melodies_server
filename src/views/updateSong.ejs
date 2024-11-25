@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Update Song</title>
+        <link rel="stylesheet" href="/styles.css" />
+    </head>
+    <body>
+        <h1>Update Song</h1>
+        <form id="updateSongForm">
+            <input type="hidden" id="songId" name="songId" value="<%= song.id %>" />
+
+            <div>
+                <label for="title">Title:</label>
+                <input type="text" id="title" name="title" value="<%= song.title %>" required />
+            </div>
+            <label for="releaseDate">Release Date:</label>
+            <input
+                type="date"
+                id="releaseDate"
+                name="releaseDate"
+                value="<%= song.releaseDate.toISOString().split('T')[0] %>"
+            /><br /><br />
+
+            <div>
+                <label for="mainArtist">Main artist:</label>
+                <input
+                    type="text"
+                    id="mainArtist"
+                    name="mainArtist"
+                    value="<%= song.artists.find(artist => artist.ArtistSong.main === true)?.id%>"
+                    required
+                />
+            </div>
+
+            <label for="artists">Sub Artists:</label>
+            <div id="artistContain">
+                <% song.artists.filter(artist => !artist.ArtistSong.main).forEach(function(artist, index) { %>
+                <div class="artist-input" key="<%= index %>">
+                    <input type="text" name="subArtist" value="<%= artist.id %>" readonly />
+                    <button type="button" onclick="removeArtistInput(this)">Remove</button>
+                </div>
+                <% }); %>
+            </div>
+            <button type="button" onclick="addArtistInput()">Add sub artist</button><br /><br />
+
+            <div>
+                <label for="audio">Current Audio:</label>
+                <audio controls>
+                    <source src="<%= song.filePathAudio %>" type="audio/mpeg" />
+                    Your browser does not support the audio element.
+                </audio>
+            </div>
+
+            <div>
+                <label for="audioFile">Upload New Audio:</label>
+                <input type="file" id="audioFile" name="audioFile" accept="audio/*" />
+            </div>
+
+            <button type="submit">Update Song</button>
+        </form>
+
+        <script>
+            function addArtistInput() {
+                const container = document.getElementById('artistContain');
+                const songInput = document.createElement('div');
+                songInput.className = 'artist-input';
+                songInput.innerHTML = `
+                <input type="text" name="subArtist" placeholder="Enter song ID" required>
+                <button type="button" onclick="removeArtistInput(this)">Remove</button>
+            `;
+                container.appendChild(songInput);
+            }
+
+            function removeArtistInput(button) {
+                const artistInput = button.parentElement;
+                artistInput.remove();
+            }
+            document.getElementById('updateSongForm').addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                const form = event.target;
+                const formData = new FormData(form);
+                console.log(formData);
+
+                try {
+                    const response = await fetch(`/api/admin/update/song/${formData.get('songId')}`, {
+                        method: 'PATCH',
+                        body: formData,
+                    });
+
+                    if (response.ok) {
+                        alert('Song updated successfully!');
+                    } else {
+                        const errorData = await response.json();
+                        alert('Error updating song: ' + errorData.message);
+                    }
+                } catch (error) {
+                    alert('Error updating song: ' + error.message);
+                }
+            });
+        </script>
+    </body>
+</html>

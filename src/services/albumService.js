@@ -188,8 +188,10 @@ const getAlbumAnotherService = async ({ albumId, page = 1, limit = 10 } = {}) =>
         const artist = await artistService.fetchMainArtist({ conditions: { songId: song.songId, main: true } });
         const songsOfArtist = await artistService.fetchSongIdsByArtist({ artistId: artist.artistId });
 
+        const albumIds = await db.AlbumSong.findAll({ where: { songId: songsOfArtist.map((s) => s.songId) } });
+
         const albums = await albumService.fetchAlbumIds({
-            songConditions: { id: songsOfArtist.map((s) => s.songId) },
+            conditions: { albumId: albumIds.map((a) => a.albumId) },
         });
         return {
             page: page,

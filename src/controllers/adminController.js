@@ -9,6 +9,7 @@ import { commentService } from '~/services/commentService';
 import { albumService } from '~/services/albumService';
 import db from '~/models';
 import { packageService } from '~/services/packageService';
+import { songService } from '~/services/songService';
 
 const createGenre = async (req, res, next) => {
     try {
@@ -159,6 +160,18 @@ const updateArtist = async (req, res, next) => {
 
 const updateSong = async (req, res, next) => {
     try {
+        const result = await adminService.updateSongService({
+            songId: req.params.songId,
+            data: req.body,
+            file: req.file,
+        });
+        const song = await songService.fetchSongs({ conditions: { id: req.params.songId } });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Update song success',
+            song: song,
+            ...result,
+        });
     } catch (error) {
         next(error);
     }
@@ -184,6 +197,18 @@ const deleteArtist = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Hide artist success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteSong = async (req, res, next) => {
+    try {
+        await adminService.deleteSongService({ songIds: req.body.songIds });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Delete songs success',
         });
     } catch (error) {
         next(error);
@@ -355,6 +380,7 @@ export const adminController = {
     // --------------
     deleteAlbum,
     deleteArtist,
+    deleteSong,
     // --------------
     getRecentUser,
     getRecentComment,
