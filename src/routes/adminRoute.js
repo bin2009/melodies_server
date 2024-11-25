@@ -63,8 +63,8 @@ Router.route('/update/song/:songId').patch(upload.single('audioFile'), adminCont
 // ----------- delete
 
 Router.route('/delete/album').delete(adminController.deleteAlbum);
-Router.route('/delete/artist').post(adminController.deleteArtist);
-Router.route('/delete/song').post(adminController.deleteSong);
+Router.route('/delete/artist').patch(adminController.deleteArtist);
+Router.route('/delete/song').delete(adminController.deleteSong);
 
 // -----------------------------------
 Router.route('/recentUser').get(adminController.getRecentUser);
@@ -86,17 +86,18 @@ import db from '~/models';
 import { albumService } from '~/services/albumService';
 import { artistService } from '~/services/artistService';
 import { songService } from '~/services/songService';
-Router.route('/test/:songId').get(async (req, res) => {
+Router.route('/test/:albumId').get(async (req, res) => {
     // const artist = await artistService.getArtistService({ artistId: req.params.artistId });
     // res.render('updateArtist', { artist: artist });
-    // res.send(album);
-    // const album = await albumService.getAlbumService({ albumId: req.params.albumId });
-    // res.render('updateAlbum', { album: album });
-    const song = await songService.fetchSongs({ conditions: { id: req.params.songId }, mode: 'findOne' });
-    res.render('updateSong', { song: song });
+
+    const album = await albumService.getAlbumService({ albumId: req.params.albumId });
+    res.render('updateAlbum', { album: album });
+
+    // const song = await songService.fetchSongs({ conditions: { id: req.params.songId }, mode: 'findOne' });
+    // res.render('updateSong', { song: song });
 });
 Router.route('/test2').get(async (req, res) => {
-    res.render('createSong');
+    res.render('createAlbum');
 });
 Router.route('/data').post(upload.single('avatar'), (req, res, next) => {
     try {

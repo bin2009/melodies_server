@@ -474,7 +474,11 @@ const updateAlbumService = async ({ albumId, data, file } = {}) => {
         const songIdsOfAlbum = songsOfAlbum?.map((rec) => rec.songId);
         console.log('Songs of album: ', songIdsOfAlbum);
 
-        const songIds = data.songIds ?? [];
+        const songIds = Array.isArray(data.songIds)
+            ? data.songIds
+            : typeof data.songIds === 'string'
+            ? [data.songIds]
+            : [];
         const songsAdd = songIds?.filter((id) => !songIdsOfAlbum.includes(id));
         const songsDel = songIdsOfAlbum?.filter((id) => !songIds.includes(id));
 
@@ -559,15 +563,18 @@ const updateArtistService = async ({ artistId, data, file } = {}) => {
         if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
 
         // update artist
-        const [[], genresOfArtist] = await Promise.all([
+        const [genresOfArtist] = await Promise.all([
+            db.ArtistGenre.findAll({ where: { artistId: artistId }, attributes: ['genreId'], raw: true }),
             db.Artist.update(data, { where: { id: artistId }, returning: true }, { transaction }),
-            db.ArtistGenre.findAll({ where: { artistId: artistId }, attributes: ['genreId'] }),
         ]);
 
         const genreIdsOfArtist = genresOfArtist?.map((rec) => rec.genreId);
-        console.log('genre ids of artist: ', genreIdsOfArtist);
 
-        const genreIds = data.genres ?? [];
+        const genreIds = Array.isArray(data.genres)
+            ? data.genres
+            : typeof data.genres === 'string'
+            ? [data.genres]
+            : [];
         const genresAdd = genreIds?.filter((id) => !genreIdsOfArtist.includes(id));
         const genresDel = genreIdsOfArtist?.filter((id) => !genreIds.includes(id));
 
@@ -710,7 +717,7 @@ const deleteSongService = async ({ songIds } = {}) => {
     try {
         await Promise.all([
             db.Like.destroy({ where: { songId: { [Op.in]: songIds } } }),
-            db.Commnet.destroy({ where: { songId: { [Op.in]: songIds } } }),
+            db.Comment.destroy({ where: { songId: { [Op.in]: songIds } } }),
             db.SongPlayHistory.destroy({ where: { songId: { [Op.in]: songIds } } }),
             db.PlaylistSong.destroy({ where: { songId: { [Op.in]: songIds } } }),
             db.ArtistSong.destroy({ where: { songId: { [Op.in]: songIds } } }),

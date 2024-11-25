@@ -61,14 +61,14 @@
                 const form = event.target;
                 const formData = new FormData(form);
 
-                const data = {
-                    artistId: formData.get('artistId'),
-                    name: formData.get('name'),
-                    bio: formData.get('bio'),
-                    genres: Array.from(formData.getAll('genres')),
-                };
+                // const data = {
+                //     artistId: formData.get('artistId'),
+                //     name: formData.get('name'),
+                //     bio: formData.get('bio'),
+                //     genres: Array.from(formData.getAll('genres')),
+                // };
 
-                formData.append('data', JSON.stringify(data));
+                // formData.append('data', JSON.stringify(data));
 
                 try {
                     const response = await fetch(`/api/admin/update/artist/${formData.get('artistId')}`, {

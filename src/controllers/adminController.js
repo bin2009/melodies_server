@@ -119,10 +119,9 @@ const createPackage = async (req, res, next) => {
 const updateAlbum = async (req, res, next) => {
     try {
         console.log('file: ', req.file);
-        // res.send('ahah');
         const result = await adminService.updateAlbumService({
             albumId: req.params.albumId,
-            data: JSON.parse(req.body.data),
+            data: req.body,
             file: req.file,
         });
         const album = await albumService.getAlbumService({ albumId: req.params.albumId, mode: 'findOne' });
@@ -140,9 +139,10 @@ const updateAlbum = async (req, res, next) => {
 const updateArtist = async (req, res, next) => {
     try {
         console.log('file update artist: ', req.file);
+        console.log('body: ', req.body);
         const result = await adminService.updateArtistService({
             artistId: req.params.artistId,
-            data: JSON.parse(req.body.data),
+            data: req.body,
             file: req.file,
         });
         // res.send('ahha');
