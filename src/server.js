@@ -14,6 +14,7 @@ import songRoute from '~/routes/songRoute';
 import userRoute from '~/routes/userRoute';
 import artistRoute from '~/routes/artistRoute';
 import albumRoute from '~/routes/albumRoute';
+import paymentRoute from '~/routes/paymentRoute';
 
 const app = express();
 
@@ -58,6 +59,7 @@ app.use('/api', songRoute);
 app.use('/api', userRoute);
 app.use('/api/artist', artistRoute);
 app.use('/api/album', albumRoute);
+app.use('/api/payment', paymentRoute);
 
 // handle error
 app.use(errorHandlingMiddleware);
