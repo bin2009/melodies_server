@@ -58,7 +58,8 @@ Router.route('/create/package').post(appValidations.validateCreatePackage, admin
 
 Router.route('/update/album/:albumId').patch(upload.single('albumCover'), adminController.updateAlbum);
 Router.route('/update/artist/:artistId').patch(upload.single('avatar'), adminController.updateArtist);
-Router.route('/update/song/:songId').patch(upload.single('audioFile'), calculateDuration, adminController.updateSong);
+// Router.route('/update/song/:songId').patch(upload.single('audioFile'), calculateDuration, adminController.updateSong);
+Router.route('/update/song/:songId').patch(upload.none(), calculateDuration, adminController.updateSong);
 
 // ----------- delete
 

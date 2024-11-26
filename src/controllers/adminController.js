@@ -160,10 +160,15 @@ const updateArtist = async (req, res, next) => {
 
 const updateSong = async (req, res, next) => {
     try {
-        console.log(req.body);
+        const { data } = req.body;
+        const parsedData = JSON.parse(data);
+        console.log('update: ', parsedData);
+        console.log('file:', req.file);
+
         const result = await adminService.updateSongService({
             songId: req.params.songId,
-            data: req.body,
+            // data: req.body,
+            data: parsedData,
             duration: parseInt(req.duration * 1000),
             file: req.file,
         });

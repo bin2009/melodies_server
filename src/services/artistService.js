@@ -210,7 +210,7 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
             );
 
         const sort = sortOrder === 'desc' ? [['createdAt', 'DESC']] : [['createdAt', 'ASC']];
-        const artists = await fetchArtist({ order: sort });
+        const artists = await fetchArtist({ order: sort, conditions: { hide: false } });
 
         const [totalSongs, totalFollow] = await Promise.all([
             fetchSongCount({ conditions: { artistId: { [Op.in]: artists.map((a) => a.id) }, main: true } }),
