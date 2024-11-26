@@ -77,15 +77,27 @@
                 const artistInput = button.parentElement;
                 artistInput.remove();
             }
+
             document.getElementById('updateSongForm').addEventListener('submit', async function (event) {
                 event.preventDefault();
 
+                const data = {
+                    title: document.getElementById('title').value,
+                    mainArtist: document.getElementById('mainArtist').value,
+                    // subArtist: document.getElementById('subArtist').value,
+                    subArtist: Array.from(document.getElementsByName('subArtist')).map((input) => input.value),
+                    releaseDate: document.getElementById('releaseDate').value,
+                };
+                const audioFile = document.getElementById('audioFile').files[0];
+
                 const form = event.target;
-                const formData = new FormData(form);
+                const formData = new FormData();
+                formData.append('data', JSON.stringify(data));
+                formData.append('audioFile', audioFile);
                 console.log(formData);
 
                 try {
-                    const response = await fetch(`/api/admin/update/song/${formData.get('songId')}`, {
+                    const response = await fetch(`/api/admin/update/song/<%= song.id %>`, {
                         method: 'PATCH',
                         body: formData,
                     });

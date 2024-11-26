@@ -627,21 +627,21 @@ const updateArtistService = async ({ artistId, data, file } = {}) => {
 const updateSongService = async ({ songId, data, duration, file } = {}) => {
     const transaction = await db.sequelize.transaction();
     try {
-        // const subArtistIds = data.subArtist ?? [];
-        const subArtistIds = Array.isArray(data.subArtist)
-            ? data.subArtist
-            : typeof data.subArtist === 'string'
-            ? [data.subArtist]
-            : [];
+        const subArtistIds = data.subArtist ?? [];
         if (subArtistIds.includes(data.mainArtist)) throw new ApiError(StatusCodes.CONFLICT, 'Only 1 main artist');
+
+        const updateData = {
+            title: data.title,
+            releaseDate: data.releaseDate,
+        };
+
+        if (file) {
+            updateData.duration = duration;
+        }
 
         const [subArtistIdsOfSong] = await Promise.all([
             db.ArtistSong.findAll({ where: { songId: songId, main: false } }),
-            db.Song.update(
-                { title: data.title, releaseDate: data.releaseDate, duration: duration },
-                { where: { id: songId } },
-                { transaction },
-            ),
+            db.Song.update(updateData, { where: { id: songId } }, { transaction }),
             db.ArtistSong.update(
                 { artistId: data.mainArtist },
                 { where: { songId: songId, main: true } },
