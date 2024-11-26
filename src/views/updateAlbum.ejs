@@ -68,15 +68,15 @@
             const form = event.target;
             const formData = new FormData(form);
 
-            const data = {
-                albumId: formData.get('albumId'),
-                title: formData.get('title'),
-                releaseDate: formData.get('releaseDate'),
-                albumType: formData.get('albumType'),
-                songIds: Array.from(formData.getAll('songIds'))
-            };
+            // const data = {
+            //     albumId: formData.get('albumId'),
+            //     title: formData.get('title'),
+            //     releaseDate: formData.get('releaseDate'),
+            //     albumType: formData.get('albumType'),
+            //     songIds: Array.from(formData.getAll('songIds'))
+            // };
 
-            formData.append('data', JSON.stringify(data));
+            // formData.append('data', JSON.stringify(data));
 
             try {
                 const response = await fetch(`/api/admin/update/album/${formData.get('albumId')}`, {

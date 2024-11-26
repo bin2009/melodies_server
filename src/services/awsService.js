@@ -38,7 +38,7 @@ const uploadPlaylistAvatar = async (userId, playlistId, file) => {
 
 const uploadSong = async (mainArtistId, songId, file) => {
     console.log('upload song', file);
-    const fileName = `PBL6/ARTIST/${mainArtistId}/SONG/${songId}_${file.originalname}`;
+    const fileName = `PBL6/SONG/${songId}/${file.originalname}`;
     const params = {
         Bucket: process.env.DO_SPACES_BUCKET,
         Key: fileName,

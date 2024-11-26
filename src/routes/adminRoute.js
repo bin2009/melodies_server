@@ -58,12 +58,13 @@ Router.route('/create/package').post(appValidations.validateCreatePackage, admin
 
 Router.route('/update/album/:albumId').patch(upload.single('albumCover'), adminController.updateAlbum);
 Router.route('/update/artist/:artistId').patch(upload.single('avatar'), adminController.updateArtist);
-Router.route('/upadte/song/:songId').patch(adminController.updateSong);
+Router.route('/update/song/:songId').patch(upload.single('audioFile'), calculateDuration, adminController.updateSong);
 
 // ----------- delete
 
 Router.route('/delete/album').delete(adminController.deleteAlbum);
-Router.route('/delete/artist').post(adminController.deleteArtist);
+Router.route('/delete/artist').patch(adminController.deleteArtist);
+Router.route('/delete/song').delete(adminController.deleteSong);
 
 // -----------------------------------
 Router.route('/recentUser').get(adminController.getRecentUser);
@@ -85,16 +86,18 @@ import db from '~/models';
 import { albumService } from '~/services/albumService';
 import { artistService } from '~/services/artistService';
 import { songService } from '~/services/songService';
-Router.route('/test/:albumId').get(async (req, res) => {
+Router.route('/test/:songId').get(async (req, res) => {
     // const artist = await artistService.getArtistService({ artistId: req.params.artistId });
     // res.render('updateArtist', { artist: artist });
-    // res.send(album);
-    const album = await albumService.getAlbumService({ albumId: req.params.albumId });
-    res.render('updateAlbum', { album: album });
-    // const song = await songService.
+
+    // const album = await albumService.getAlbumService({ albumId: req.params.albumId });
+    // res.render('updateAlbum', { album: album });
+
+    const song = await songService.fetchSongs({ conditions: { id: req.params.songId }, mode: 'findOne' });
+    res.render('updateSong', { song: song });
 });
 Router.route('/test2').get(async (req, res) => {
-    res.render('createAlbum');
+    res.render('createSong');
 });
 Router.route('/data').post(upload.single('avatar'), (req, res, next) => {
     try {

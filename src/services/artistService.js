@@ -229,8 +229,9 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
         const result = await Promise.all(
             artists.map(async (artist) => {
                 const songIds = await fetchSongIdsByArtist({ artistId: artist.id });
+                const albumIds = await db.AlbumSong.findAll({ where: { songId: songIds.map((s) => s.songId) } });
                 const albums = await albumService.fetchAlbumIds({
-                    songConditions: { id: songIds.map((s) => s.songId) },
+                    conditions: { albumId: albumIds.map((a) => a.albumId) },
                 });
                 const { createdAt, ...other } = artist.toJSON();
                 return {
@@ -344,9 +345,10 @@ const getAlbumFromArtistService = async ({ artistId, page = 1, limit = 10 } = {}
 
         const songsOfArtist = await fetchSongIdsByArtist({ artistId: artistId });
 
+        const albumIdsOfArtist = await db.AlbumSong.findAll({ where: { songId: songsOfArtist.map((s) => s.songId) } });
+
         const albums = await albumService.fetchAlbumIds({
-            songConditions: { id: songsOfArtist.map((s) => s.songId) },
-            conditions: { albumType: { [Op.not]: 'single' } },
+            conditions: { albumId: albumIdsOfArtist.map((a) => a.albumId), albumType: { [Op.not]: 'single' } },
         });
 
         return {
@@ -369,9 +371,10 @@ const getSingleFromArtistService = async ({ artistId, page = 1, limit = 10 } = {
 
         const songsOfArtist = await fetchSongIdsByArtist({ artistId: artistId });
 
+        const albumIdsOfArtist = await db.AlbumSong.findAll({ where: { songId: songsOfArtist.map((s) => s.songId) } });
+
         const singles = await albumService.fetchAlbumIds({
-            songConditions: { id: songsOfArtist.map((s) => s.songId) },
-            conditions: { albumType: { [Op.eq]: 'single' } },
+            conditions: { albumId: albumIdsOfArtist.map((a) => a.albumId), albumType: { [Op.eq]: 'single' } },
         });
 
         return {
