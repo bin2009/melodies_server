@@ -162,7 +162,10 @@ const getAlbumService = async ({ albumId, mode = 'findAll' } = {}) => {
             }),
         ]);
         const totalDuration = songs.reduce((total, song) => total + parseInt(song.duration), 0);
-        const mainArtist = await artistService.fetchArtist({ conditions: { id: mainArtistId.artistId }, mode: mode });
+        const mainArtist = await artistService.fetchArtist({
+            conditions: { id: mainArtistId.artistId },
+            mode: 'findOne',
+        });
 
         const result = {
             ...album.toJSON(),
