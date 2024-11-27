@@ -87,18 +87,18 @@ import db from '~/models';
 import { albumService } from '~/services/albumService';
 import { artistService } from '~/services/artistService';
 import { songService } from '~/services/songService';
-Router.route('/test/:songId').get(async (req, res) => {
-    // const artist = await artistService.getArtistService({ artistId: req.params.artistId });
-    // res.render('updateArtist', { artist: artist });
+Router.route('/test/:artistId').get(async (req, res) => {
+    const artist = await artistService.getArtistService({ artistId: req.params.artistId });
+    res.render('updateArtist', { artist: artist });
 
     // const album = await albumService.getAlbumService({ albumId: req.params.albumId });
     // res.render('updateAlbum', { album: album });
 
-    const song = await songService.fetchSongs({ conditions: { id: req.params.songId }, mode: 'findOne' });
-    res.render('updateSong', { song: song });
+    // const song = await songService.fetchSongs({ conditions: { id: req.params.songId }, mode: 'findOne' });
+    // res.render('updateSong', { song: song });
 });
 Router.route('/test2').get(async (req, res) => {
-    res.render('createSong');
+    res.render('createAlbum');
 });
 Router.route('/data').post(upload.single('avatar'), (req, res, next) => {
     try {

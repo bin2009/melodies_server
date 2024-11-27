@@ -59,19 +59,20 @@
                 event.preventDefault();
 
                 const form = event.target;
-                const formData = new FormData(form);
+                const formData = new FormData();
 
-                // const data = {
-                //     artistId: formData.get('artistId'),
-                //     name: formData.get('name'),
-                //     bio: formData.get('bio'),
-                //     genres: Array.from(formData.getAll('genres')),
-                // };
+                const data = {
+                    name: document.getElementById('name').value,
+                    bio: document.getElementById('bio').value,
+                    genres: Array.from(document.getElementsByName('genres')).map((input) => input.value),
+                };
+                const avatar = document.getElementById('avatar').files[0];
 
-                // formData.append('data', JSON.stringify(data));
+                formData.append('data', JSON.stringify(data));
+                formData.append('avatar', avatar);
 
                 try {
-                    const response = await fetch(`/api/admin/update/artist/${formData.get('artistId')}`, {
+                    const response = await fetch(`/api/admin/update/artist/<%=artist.id%>`, {
                         method: 'PATCH',
                         body: formData,
                     });

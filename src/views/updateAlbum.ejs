@@ -66,20 +66,22 @@
             event.preventDefault();
 
             const form = event.target;
-            const formData = new FormData(form);
+            const formData = new FormData();
 
-            // const data = {
-            //     albumId: formData.get('albumId'),
-            //     title: formData.get('title'),
-            //     releaseDate: formData.get('releaseDate'),
-            //     albumType: formData.get('albumType'),
-            //     songIds: Array.from(formData.getAll('songIds'))
-            // };
+            const data = {
+                title: document.getElementById('title').value,
+                releaseDate: document.getElementById('releaseDate').value,
+                albumType: document.getElementById('albumType').value,
+                songIds: Array.from(document.getElementsByName('songIds')).map(input => input.value)
+            };
+            const albumCover = document.getElementById('albumCover').files[0];
 
-            // formData.append('data', JSON.stringify(data));
+
+            formData.append('data', JSON.stringify(data));
+            formData.append('albumCover', albumCover)
 
             try {
-                const response = await fetch(`/api/admin/update/album/${formData.get('albumId')}`, {
+                const response = await fetch(`/api/admin/update/album/<%=album.albumId%>`, {
                     method: 'PATCH',
                     body: formData
                 });

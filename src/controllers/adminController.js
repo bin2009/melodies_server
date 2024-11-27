@@ -118,10 +118,13 @@ const createPackage = async (req, res, next) => {
 
 const updateAlbum = async (req, res, next) => {
     try {
+        const { data } = req.body;
+        const parsedData = JSON.parse(data);
+        console.log('Update data album: ', parsedData);
         console.log('file: ', req.file);
         const result = await adminService.updateAlbumService({
             albumId: req.params.albumId,
-            data: req.body,
+            data: parsedData,
             file: req.file,
         });
         const album = await albumService.getAlbumService({ albumId: req.params.albumId, mode: 'findOne' });
@@ -138,14 +141,16 @@ const updateAlbum = async (req, res, next) => {
 
 const updateArtist = async (req, res, next) => {
     try {
-        console.log('file update artist: ', req.file);
-        console.log('body: ', req.body);
+        const { data } = req.body;
+        const parsedData = JSON.parse(data);
+
+        console.log('update data artist: ', parsedData);
+        console.log('file: ', req.file);
         const result = await adminService.updateArtistService({
             artistId: req.params.artistId,
-            data: req.body,
+            data: parsedData,
             file: req.file,
         });
-        // res.send('ahha');
         const artist = await artistService.getArtistService({ artistId: req.params.artistId });
         res.status(StatusCodes.OK).json({
             status: 'success',

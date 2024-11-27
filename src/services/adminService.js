@@ -474,11 +474,7 @@ const updateAlbumService = async ({ albumId, data, file } = {}) => {
         const songIdsOfAlbum = songsOfAlbum?.map((rec) => rec.songId);
         console.log('Songs of album: ', songIdsOfAlbum);
 
-        const songIds = Array.isArray(data.songIds)
-            ? data.songIds
-            : typeof data.songIds === 'string'
-            ? [data.songIds]
-            : [];
+        const songIds = data.songIds ?? [];
         const songsAdd = songIds?.filter((id) => !songIdsOfAlbum.includes(id));
         const songsDel = songIdsOfAlbum?.filter((id) => !songIds.includes(id));
 
@@ -570,11 +566,7 @@ const updateArtistService = async ({ artistId, data, file } = {}) => {
 
         const genreIdsOfArtist = genresOfArtist?.map((rec) => rec.genreId);
 
-        const genreIds = Array.isArray(data.genres)
-            ? data.genres
-            : typeof data.genres === 'string'
-            ? [data.genres]
-            : [];
+        const genreIds = data.genres ?? [];
         const genresAdd = genreIds?.filter((id) => !genreIdsOfArtist.includes(id));
         const genresDel = genreIdsOfArtist?.filter((id) => !genreIds.includes(id));
 
