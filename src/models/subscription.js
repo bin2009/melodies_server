@@ -42,13 +42,14 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.DATE,
                 allowNull: false,
             },
-            paymentMethod: {
-                type: DataTypes.ENUM('CreditCard', 'PayPal', 'BankTransfer'),
+            status: {
+                type: DataTypes.ENUM('Pending', 'Expired', 'Paid', 'Cancelled'),
                 allowNull: false,
             },
-            status: {
-                type: DataTypes.ENUM('Pending', 'Active', 'Expired'),
+            statusUse: {
+                type: DataTypes.BOOLEAN,
                 allowNull: false,
+                defaultValue: false,
             },
         },
         {
