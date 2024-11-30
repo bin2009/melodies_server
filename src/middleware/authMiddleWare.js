@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import db from '~/models';
 import { StatusCodes } from 'http-status-codes';
+import ApiError from '~/utils/ApiError';
 
 // const jwt = require('jsonwebtoken');
 // const db = require('../models');
@@ -92,10 +93,33 @@ const checkEmailExits = async (req, res, next) => {
     }
 };
 
+const verifyTokenSocket = async (token, socket, next) => {
+    try {
+        // const token = socket.handshake.auth.token;
+
+        if (!token) {
+            return next(new Error('Authentication error: No token provided'));
+            // throw new ApiError(StatusCodes.BAD_REQUEST, 'baoloc error');
+        }
+
+        jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+            if (err) {
+                return next(new Error('Authentication error: Invalid token'));
+                // throw new ApiError(StatusCodes.BAD_REQUEST, 'baoloc error 2');
+            }
+            socket.user = decoded;
+            next();
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const authMiddleWare = {
     verifyToken,
     verifyTokenAndAdmin,
     verifyTokenAndAuthorization,
     optionalVerifyToken,
     checkEmailExits,
+    verifyTokenSocket,
 };

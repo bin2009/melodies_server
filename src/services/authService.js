@@ -10,11 +10,15 @@ const { default: ApiError } = require('~/utils/ApiError');
 const { StatusCodes } = require('http-status-codes');
 
 const generateAccessToken = (user) => {
-    return jwt.sign({ id: user.id, role: user.role }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' });
+    return jwt.sign({ id: user.id, role: user.role, username: user.username }, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: '1d',
+    });
 };
 
 const generateRefreshToken = (user) => {
-    return jwt.sign({ id: user.id, role: user.role }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+    return jwt.sign({ id: user.id, role: user.role, username: user.username }, process.env.REFRESH_TOKEN_SECRET, {
+        expiresIn: '7d',
+    });
 };
 
 const generateToken = (user) => {

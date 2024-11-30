@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Chat Room</title>
+        <script src="/socket.io/socket.io.js"></script>
+        <style>
+            #messages {
+                list-style-type: none;
+                margin: 0;
+                padding: 0;
+            }
+            #messages li {
+                padding: 8px;
+                margin-bottom: 10px;
+                background: #f4f4f4;
+            }
+            #form {
+                display: flex;
+            }
+            #input {
+                flex: 1;
+                padding: 10px;
+            }
+            #send {
+                padding: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Chat Room</h1>
+        <div>
+            <input id="accessToken" placeholder="Access Token" />
+            <button id="connect">Connect</button>
+            <button id="createRoom">Create Room</button>
+            <input id="roomId" placeholder="Room ID" />
+            <button id="joinRoom">Join Room</button>
+        </div>
+
+        <br />
+        <h1>Music</h1>
+        <div>
+            <input id="audioUrl" placeholder="Enter audio URL" />
+            <button id="playAudio">Play Audio</button>
+        </div>
+        <audio id="audioPlayer" controls>Your browser does not support the audio element.</audio>
+
+        <br />
+        <h1>List nhạc</h1>
+        <div>
+            <input id="musicId" placeholder="Enter music ID" />
+            <button id="addMusic">Add Music</button>
+        </div>
+        <ul id="musicList"></ul>
+
+        <ul id="messages"></ul>
+        <form id="form" action=""><input id="input" autocomplete="off" /><button id="send">Send</button></form>
+        <script>
+            let socket = (socket = io('http://localhost:20099'));
+
+            document.getElementById('connect').onclick = () => {
+                const accessToken = document.getElementById('accessToken').value;
+
+                socket.on('connect', () => {
+                    console.log('Connected to socket.io server');
+                });
+
+                socket.on('roomCreated', (roomId) => {
+                    alert(`Room created with ID: ${roomId}`);
+                });
+
+                socket.on('joinedRoom', (roomId) => {
+                    alert(`Joined room with ID: ${roomId}`);
+                });
+
+                socket.on('error', (message) => {
+                    alert(message);
+                });
+
+                socket.on('message', (msg) => {
+                    const item = document.createElement('li');
+                    item.textContent = msg;
+                    document.getElementById('messages').appendChild(item);
+                    window.scrollTo(0, document.body.scrollHeight);
+                });
+            };
+
+            document.getElementById('createRoom').onclick = () => {
+                if (socket) {
+                    socket.emit('createRoom');
+                } else {
+                    alert('Please connect first');
+                }
+            };
+
+            document.getElementById('joinRoom').onclick = () => {
+                if (socket) {
+                    const roomId = document.getElementById('roomId').value;
+                    socket.emit('joinRoom', roomId);
+                } else {
+                    alert('Please connect first');
+                }
+            };
+
+            document.getElementById('form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (socket) {
+                    const input = document.getElementById('input');
+                    if (input.value) {
+                        socket.emit('message', input.value);
+                        input.value = '';
+                    }
+                } else {
+                    alert('Please connect first');
+                }
+            });
+        </script>
+    </body>
+</html>
