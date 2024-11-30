@@ -402,6 +402,13 @@ const commentService = async ({ data, user } = {}) => {
     }
 };
 
+const reportCommentService = async ({ commentId, user } = {}) => {
+    try {
+    } catch (error) {
+        throw error;
+    }
+};
+
 const getRecentUserService = async ({ page = 1, limit = 10 } = {}) => {
     try {
         const offset = (page - 1) * limit;
@@ -459,6 +466,7 @@ export const userService = {
     likedSongService,
     followedArtistService,
     commentService,
+    reportCommentService,
     // ---------------------
     postFollowService,
     // -----------------

@@ -38,6 +38,10 @@
                 <input type="file" id="audioFile" name="audioFile" accept="audio/*" />
             </div>
             <div>
+                <label for="lyricFile">JSON File:</label>
+                <input type="file" id="lyricFile" name="lyricFile" accept="application/json" />
+            </div>
+            <div>
                 <label for="releaseDate">Release Date</label>
                 <input type="date" class="form-control" id="releaseDate" name="releaseDate" required />
             </div>
@@ -73,6 +77,7 @@
                     artistId: input.value,
                 }));
                 const audioFile = document.getElementById('audioFile').files[0];
+                const lyricFile = document.getElementById('lyricFile').files[0];
                 const statusMessage = document.getElementById('statusMessage');
 
                 if (!audioFile) {
@@ -91,6 +96,7 @@
                 const formData = new FormData();
                 formData.append('data', JSON.stringify(data));
                 formData.append('audioFile', audioFile);
+                formData.append('lyricFile', lyricFile);
 
                 try {
                     const response = await fetch('/api/admin/create/song', {

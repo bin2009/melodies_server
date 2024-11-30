@@ -15,17 +15,17 @@ import { baoloc } from '~/utils/encryption';
 
 // Middleware để tính toán thời lượng của file âm thanh
 async function calculateDuration(req, res, next) {
-    if (!req.file) {
+    if (!req.files) {
         console.log('No file uploaded');
         return next();
     }
-    console.log('Check file:', req.file); // Kiểm tra thông tin tệp
+    // console.log('Check file:', req.files.audioFile[0]); // Kiểm tra thông tin tệp
     try {
         // lấy buffer từ tệp đã tải lên
-        const buffer = req.file.buffer;
-        console.log('buffer: ', buffer);
-        const mimeType = req.file.mimetype;
-        console.log('mimeType: ', mimeType);
+        const buffer = req.files.audioFile[0].buffer;
+        // console.log('buffer: ', buffer);
+        const mimeType = req.files.audioFile[0].mimetype;
+        // console.log('mimeType: ', mimeType);
 
         const metadata = await parseBuffer(buffer, mimeType);
         // console.log('metadata', metadata);
@@ -44,7 +44,11 @@ Router.route('/create/admin').post(adminController.createAdmin);
 Router.route('/create/genre').post(adminController.createGenre);
 Router.route('/create/artist').post(upload.single('avatar'), adminController.createArtist);
 Router.route('/create/song').post(
-    upload.single('audioFile'),
+    // upload.single('audioFile'),
+    upload.fields([
+        { name: 'audioFile', maxCount: 1 },
+        { name: 'lyricFile', maxCount: 1 },
+    ]),
     calculateDuration,
     // audioUpload.single('audioFile'),
     // appValidations.validateUploadSong,
@@ -58,7 +62,14 @@ Router.route('/create/package').post(appValidations.validateCreatePackage, admin
 
 Router.route('/update/album/:albumId').patch(upload.single('albumCover'), adminController.updateAlbum);
 Router.route('/update/artist/:artistId').patch(upload.single('avatar'), adminController.updateArtist);
-Router.route('/update/song/:songId').patch(upload.single('audioFile'), calculateDuration, adminController.updateSong);
+Router.route('/update/song/:songId').patch(
+    upload.fields([
+        { name: 'audioFile', maxCount: 1 },
+        { name: 'lyricFile', maxCount: 1 },
+    ]),
+    calculateDuration,
+    adminController.updateSong,
+);
 // Router.route('/update/song/:songId').patch(upload.none(), calculateDuration, adminController.updateSong);
 
 // ----------- delete
@@ -98,7 +109,7 @@ Router.route('/test/:artistId').get(async (req, res) => {
     // res.render('updateSong', { song: song });
 });
 Router.route('/test2').get(async (req, res) => {
-    res.render('createAlbum');
+    res.render('createSong');
 });
 Router.route('/data').post(upload.single('avatar'), (req, res, next) => {
     try {

@@ -292,10 +292,11 @@ const getAllUserService = async ({ page = 1, limit = 10 } = {}) => {
     }
 };
 
-const createSongService = async ({ data, file, duration } = {}) => {
+const createSongService = async ({ data, file, lyric, duration } = {}) => {
     const transaction = await db.sequelize.transaction();
-    let filePathAudio = null;
     const songId = uuidv4();
+    let filePathAudio = null;
+    let filePathLyric = null;
 
     try {
         // check artist
@@ -310,25 +311,28 @@ const createSongService = async ({ data, file, duration } = {}) => {
             });
         }
 
-        if (file) {
-            filePathAudio = await awsService.uploadSong(data.mainArtistId, songId, file);
+        if (!file) throw new ApiError(StatusCodes.BAD_REQUEST, 'File required');
+        if (lyric) {
+            const result = await awsService.uploadSongWithLyric(songId, file, lyric);
+            console.log('result: ', result);
+            filePathAudio = result.filePathAudio;
+            filePathLyric = result.filePathLyric;
+        } else {
+            filePathAudio = await awsService.uploadSong(songId, file);
         }
 
-        // tạo song
-        const newSong = await db.Song.create(
-            {
-                id: songId,
-                title: data.title,
-                duration: duration,
-                // duration: 123,
-                filePathAudio: filePathAudio,
-                releaseDate: data.releaseDate,
-            },
-            { transaction },
-        );
-
-        // tạo artist song
         await Promise.all([
+            db.Song.create(
+                {
+                    id: songId,
+                    title: data.title,
+                    duration: duration,
+                    lyric: filePathLyric,
+                    filePathAudio: filePathAudio,
+                    releaseDate: data.releaseDate,
+                },
+                { transaction },
+            ),
             db.ArtistSong.create(
                 {
                     artistSongId: uuidv4(),
@@ -350,13 +354,12 @@ const createSongService = async ({ data, file, duration } = {}) => {
                 );
             }),
         ]);
+
         await transaction.commit();
-        return await songService.fetchSongs({ conditions: { id: newSong.id } });
     } catch (error) {
-        await transaction.rollback();
-        if (filePathAudio) {
-            await awsService.deleteFile(filePathAudio);
-        }
+        await Promise.all([transaction.rollback(), awsService.deleteFolder(`PBL6/SONG/${songId}`)]);
+        // await transaction.rollback();
+        // await awsService.deleteFolder(`PBL6/SONG/${songId}`);
         throw error;
     }
 };
@@ -598,7 +601,7 @@ const updateArtistService = async ({ artistId, data, file } = {}) => {
     }
 };
 
-const updateSongService = async ({ songId, data, duration, file } = {}) => {
+const updateSongService = async ({ songId, data, duration, file, lyric } = {}) => {
     const transaction = await db.sequelize.transaction();
     try {
         const subArtistIds = data.subArtist ?? [];
@@ -643,8 +646,23 @@ const updateSongService = async ({ songId, data, duration, file } = {}) => {
         if (file) {
             await awsService.copyFolder(`PBL6/SONG/${songId}`, `PBL6/COPY/SONG/${songId}`);
             await awsService.deleteFolder(`PBL6/SONG/${songId}`);
-            const path = await awsService.uploadSong('', songId, file);
-            await db.Song.update({ filePathAudio: path }, { where: { id: songId } });
+            if (lyric) {
+                const result = await awsService.uploadSongWithLyric(songId, file, lyric);
+                await db.Song.update(
+                    { filePathAudio: result.filePathAudio, lyric: result.filePathLyric },
+                    { where: { id: songId } },
+                );
+            } else {
+                const path = await awsService.uploadSong(songId, file);
+                await db.Song.update({ filePathAudio: path, lyric: null }, { where: { id: songId } });
+            }
+        } else {
+            if (lyric) {
+                await awsService.copyFolder(`PBL6/LYRIC/${songId}`, `PBL6/COPY/LYRIC/${songId}`);
+                await awsService.deleteFolder(`PBL6/LYRIC/${songId}`);
+                const path = await awsService.uploadLyricFile(songId, lyric);
+                await db.Song.update({ lyric: path }, { where: { id: songId } });
+            }
         }
         await transaction.commit();
         await awsService.deleteFolder(`PBL6/COPY/SONG/${songId}`);
@@ -659,6 +677,9 @@ const updateSongService = async ({ songId, data, duration, file } = {}) => {
         if (file) {
             await awsService.copyFolder(`PBL6/COPY/SONG/${songId}/`, `PBL6/SONG/${songId}/`);
             await awsService.deleteFolder(`PBL6/COPY/SONG/${songId}`);
+        } else if (!file && lyric) {
+            await awsService.copyFolder(`PBL6/COPY/LYRIC/${songId}/`, `PBL6/LYRIC/${songId}/`);
+            await awsService.deleteFolder(`PBL6/COPY/LYRIC/${songId}`);
         }
         throw error;
     }

@@ -36,9 +36,11 @@ const uploadPlaylistAvatar = async (userId, playlistId, file) => {
     return data.Location;
 };
 
-const uploadSong = async (mainArtistId, songId, file) => {
+const uploadSongWithLyric = async (songId, file, lyric) => {
     console.log('upload song', file);
     const fileName = `PBL6/SONG/${songId}/${file.originalname}`;
+    const fileNameLyric = `PBL6/LYRIC/${songId}/${lyric.originalname}`;
+
     const params = {
         Bucket: process.env.DO_SPACES_BUCKET,
         Key: fileName,
@@ -46,8 +48,68 @@ const uploadSong = async (mainArtistId, songId, file) => {
         ACL: 'public-read', // Đặt quyền truy cập công khai
     };
 
-    const data = await s3.upload(params).promise();
-    return data.Location;
+    const paramsLyric = {
+        Bucket: process.env.DO_SPACES_BUCKET,
+        Key: fileNameLyric,
+        Body: lyric.buffer,
+        ACL: 'public-read', // Đặt quyền truy cập công khai
+        ContentType: 'application/json',
+    };
+
+    const [data, dataLyric] = await Promise.all([s3.upload(params).promise(), s3.upload(paramsLyric).promise()]);
+    return {
+        filePathAudio: data.Location.replace(
+            'nyc3.digitaloceanspaces.com/audiomelodies',
+            'https://audiomelodies.nyc3.cdn.digitaloceanspaces.com',
+        ),
+        filePathLyric: dataLyric.Location.replace(
+            'nyc3.digitaloceanspaces.com/audiomelodies',
+            'https://audiomelodies.nyc3.cdn.digitaloceanspaces.com',
+        ),
+    };
+};
+
+const uploadSong = async (songId, file) => {
+    try {
+        console.log('upload song', file);
+        const fileName = `PBL6/SONG/${songId}/${file.originalname}`;
+
+        const params = {
+            Bucket: process.env.DO_SPACES_BUCKET,
+            Key: fileName,
+            Body: file.buffer,
+            ACL: 'public-read', // Đặt quyền truy cập công khai
+        };
+
+        const data = await s3.upload(params).promise();
+
+        return data.Location.replace(
+            'nyc3.digitaloceanspaces.com/audiomelodies',
+            'https://audiomelodies.nyc3.cdn.digitaloceanspaces.com',
+        );
+    } catch (error) {}
+};
+
+const uploadLyricFile = async (songId, lyric) => {
+    try {
+        console.log('upload lyric file', lyric);
+        const fileName = `PBL6/LYRIC/${songId}/lyric_${lyric.originalname}`;
+        const params = {
+            Bucket: process.env.DO_SPACES_BUCKET,
+            Key: fileName,
+            Body: lyric.buffer,
+            ACL: 'public-read', // Đặt quyền truy cập công khai
+            ContentType: 'application/json',
+        };
+
+        const data = await s3.upload(params).promise();
+        return data.Location.replace(
+            'nyc3.digitaloceanspaces.com/audiomelodies',
+            'https://audiomelodies.nyc3.cdn.digitaloceanspaces.com',
+        );
+    } catch (error) {
+        throw error;
+    }
 };
 
 const uploadAlbumCover = async (mainArtistId, albumId, file) => {
@@ -142,6 +204,8 @@ export const awsService = {
     uploadArtistAvatar,
     uploadPlaylistAvatar,
     uploadSong,
+    uploadSongWithLyric,
+    uploadLyricFile,
     uploadAlbumCover,
     deleteFile,
     deleteFolder,

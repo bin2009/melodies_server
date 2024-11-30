@@ -46,6 +46,8 @@ const createSong = async (req, res, next) => {
     try {
         const { data } = req.body;
         const parsedData = JSON.parse(data);
+        const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
+        const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
 
         if (parsedData.type === 'single' && parsedData.songIds.length > 1) {
             throw new ApiError(StatusCodes.BAD_REQUEST, 'Type single just has only one song');
@@ -53,7 +55,8 @@ const createSong = async (req, res, next) => {
 
         await adminService.createSongService({
             data: parsedData,
-            file: req.file,
+            file: audioFile,
+            lyric: lyricFile,
             duration: parseInt(req.duration * 1000),
         });
         res.status(StatusCodes.OK).json({
@@ -167,15 +170,17 @@ const updateSong = async (req, res, next) => {
     try {
         const { data } = req.body;
         const parsedData = JSON.parse(data);
-        console.log('update: ', parsedData);
-        console.log('file:', req.file);
+        const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
+        const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
+        // console.log('update: ', parsedData);
+        // console.log('file:', req.file);
 
         const result = await adminService.updateSongService({
             songId: req.params.songId,
-            // data: req.body,
             data: parsedData,
             duration: parseInt(req.duration * 1000),
-            file: req.file,
+            file: audioFile,
+            lyric: lyricFile,
         });
         const song = await songService.fetchSongs({ conditions: { id: req.params.songId } });
         res.status(StatusCodes.OK).json({

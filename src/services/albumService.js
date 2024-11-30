@@ -168,6 +168,7 @@ const getAlbumService = async ({ albumId, mode = 'findAll' } = {}) => {
                 ...album,
                 artistMain: null,
                 totalDuration: 0,
+                songNumber: 0,
                 songs: [],
             };
         }
@@ -188,6 +189,7 @@ const getAlbumService = async ({ albumId, mode = 'findAll' } = {}) => {
             ...album,
             artistMain: mainArtist,
             totalDuration: totalDuration,
+            songNumber: songsIds.length,
             songs: songs,
         };
         return result;

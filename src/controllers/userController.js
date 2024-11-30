@@ -249,6 +249,19 @@ const comment = async (req, res, next) => {
     }
 };
 
+const reportComment = async (req, res, next) => {
+    try {
+        const comment = await userService.reportCommentService({ commentId: req.params.commentId, user: req.user });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Comment successfully',
+            comment: comment,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const register = async (req, res) => {
     const data = req.body;
     const checkVerify = await emailController.verifyEmailOtp(data.email, data.otp);
@@ -280,6 +293,7 @@ export const userController = {
     likedSong,
     followedArtist,
     comment,
+    reportComment,
 
     // -------- ....
     register,
