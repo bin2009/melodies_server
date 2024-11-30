@@ -238,7 +238,7 @@ const followedArtist = async (req, res, next) => {
 
 const comment = async (req, res, next) => {
     try {
-        const comment = await userService.commentService({ data: req.body, user: req.user });
+        const comment = await userService.getCommentService({ data: req.body, user: req.user });
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Comment successfully',
@@ -251,11 +251,11 @@ const comment = async (req, res, next) => {
 
 const reportComment = async (req, res, next) => {
     try {
-        const comment = await userService.reportCommentService({ commentId: req.params.commentId, user: req.user });
+        const report = await userService.reportCommentService({ data: req.body, user: req.user });
         res.status(StatusCodes.OK).json({
             status: 'success',
-            message: 'Comment successfully',
-            comment: comment,
+            message: 'Report comment successfully',
+            report: report,
         });
     } catch (error) {
         next(error);

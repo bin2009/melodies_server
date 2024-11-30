@@ -611,7 +611,7 @@ const getCommentSongService = async ({ songId, page = 1, user } = {}) => {
 
 const getCommentChildService = async ({ parentId, page = 1, user } = {}) => {
     try {
-        const limit = 10;
+        const limit = 5;
         const offset = (page - 1) * limit;
 
         const [totalComment, comments] = await Promise.all([

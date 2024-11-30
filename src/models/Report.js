@@ -8,7 +8,14 @@ module.exports = (sequelize, DataTypes) => {
          * The `models/index` file will call this method automatically.
          */
         static associate(models) {
-            // define association here
+            Report.belongsTo(models.User, {
+                foreignKey: 'userId',
+                as: 'user',
+            });
+            Report.belongsTo(models.Comment, {
+                foreignKey: 'commentId',
+                as: 'comment',
+            });
         }
     }
     Report.init(
@@ -37,6 +44,11 @@ module.exports = (sequelize, DataTypes) => {
             content: {
                 type: DataTypes.STRING,
                 allowNull: false,
+            },
+            status: {
+                type: DataTypes.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
             },
         },
         {

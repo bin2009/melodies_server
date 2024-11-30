@@ -173,7 +173,7 @@ const updateSong = async (req, res, next) => {
         const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
         const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
         // console.log('update: ', parsedData);
-        // console.log('file:', req.file);
+        console.log('lyricFile:', lyricFile);
 
         const result = await adminService.updateSongService({
             songId: req.params.songId,
@@ -370,6 +370,46 @@ const getAllUser = async (req, res, next) => {
     }
 };
 
+const getAllReport = async (req, res, next) => {
+    try {
+        if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
+
+        const reports = await adminService.getAllReportService({ page: req.query.page });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get all report success',
+            reports: reports,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getReport = async (req, res, next) => {
+    try {
+        const report = await adminService.getReportService(req.params.reportId);
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get report success',
+            report: report,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const verifyReport = async (req, res, next) => {
+    try {
+        await adminService.verifyReportService(req.params.reportId);
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Verify report success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const getAllPackage = async (req, res, next) => {
     try {
         const packages = await packageService.fetchAllPackage();
@@ -409,6 +449,9 @@ export const adminController = {
     getAllArtistName,
     getAllUser,
     getAllPackage,
+    getAllReport,
+    getReport,
+    verifyReport,
     // ------------
     getAllAlbum,
 };

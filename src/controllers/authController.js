@@ -1,19 +1,26 @@
+const { StatusCodes } = require('http-status-codes');
 const authService = require('../services/authService');
 
-const login = async (req, res) => {
-    console.log('login: ', req.body);
-    const response = await authService.loginService(req.body);
-    const { refreshToken, errCode, ...other } = response;
+const login = async (req, res, next) => {
+    try {
+        console.log('login: ', req.body);
+        const response = await authService.loginService(req.body);
+        const { refreshToken, ...other } = response;
 
-    if (errCode === 200) {
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
             secure: false, // true nếu sử dụng HTTPS
             path: '/',
             sameSite: 'strict',
         });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Login success',
+            ...other,
+        });
+    } catch (error) {
+        next(error);
     }
-    return res.status(errCode).json({ errCode, ...other });
 };
 
 const logout = async (req, res) => {

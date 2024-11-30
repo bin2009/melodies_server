@@ -11,6 +11,7 @@ import { albumService } from './albumService';
 import { userService } from './userService';
 import { awsService } from './awsService';
 import { songService } from './songService';
+import formatTime from '~/utils/timeFormat';
 
 const saltRounds = 10;
 
@@ -288,6 +289,92 @@ const getAllUserService = async ({ page = 1, limit = 10 } = {}) => {
             users: result,
         };
     } catch (error) {
+        throw error;
+    }
+};
+
+const getAllReportService = async ({ page = 1, limit = 10 } = {}) => {
+    try {
+        const offset = (page - 1) * limit;
+
+        const reports = await db.Comment.findAll({
+            order: [['createdAt', 'DESC']],
+            limit: limit,
+            offset: offset,
+        });
+
+        const formatters = reports.map((r) => {
+            const formatter = { ...r.toJSON() };
+            formatter.createdAt = formatTime(formatter.createdAt);
+            formatter.updatedAt = formatTime(formatter.updatedAt);
+            return formatter;
+        });
+        return formatters;
+    } catch (error) {
+        throw error;
+    }
+};
+
+const getReportService = async (reportId) => {
+    try {
+        const report = await db.Report.findOne({
+            where: { id: reportId },
+            attributes: ['id', 'content', 'status', 'createdAt', 'updatedAt'],
+            include: [
+                { model: db.User, as: 'user', attributes: ['id', 'name', 'username', 'email', 'image', 'createdAt'] },
+                { model: db.Comment, as: 'comment' },
+            ],
+        });
+        if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');
+        const formatter = report.toJSON();
+        formatter.createdAt = formatTime(formatter.createdAt);
+        formatter.updatedAt = formatTime(formatter.updatedAt);
+        formatter.user.createdAt = formatTime(formatter.user.createdAt);
+        formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
+        formatter.comment.updatedAt = formatTime(formatter.comment.updatedAt);
+        return formatter;
+    } catch (error) {
+        throw error;
+    }
+};
+
+const verifyReportService = async (reportId) => {
+    const transaction = await db.sequelize.transaction();
+    try {
+        const report = await db.Report.findOne({ id: reportId });
+        if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');
+        // await db.Report.update({ status: true }, { where: { reportId: reportId } }, { transaction });
+        // await db.Comment.update({ hide: true }, { where: { id: report.commentId } }, { transaction });
+        const [reportResult, commentResult] = await Promise.all([
+            db.Report.update({ status: true }, { where: { id: reportId } }, { transaction }),
+            db.Comment.update({ hide: true }, { where: { id: report.commentId } }, { transaction }),
+        ]);
+
+        if (reportResult[0] === 1) {
+            const userOfComment = await db.Comment.findOne({
+                where: { id: report.commentId },
+                attributes: ['userId'],
+            });
+
+            const count = await db.Comment.count({ where: { userId: userOfComment.userId, hide: true } });
+            switch (count) {
+                case 3:
+                    await db.User.update(
+                        { status2: 'lock3' },
+                        { where: { id: userOfComment.userId } },
+                        { transaction },
+                    );
+                    console.log('Message: ');
+                    // send message
+                    break;
+
+                default:
+                    break;
+            }
+        }
+        await transaction.commit();
+    } catch (error) {
+        await transaction.rollback();
         throw error;
     }
 };
@@ -740,6 +827,9 @@ export const adminService = {
     getAllAlbumService,
     getAllArtistNameService,
     getAllUserService,
+    getAllReportService,
+    getReportService,
+    verifyReportService,
     // ------------create
     createSongService,
     createAlbum,

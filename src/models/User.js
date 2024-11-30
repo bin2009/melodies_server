@@ -58,6 +58,10 @@ module.exports = (sequelize, DataTypes) => {
                 foreignKey: 'userId',
                 as: 'songs',
             });
+            User.hasMany(models.Report, {
+                foreignKey: 'userId',
+                as: 'reports',
+            });
         }
     }
     User.init(
@@ -113,6 +117,11 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.BOOLEAN,
                 allowNull: false,
                 defaultValue: true,
+            },
+            status2: {
+                type: DataTypes.ENUM('normal', 'lock3', 'lock7', 'permanent'),
+                allowNull: false,
+                defaultValue: 'normal',
             },
         },
         {

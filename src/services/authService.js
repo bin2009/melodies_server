@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 const { client } = require('../services/redisService');
 const { Op } = require('sequelize');
 const emailService = require('../services/emailService');
+const { default: ApiError } = require('~/utils/ApiError');
+const { StatusCodes } = require('http-status-codes');
 
 const generateAccessToken = (user) => {
     return jwt.sign({ id: user.id, role: user.role }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' });
@@ -26,34 +28,19 @@ const loginService = async (data) => {
                 [Op.or]: [{ username: data.username }, { email: data.username }],
             },
         });
-        if (!user) {
-            return {
-                errCode: 404,
-                message: 'Wrong username or email',
-            };
-        }
+        if (!user) throw new ApiError(StatusCodes.BAD_REQUEST, 'Wrong username or email');
+
         const validPass = await bcrypt.compare(data.password, user.password);
-        if (!validPass) {
-            return {
-                errCode: 401,
-                message: 'Wrong password',
-            };
-        }
-        // if (user.status2 !== 'normal') {
-        //     return {
-        //         errCode: 403,
-        //         message: 'Your account is locked',
-        //     };
-        // }
+        if (!validPass) throw new ApiError(StatusCodes.UNAUTHORIZED, 'Wrong password');
+
         if (user && validPass) {
+            // kiểm tra active
+            if (user.status2 !== 'normal')
+                throw new ApiError(StatusCodes.FORBIDDEN, `Your account has been locked: ${user.status2}`);
+
             // kiểm tra đã login chưa
             const checkLogin = await client.get(String(user.id));
-            if (checkLogin) {
-                return {
-                    errCode: 409,
-                    message: 'User is already logged in',
-                };
-            }
+            if (checkLogin) throw new ApiError(StatusCodes.UNAUTHORIZED, 'User is already logged in');
 
             // nếu chưa login
             const accessToken = generateAccessToken(user);
@@ -70,8 +57,6 @@ const loginService = async (data) => {
             }
 
             return {
-                errCode: 200,
-                message: 'Login successful',
                 role: user.role,
                 direct: direct,
                 accessToken: accessToken,
@@ -79,12 +64,8 @@ const loginService = async (data) => {
             };
         }
     } catch (error) {
-        return {
-            errCode: 500,
-            message: `Internal Server Error: ${error.message}`,
-        };
+        throw error;
     }
-    // return data;
 };
 
 const refreshService = async (authorization) => {

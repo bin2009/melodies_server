@@ -402,8 +402,15 @@ const commentService = async ({ data, user } = {}) => {
     }
 };
 
-const reportCommentService = async ({ commentId, user } = {}) => {
+const reportCommentService = async ({ data, user } = {}) => {
     try {
+        const report = await db.Report.create({
+            userId: user.id,
+            commentId: data.commentId,
+            content: data.content,
+            status: false,
+        });
+        return report;
     } catch (error) {
         throw error;
     }

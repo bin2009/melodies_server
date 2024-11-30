@@ -99,11 +99,3 @@ export const authMiddleWare = {
     optionalVerifyToken,
     checkEmailExits,
 };
-
-// module.exports = {
-//     verifyToken,
-//     verifyTokenAndAdmin,
-//     verifyTokenUserOrAdmin,
-//     checkEmailExits,
-//     optionalVerifyToken,
-// };
