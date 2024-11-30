@@ -20,9 +20,17 @@ const getAllSong = async (req, res, next) => {
     }
 };
 
-const getSong = async (req, res) => {
-    const response = await songService.getSongService(req.params.id, req.user);
-    return res.status(response.errCode).json(response);
+const getSong = async (req, res, next) => {
+    try {
+        const song = await songService.getSongService(req.params.id, req.user);
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get song success',
+            song: song,
+        });
+    } catch (error) {
+        next(error);
+    }
 };
 
 const getWeeklyTopSongs = async (req, res, next) => {

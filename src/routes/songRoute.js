@@ -88,7 +88,7 @@ Router.route('/songs/newRaleaseSong').get(authMiddleWare.optionalVerifyToken, so
 Router.route('/songs/search').get(authMiddleWare.optionalVerifyToken, decodeQueryString, songController.search);
 
 Router.route('/songs').get(authMiddleWare.optionalVerifyToken, songController.getAllSong);
-Router.route('/song/:id').get(songController.getSong);
+Router.route('/song/:id').get(authMiddleWare.optionalVerifyToken, songController.getSong);
 
 Router.route('/songs/otherByArtist/:artistId').get(
     authMiddleWare.optionalVerifyToken,

@@ -147,27 +147,9 @@ const getTodayBestSongService = async () => {
             raw: true,
         });
 
-        const song = await db.Song.findOne({
-            where: { id: topSong.songId },
-            include: [
-                {
-                    model: db.Album,
-                    as: 'album',
-                    through: { attributes: [] },
-                    attributes: ['albumId', 'title', 'releaseDate', 'albumType'],
-                    include: [{ model: db.AlbumImage, as: 'albumImages', attributes: ['image', 'size'] }],
-                },
-                {
-                    model: db.Artist,
-                    as: 'artists',
-                    attributes: ['id', 'name', 'avatar'],
-                    through: { attributes: ['main'] },
-                },
-            ],
-            attributes: ['id', 'title', 'releaseDate', 'duration', 'lyric', 'filePathAudio'],
-        });
+        const song = await songService.fetchSongs({ conditions: { id: topSong.songId }, mode: 'findOne' });
 
-        const { album, artists, ...other } = song.toJSON();
+        const { album, artists, totalPlay, ...other } = song;
 
         const result = {
             ...other,
@@ -178,7 +160,7 @@ const getTodayBestSongService = async () => {
                 ...otherArtist,
                 main: ArtistSong?.main || false,
             })),
-            playCount: topSong.playCount,
+            playCount: totalPlay,
         };
 
         return {
@@ -198,7 +180,7 @@ const getAllAlbumService = async (query, order, page) => {
 
         const [totalAlbum, albums] = await Promise.all([
             albumService.fetchAlbumCount(),
-            albumService.fetchAlbumIds({ order: [['createdAt', 'DESC']] }),
+            albumService.fetchAlbum({ order: [['createdAt', 'DESC']] }),
         ]);
 
         const result = await Promise.all(
@@ -210,7 +192,7 @@ const getAllAlbumService = async (query, order, page) => {
 
                 if (!firstSongOfAlbum) {
                     return {
-                        ...album.toJSON(),
+                        ...album,
                         totalSong: 0,
                         mainArtist: null,
                     };
@@ -227,7 +209,7 @@ const getAllAlbumService = async (query, order, page) => {
                     conditions: { id: mainArtistId.artistId },
                 });
                 return {
-                    ...album.toJSON(),
+                    ...album,
                     totalSong: totalSong,
                     mainArtist: mainArtist ?? null,
                 };
@@ -274,7 +256,7 @@ const getAllUserService = async ({ page = 1, limit = 10 } = {}) => {
         ]);
 
         const result = users.map((user) => {
-            const { status2, ...other } = user.toJSON();
+            const { status2, ...other } = user;
             let statusMessage = '';
             switch (status2) {
                 case 'normal':

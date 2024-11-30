@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { StatusCodes } from 'http-status-codes';
 import { artistService } from './artistService';
 import { awsService } from './awsService';
+import formatTime from '~/utils/timeFormat';
 
 const saltRounds = 10;
 
@@ -51,7 +52,13 @@ const fetchUser = async ({ conditions = {}, limit, offset, order = [['createdAt'
         offset: offset,
         subQuery: false,
     });
-    return users;
+
+    const formatters = users.map((u) => {
+        const formatter = { ...u.toJSON() };
+        formatter.createdAt = formatTime(formatter.createdAt);
+        return formatter;
+    });
+    return formatters;
 };
 
 const fetchUserCount = async ({ conditions = {} } = {}) => {
@@ -184,7 +191,6 @@ const getSongOfPlaylistService = async ({ playlistId, user } = {}) => {
         });
         if (!checkOwner)
             throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to access this playlist.');
-        console.log(playlistId);
         const songIds = await playlistService.fetchAllSongIdsFromPlaylist({
             conditions: { playlistId: playlistId },
         });

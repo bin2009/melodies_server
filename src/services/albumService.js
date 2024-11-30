@@ -4,12 +4,13 @@ import ApiError from '~/utils/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import { songService } from './songService';
 import { artistService } from './artistService';
+import formatTime from '~/utils/timeFormat';
 
 const checkAlbumExists = async (albumId) => {
     return await db.Album.findByPk(albumId);
 };
 
-const fetchAlbumIds = async ({ conditions = {}, order = [['createdAt', 'DESC']], mode = 'findAll' } = {}) => {
+const fetchAlbum = async ({ conditions = {}, order = [['createdAt', 'DESC']], mode = 'findAll' } = {}) => {
     const albums = await db.Album[mode]({
         where: conditions,
         include: [
@@ -33,7 +34,23 @@ const fetchAlbumIds = async ({ conditions = {}, order = [['createdAt', 'DESC']],
         subQuery: false,
         order: order,
     });
-    return albums;
+
+    if (mode === 'findAll') {
+        const formatteds = albums.map((a) => {
+            const formatted = { ...a.toJSON() };
+            formatted.createdAt = formatTime(formatted.createdAt);
+            formatted.updatedAt = formatTime(formatted.updatedAt);
+            formatted.releaseDate = formatTime(formatted.releaseDate);
+            return formatted;
+        });
+        return formatteds;
+    } else if (mode === 'findOne') {
+        const formatted = albums.toJSON();
+        formatted.createdAt = formatTime(formatted.createdAt);
+        formatted.updatedAt = formatTime(formatted.updatedAt);
+        formatted.releaseDate = formatTime(formatted.releaseDate);
+        return formatted;
+    }
 };
 
 const fetchAlbumCount = async ({ conditions = {} } = {}) => {
@@ -99,7 +116,7 @@ const getTopAlbumService = async ({ page = 1, limit = 10 } = {}) => {
         const start = (page - 1) * limit;
         const end = start + limit;
 
-        const albums = await fetchAlbumIds();
+        const albums = await fetchAlbum();
 
         const result = await Promise.all(
             albums.map(async (album) => {
@@ -117,7 +134,7 @@ const getTopAlbumService = async ({ page = 1, limit = 10 } = {}) => {
                     conditions: { id: mainArtistId.artistId },
                 });
                 return {
-                    ...album.toJSON(),
+                    ...album,
                     totalPlayCount: totalPlay ?? 0,
                     artistMain: mainArtist ?? null,
                 };
@@ -142,13 +159,13 @@ const getAlbumService = async ({ albumId, mode = 'findAll' } = {}) => {
         if (!checkAlbum) throw new ApiError(StatusCodes.NOT_FOUND, 'Album not found');
 
         const [album, songsIds] = await Promise.all([
-            fetchAlbumIds({ mode: 'findOne', conditions: { albumId: albumId } }),
+            fetchAlbum({ mode: 'findOne', conditions: { albumId: albumId } }),
             fetchAlbumSong({ conditions: { albumId: albumId } }),
         ]);
 
         if (!songsIds || songsIds.length === 0) {
             return {
-                ...album.toJSON(),
+                ...album,
                 artistMain: null,
                 totalDuration: 0,
                 songs: [],
@@ -168,7 +185,7 @@ const getAlbumService = async ({ albumId, mode = 'findAll' } = {}) => {
         });
 
         const result = {
-            ...album.toJSON(),
+            ...album,
             artistMain: mainArtist,
             totalDuration: totalDuration,
             songs: songs,
@@ -193,7 +210,7 @@ const getAlbumAnotherService = async ({ albumId, page = 1, limit = 10 } = {}) =>
 
         const albumIds = await db.AlbumSong.findAll({ where: { songId: songsOfArtist.map((s) => s.songId) } });
 
-        const albums = await albumService.fetchAlbumIds({
+        const albums = await albumService.fetchAlbum({
             conditions: { albumId: albumIds.map((a) => a.albumId) },
         });
         return {
@@ -207,7 +224,7 @@ const getAlbumAnotherService = async ({ albumId, page = 1, limit = 10 } = {}) =>
 };
 
 export const albumService = {
-    fetchAlbumIds,
+    fetchAlbum,
     fetchAlbumCount,
     fetchAlbumSong,
     getTopAlbumService,

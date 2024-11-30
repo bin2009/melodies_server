@@ -1,4 +1,5 @@
 import db from '~/models';
+import formatTime from '~/utils/timeFormat';
 
 const checkPlaylistExists = async (playlistId) => {
     return await db.Playlist.findByPk(playlistId);
@@ -23,7 +24,20 @@ const fetchAllPlaylist = async ({ conditions = {}, limit = undefined, offset = u
         subQuery: false,
         raw: true,
     });
-    return playlists;
+    if (mode === 'findAll') {
+        const formatteds = playlists.map((p) => {
+            const formatted = { ...p };
+            formatted.createdAt = formatTime(formatted.createdAt);
+            formatted.updatedAt = formatTime(formatted.updatedAt);
+            return formatted;
+        });
+        return formatteds;
+    } else if (mode === 'findOne') {
+        const formatted = playlists;
+        formatted.createdAt = formatTime(formatted.createdAt);
+        formatted.updatedAt = formatTime(formatted.updatedAt);
+        return formatted;
+    }
 };
 
 const fetchOneSongOnPlaylist = async ({ conditions = {} } = {}) => {

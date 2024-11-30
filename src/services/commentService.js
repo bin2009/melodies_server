@@ -1,5 +1,6 @@
 import db from '~/models';
 import { Op } from 'sequelize';
+import formatTime from '~/utils/timeFormat';
 
 const checkCommentExits = async (commentId) => {
     return await db.Comment.findByPk(commentId);
@@ -31,7 +32,13 @@ const fetchAllComment = async ({
         offset: offset,
     });
 
-    return comments;
+    const formattedComments = comments.map((c) => {
+        const formattedComment = { ...c.toJSON() };
+        formattedComment.createdAt = formatTime(formattedComment.createdAt);
+        return formattedComment;
+    });
+
+    return formattedComments;
 };
 
 const fetchCountCommentChild = async ({ conditions = {} } = {}) => {
@@ -53,7 +60,7 @@ const getRecentCommentService = async ({ page = 1, limit = 8 }) => {
         ]);
 
         const formattedComments = comments.map((c) => {
-            const { user, ...other } = c.toJSON();
+            const { user, ...other } = c;
             return {
                 ...other,
                 userId: user.id,

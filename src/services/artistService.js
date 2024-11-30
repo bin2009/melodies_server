@@ -9,9 +9,9 @@ import { albumService } from './albumService';
 import { songService } from './songService';
 import { genreService } from './genreService';
 import { awsService } from './awsService';
+import formatTime from '~/utils/timeFormat';
 
 const checkArtistExits = async (artistId) => {
-    console.log('check artist : ', artistId);
     return await db.Artist.findByPk(artistId);
 };
 
@@ -94,7 +94,19 @@ const fetchArtist = async ({
         limit: limit,
         offset: offset,
     });
-    return artists;
+
+    if (mode === 'findAll') {
+        const formatteds = artists.map((p) => {
+            const formatted = { ...p.toJSON() };
+            formatted.createdAt = formatTime(formatted.createdAt);
+            return formatted;
+        });
+        return formatteds;
+    } else if (mode === 'findOne') {
+        const formatted = artists.toJSON();
+        formatted.createdAt = formatTime(formatted.createdAt);
+        return formatted;
+    }
 };
 
 const fetchUserFollowArtist = async ({ userId, artistIds } = {}) => {
@@ -109,6 +121,7 @@ const fetchSongIdsByArtist = async ({ artistId, main = true } = {}) => {
     const songIds = await db.ArtistSong.findAll({
         where: { artistId: artistId, main: main },
         attributes: ['songId'],
+        raw: true,
     });
     return songIds;
 };
@@ -151,6 +164,7 @@ const fetchArtistIdsByGenre = async ({ conditions = {} } = {}) => {
     });
     return artistIds;
 };
+
 const getPopularArtistService = async ({ limit = 10, page = 1, user } = {}) => {
     try {
         const offset = (page - 1) * limit;
@@ -169,7 +183,7 @@ const getPopularArtistService = async ({ limit = 10, page = 1, user } = {}) => {
         const followedMap = new Set(followed?.map((f) => f.artistId));
 
         const artistMap = popularArtists.reduce((acc, artist) => {
-            acc[artist.id] = artist.toJSON();
+            acc[artist.id] = artist;
             return acc;
         }, {});
 
@@ -212,10 +226,13 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
         const sort = sortOrder === 'desc' ? [['createdAt', 'DESC']] : [['createdAt', 'ASC']];
         const artists = await fetchArtist({ order: sort, conditions: { hide: false } });
 
-        const [totalSongs, totalFollow] = await Promise.all([
+        const [totalSongs, totalFollow, followedArtist] = await Promise.all([
             fetchSongCount({ conditions: { artistId: { [Op.in]: artists.map((a) => a.id) }, main: true } }),
             fetchFollowCount({ conditions: { artistId: { [Op.in]: artists.map((a) => a.id) } } }),
+            user && db.Follow.findAll({ where: { userId: user.id, artistId: { [Op.in]: artists.map((a) => a.id) } } }),
         ]);
+
+        const followedArtistMap = new Set(followedArtist?.map((f) => f.artistId));
 
         const totalSongsMap = totalSongs.reduce((acc, curr) => {
             acc[curr.artistId] = curr.totalSongs;
@@ -230,17 +247,21 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
             artists.map(async (artist) => {
                 const songIds = await fetchSongIdsByArtist({ artistId: artist.id });
                 const albumIds = await db.AlbumSong.findAll({ where: { songId: songIds.map((s) => s.songId) } });
-                const albums = await albumService.fetchAlbumIds({
+                const albums = await albumService.fetchAlbum({
                     conditions: { albumId: albumIds.map((a) => a.albumId) },
                 });
-                const { createdAt, ...other } = artist.toJSON();
-                return {
-                    ...other,
-                    createdAt: timeFormatter.formatDateToVietnamTime(createdAt),
+                // const { ...other } = artist;
+                const result = {
+                    ...artist,
                     totalSong: totalSongsMap[artist.id] ?? 0,
                     totalAlbum: albums.length,
                     totalFollow: totalFollowMap[artist.id] ?? 0,
                 };
+                if (user) {
+                    const followed = followedArtistMap.has(artist.id) ? true : false;
+                    result.followed = followed;
+                }
+                return result;
             }),
         );
 
@@ -278,7 +299,7 @@ const getArtistService = async ({ artistId } = {}) => {
         ]);
 
         const data = {
-            ...artist.toJSON(),
+            ...artist,
             totalFollow: totalFollow ? parseInt(totalFollow.followCount) : 0,
             totalSong: totalSong ? parseInt(totalSong.totalSongs) : 0,
         };
@@ -291,45 +312,69 @@ const getArtistService = async ({ artistId } = {}) => {
 
 const getPopSongService = async ({ artistId, page = 1, user, limit = 10 } = {}) => {
     try {
-        const offset = (page - 1) * limit;
+        const start = (page - 1) * limit;
+        const end = start + limit;
         const checkArtist = await checkArtistExits(artistId);
         if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
 
         const songsOfArtist = await fetchSongIdsByArtist({ artistId: artistId });
-        console.log(songsOfArtist.length);
-        const songIds = await songService.fetchSongPlayCount({
-            conditions: { songId: { [Op.in]: songsOfArtist.map((s) => s.songId) } },
-            limit: limit,
-            offset: offset,
-        });
-        console.log(songIds.length);
 
-        const songs = await songService.fetchSongs({
-            conditions: { id: { [Op.in]: songIds.map((s) => s.songId) } },
-            additionalAttributes: [[db.Sequelize.fn('COUNT', db.Sequelize.col('playHistory.historyId')), 'viewCount']],
-            group: [
-                'Song.id',
-                'album.albumId',
-                'album.albumImages.albumImageId',
-                'artists.id',
-                'artists->ArtistSong.artistSongId',
-                'artists->genres.genreId',
-            ],
-        });
-
-        const songsMap = songs.reduce((acc, record) => {
-            acc[record.id] = record.toJSON();
+        const [topSongIds, likedSongs] = await Promise.all([
+            songService.fetchSongPlayCount({
+                conditions: { songId: { [Op.in]: songsOfArtist.map((s) => s.songId) } },
+            }),
+            user &&
+                db.Like.findAll({
+                    where: { userId: user.id, songId: { [Op.in]: songsOfArtist.map((s) => s.songId) } },
+                }),
+        ]);
+        const topSongIdsMap = topSongIds.reduce((acc, record) => {
+            acc[record.songId] = record.playCount;
             return acc;
         }, {});
 
-        const result = songIds.map((song) => ({
-            ...songsMap[song.songId],
-        }));
+        const baoloc = songsOfArtist.map((s) => {
+            return {
+                songId: s.songId,
+                playCount: topSongIdsMap[s.songId] ?? 0,
+            };
+        });
+
+        const songIds = baoloc
+            .sort((a, b) => {
+                return b.playCount - a.playCount;
+            })
+            .slice(start, end);
+
+        const likedSongsMap = new Set(likedSongs?.map((like) => like.songId));
+
+        const songs = await songService.fetchSongs({
+            conditions: { id: { [Op.in]: songIds.map((s) => s.songId) } },
+        });
+
+        const songsMap = songs.reduce((acc, record) => {
+            acc[record.id] = record;
+            return acc;
+        }, {});
+
+        const popSong = songIds.map((s) => {
+            const song = songsMap[s.songId];
+            const { totalPlay, ...other } = song;
+            const result = {
+                ...other,
+                viewCount: totalPlay,
+            };
+            if (user) {
+                const liked = likedSongsMap.has(s.songId) ? true : false;
+                result.liked = liked;
+            }
+            return result;
+        });
 
         return {
             page: page,
             totalPage: Math.ceil(songsOfArtist.length / limit),
-            popSong: result,
+            popSong: popSong,
         };
     } catch (error) {
         throw error;
@@ -347,7 +392,7 @@ const getAlbumFromArtistService = async ({ artistId, page = 1, limit = 10 } = {}
 
         const albumIdsOfArtist = await db.AlbumSong.findAll({ where: { songId: songsOfArtist.map((s) => s.songId) } });
 
-        const albums = await albumService.fetchAlbumIds({
+        const albums = await albumService.fetchAlbum({
             conditions: { albumId: albumIdsOfArtist.map((a) => a.albumId), albumType: { [Op.not]: 'single' } },
         });
 
@@ -373,7 +418,7 @@ const getSingleFromArtistService = async ({ artistId, page = 1, limit = 10 } = {
 
         const albumIdsOfArtist = await db.AlbumSong.findAll({ where: { songId: songsOfArtist.map((s) => s.songId) } });
 
-        const singles = await albumService.fetchAlbumIds({
+        const singles = await albumService.fetchAlbum({
             conditions: { albumId: albumIdsOfArtist.map((a) => a.albumId), albumType: { [Op.eq]: 'single' } },
         });
 
