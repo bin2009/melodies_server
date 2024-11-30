@@ -211,8 +211,10 @@ const getAlbumAnotherService = async ({ albumId, page = 1, limit = 10 } = {}) =>
         const albumIds = await db.AlbumSong.findAll({ where: { songId: songsOfArtist.map((s) => s.songId) } });
 
         const albums = await albumService.fetchAlbum({
-            conditions: { albumId: albumIds.map((a) => a.albumId) },
+            // conditions: { albumId: albumIds.map((a) => a.albumId) },
+            conditions: { albumId: { [Op.and]: [{ [Op.in]: albumIds.map((a) => a.albumId) }, { [Op.not]: albumId }] } },
         });
+
         return {
             page: page,
             totalPage: Math.ceil(albums.length / limit),
