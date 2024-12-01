@@ -10,6 +10,7 @@ import { Server } from 'socket.io';
 
 import connection from '~/config/database';
 import { errorHandlingMiddleware } from './middleware/errorHandlingMiddleware';
+import setupSocketIO from '~/sockets/socketManager';
 
 import authRoute from '~/routes/authRoute';
 import adminRoute from '~/routes/adminRoute';
@@ -69,18 +70,9 @@ app.use(errorHandlingMiddleware);
 const port = process.env.PORT || 3000;
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: {
-        origin: '*',
-    },
+    cors: { origin: '*' },
 });
-
-// const { handleSocketConnection } = require('~/controllers/roomController');
-// io.on('connection', (socket) => {
-//     handleSocketConnection(socket, io);
-// });
-
-import { configureSocket } from '~/config/socketConfig';
-configureSocket(io);
+setupSocketIO(io);
 
 server.listen(port, () => {
     console.log(`Listening on port: ${port}`);

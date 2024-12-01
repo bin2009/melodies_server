@@ -5,6 +5,8 @@ import { artistSongService } from './artistSongService';
 import { commentService } from './commentService';
 import formatTime from '~/utils/timeFormat';
 import encodeData from '~/utils/encryption';
+import { StatusCodes } from 'http-status-codes';
+import ApiError from '~/utils/ApiError';
 const Fuse = require('fuse.js');
 
 const fetchSongs = async ({
@@ -111,6 +113,9 @@ const fetchSongs = async ({
             });
             return formattedSongs;
         } else if (mode === 'findOne') {
+            if (!songs) {
+                return null;
+            }
             const formattedSong = songs.toJSON();
             formattedSong.createdAt = formatTime(formattedSong.createdAt);
             formattedSong.releaseDate = formatTime(formattedSong.releaseDate);
@@ -232,10 +237,7 @@ const getSongService = async (songId, user) => {
 
         return songData;
     } catch (error) {
-        return {
-            errCode: 500,
-            message: `Get song failed ${error.message}`,
-        };
+        throw error;
     }
 };
 
