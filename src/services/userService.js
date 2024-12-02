@@ -472,19 +472,36 @@ const userUploadSongService = async ({ user, data } = {}) => {
 };
 
 const updateAccountType = async () => {
+    const transaction = await db.sequelize.transaction();
     try {
-        const users = await db.User.findAll({ where: { accountType: 'Premium' }, raw: true });
-        const bills = await db.Subscriptions.findAll({ where: { userId: { [Op.in]: users.map((u) => u.id) } } });
         const currentDate = new Date().getTime();
-
-        for (const bill of bills) {
-            if (new Date(bill.endDate).getTime() > currentDate) {
-                console.log('max');
-            } else {
-                console.log('min');
-            }
+        const expiredBills = await db.Subscriptions.findAll({
+            where: {
+                endDate: { [Op.lt]: currentDate },
+                statusUse: true,
+            },
+            raw: true,
+        });
+        if (expiredBills.length > 0) {
+            await Promise.all([
+                db.User.update(
+                    { accountType: 'Free' },
+                    { where: { id: expiredBills.map((b) => b.userId) } },
+                    { transaction },
+                ),
+                db.Subscriptions.update(
+                    { statusUse: false },
+                    { where: { id: { [Op.in]: expiredBills.map((b) => b.id) } } },
+                    { transaction },
+                ),
+            ]);
+            console.log(`Updated account types to Free for users: ${expiredBills.map((b) => b.userId)}`);
+        } else {
+            console.log('No expired accounts found.');
         }
+        await transaction.commit();
     } catch (error) {
+        await transaction.rollback();
         throw error;
     }
 };

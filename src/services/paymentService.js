@@ -12,7 +12,7 @@ const createPaymentService = async ({ user, data } = {}) => {
         const startDate = Date.now();
         const id = uuidv4();
 
-        await db.Subscriptions.create(
+        const payment = await db.Subscriptions.create(
             {
                 id: id,
                 userId: user.id,
@@ -23,6 +23,7 @@ const createPaymentService = async ({ user, data } = {}) => {
             },
             { transaction },
         );
+        console.log('paymentL ', payment);
 
         const quantity = 1;
         const price = quantity * pack.fare;
@@ -42,36 +43,49 @@ const createPaymentService = async ({ user, data } = {}) => {
             expiredAt: Math.floor(Date.now() / 1000) + 2 * 60,
         };
         const paymentLink = await payos.createPaymentLink(order);
+        await transaction.commit();
 
         listenForPaymentStatus(currentDate, id, user.id);
 
         return paymentLink.checkoutUrl;
     } catch (error) {
+        await transaction.rollback();
+
         throw error;
     }
 };
 
 const listenForPaymentStatus = (orderCode, id, userId) => {
     const interval = setInterval(async () => {
+        const transaction = await db.sequelize.transaction();
         try {
             const paymentDetails = await getPayment(orderCode);
             switch (paymentDetails.status) {
                 case 'EXPIRED':
-                    await db.Subscriptions.update({ statusUse: false }, { where: { userId: userId } });
-                    await db.Subscriptions.update({ status: 'Expired' }, { where: { id: id } });
+                    await db.Subscriptions.update({ status: 'Expired' }, { where: { id: id } }, { transaction });
                     clearInterval(interval);
                     break;
                 case 'PAID':
-                    await db.Subscriptions.update({ status: 'Paid', statusUse: true }, { where: { id: id } });
+                    await db.Subscriptions.update({ statusUse: false }, { where: { userId: userId } }, { transaction });
+                    await Promise.all([
+                        db.Subscriptions.update(
+                            { status: 'Paid', statusUse: true },
+                            { where: { id: id } },
+                            { transaction },
+                        ),
+                        db.User.update({ accountType: 'Premium' }, { where: { id: userId } }, { transaction }),
+                    ]);
                     clearInterval(interval);
                     break;
                 case 'CANCELLED':
-                    await db.Subscriptions.update({ status: 'Cancelled' }, { where: { id: id } });
+                    await db.Subscriptions.update({ status: 'Cancelled' }, { where: { id: id } }, { transaction });
                     clearInterval(interval);
                     break;
                 default:
             }
+            await transaction.commit();
         } catch (error) {
+            await transaction.rollback();
             throw error;
             clearInterval(interval);
         }
