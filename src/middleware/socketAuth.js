@@ -1,10 +1,11 @@
 import { StatusCodes } from 'http-status-codes';
 import jwt from 'jsonwebtoken';
+import { userService } from '~/services/userService';
 import ApiError from '~/utils/ApiError';
 
 const SECRET_KEY = 'your_secret_key';
 
-const socketAuthMiddleware = (socket, next) => {
+const socketAuthMiddleware = async (socket, next) => {
     const token = socket.handshake.auth.accessToken;
     if (!token) {
         const error = new Error('Token not provided');
@@ -14,7 +15,8 @@ const socketAuthMiddleware = (socket, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-        socket.user = decoded; // Lưu userId vào socket
+        const user = await userService.getInfoUserService(decoded);
+        socket.user = user; // Lưu userId vào socket
         next();
     } catch (err) {
         const error = new ApiError(StatusCodes.UNAUTHORIZED, err.message);

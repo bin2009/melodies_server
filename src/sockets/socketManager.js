@@ -19,10 +19,14 @@ const setupSocketIO = (io) => {
             if (socket.user.accountType !== 'Premium') {
                 return socket.emit('createRoomFailed', 'Please upgrade your account to perform this function.');
             }
+            if (socket.roomId) {
+                return socket.emit('createRoomFailed', 'You already have a room, please exit the previous room');
+            }
             const roomId = uuidv4();
             rooms[roomId] = {
                 host: socket.user.id,
-                members: [socket.user.username],
+                // members: [socket.user.username],
+                members: [{ [socket.user.id]: socket.user }],
                 songState: { isPlaying: false, currentTime: 0 },
             };
             socket.join(roomId);
@@ -45,7 +49,9 @@ const setupSocketIO = (io) => {
             socket.join(roomId);
             socket.roomId = roomId;
 
-            rooms[roomId].members.push(socket.user.username);
+            // rooms[roomId].members.push(socket.user.username);
+            rooms[roomId].members.push({ [socket.user.id]: socket.user });
+
             socket.to(roomId).emit('memberJoined', { username: socket.user.username });
             socket.emit('joinRoomSuccess', { roomId, permit: false });
             io.to(roomId).emit('members', rooms[roomId].members);
@@ -84,6 +90,10 @@ const setupSocketIO = (io) => {
             socket
                 .to(roomId)
                 .emit('UpdateAudio', { isPlaying: room.songState.isPlaying, currentTime: room.songState.currentTime });
+        });
+
+        socket.on('SendMessage', (data) => {
+            io.to(socket.roomId).emit('ServerSendMessage', { user: socket.user, message: data.message });
         });
 
         socket.on('disconnect', () => {
