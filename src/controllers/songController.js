@@ -211,6 +211,19 @@ const search = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
+const searchSong = async (req, res, next) => {
+    try {
+        const songs = await songService.searchSongService(req.query.query, req.query.page);
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Search song success',
+            songData: songs,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const songController = {
     getAllSong,
     getSong,
@@ -224,4 +237,5 @@ export const songController = {
     getCommentChild,
     // ------------
     search,
+    searchSong,
 };

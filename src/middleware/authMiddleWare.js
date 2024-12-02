@@ -60,7 +60,7 @@ const optionalVerifyToken = async (req, res, next) => {
     try {
         const token = req.headers['authorization'];
         if (!token) {
-            throw new ApiError(StatusCodes.BAD_REQUEST, 'Token is required');
+            next();
         } else {
             const accessToken = token.split(' ')[1];
             jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
@@ -75,22 +75,16 @@ const optionalVerifyToken = async (req, res, next) => {
     }
 };
 
-const checkEmailExits = async (req, res, next) => {
+const checkEmailAndUsernameExits = async (req, res, next) => {
     try {
-        const { email } = req.body;
-        const user = await db.User.findOne({ where: { email: email } });
-        if (user) {
-            return res.status(400).json({
-                errCode: 3,
-                errMess: 'Email already exists',
-            });
-        }
+        const { email, username } = req.body;
+        const checkEmail = await db.User.findOne({ where: { email: email } });
+        if (checkEmail) throw new ApiError(StatusCodes.CONFLICT, 'Email already exists');
+        const checkUsername = await db.User.findOne({ where: { username: username } });
+        if (checkUsername) throw new ApiError(StatusCodes.CONFLICT, 'Username already exists');
         next();
     } catch (error) {
-        return res.status(500).json({
-            errCode: 8,
-            errMess: `Internal Server Error: ${error.message}`,
-        });
+        next(error);
     }
 };
 
@@ -99,5 +93,5 @@ export const authMiddleWare = {
     verifyTokenAndAdmin,
     verifyTokenAndAuthorization,
     optionalVerifyToken,
-    checkEmailExits,
+    checkEmailAndUsernameExits,
 };

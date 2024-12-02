@@ -262,18 +262,30 @@ const reportComment = async (req, res, next) => {
     }
 };
 
-const register = async (req, res) => {
-    const data = req.body;
-    const checkVerify = await emailController.verifyEmailOtp(data.email, data.otp);
-    if (checkVerify) {
-        delete data.otp;
-        const response = await userService.registerService(data);
-        return res.status(statusCodes[response.errCode]).json(response);
-    } else {
-        return res.status(409).json({
-            errCode: 7,
-            errMess: 'OTP is invalid or expired',
-        });
+const register = async (req, res, next) => {
+    try {
+        const data = req.body;
+        const checkVerify = await emailController.verifyEmailOtp(data.email, data.otp);
+        if (checkVerify) {
+            delete data.otp;
+            await userService.registerService(data);
+            res.status(StatusCodes.OK).json({
+                status: 'success',
+                message: 'User created successfully',
+            });
+        } else {
+            throw new ApiError(StatusCodes.CONFLICT, 'OTP is invalid or expired');
+        }
+    } catch (error) {
+        next(error);
+    }
+};
+
+const userUploadSong = async (req, res, next) => {
+    try {
+        await userService.userUploadSongService();
+    } catch (error) {
+        next(error);
     }
 };
 
@@ -297,4 +309,6 @@ export const userController = {
 
     // -------- ....
     register,
+    // -----------
+    userUploadSong,
 };

@@ -652,26 +652,50 @@ const postPlaytimeService = async ({ user, data } = {}) => {
 };
 
 const postLikedSongService = async ({ user, data } = {}) => {
-    const checkLiked = await db.Like.findOne({
-        where: { userId: user.id, songId: data.songId },
-    });
-
-    if (checkLiked) {
-        await db.Like.destroy({ where: { likeId: checkLiked.likeId } });
-        return false;
-    } else {
-        await db.Like.create({
-            likeId: uuidv4(),
-            userId: user.id,
-            songId: data.songId,
+    const transaction = await db.sequelize.transaction();
+    try {
+        const checkLiked = await db.Like.findOne({
+            where: { userId: user.id, songId: data.songId },
         });
-        return true;
+
+        if (checkLiked) {
+            const playlist = await db.Playlist.findOne({ where: { userId: user.id }, attributes: ['id'], raw: true });
+            await Promise.all([
+                db.Like.destroy({ where: { likeId: checkLiked.likeId } }, { transaction }),
+                db.PlaylistSong.destroy({ where: { playlistId: playlist.id, songId: data.songId } }, { transaction }),
+            ]);
+            await transaction.commit();
+            return false;
+        } else {
+            const playlist = await db.Playlist.findOne({ where: { userId: user.id }, attributes: ['id'], raw: true });
+            await Promise.all([
+                db.Like.create(
+                    {
+                        userId: user.id,
+                        songId: data.songId,
+                    },
+                    { transaction },
+                ),
+                db.PlaylistSong.create(
+                    {
+                        playlistId: playlist.id,
+                        songId: data.songId,
+                    },
+                    { transaction },
+                ),
+            ]);
+            await transaction.commit();
+            return true;
+        }
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
     }
 };
 
-const serach2Service = async (query) => {
-    const start = 0;
-    const end = start + 10;
+const serach2Service = async (query, page = 1, limit = 10) => {
+    const start = (page - 1) * limit;
+    const end = start + limit;
 
     const [artists, songs, albums] = await Promise.all([
         db.Artist.findAll({ order: [['createdAt', 'DESC']] }),
@@ -782,6 +806,37 @@ const serach2Service = async (query) => {
     };
 };
 
+const searchSongService = async (query, page = 1, limit = 10) => {
+    try {
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
+        const allSongs = await db.Song.findAll();
+        const dataSong = allSongs.map((s) => ({ id: s.id, title: s.title }));
+        const optionsSong = {
+            keys: ['title'],
+            threshold: 0.8,
+            includeScore: true,
+        };
+        const fuseSong = new Fuse(dataSong, optionsSong);
+        const resultSong = fuseSong.search(query);
+        const sortedResults = resultSong.sort((a, b) => a.score - b.score);
+        const resultSongTop = sortedResults.slice(start, end);
+
+        const songs = await fetchSongs({ conditions: { id: { [Op.in]: resultSongTop.map((r) => r.item.id) } } });
+        const songsMap = songs.reduce((acc, item) => {
+            acc[item.id] = item;
+            return acc;
+        }, {});
+        const result = resultSongTop.map((r) => {
+            return songsMap[r.item.id];
+        });
+        return result;
+    } catch (error) {
+        throw error;
+    }
+};
+
 export const songService = {
     fetchSongs,
     fetchSongPlayCount,
@@ -805,4 +860,5 @@ export const songService = {
     postLikedSongService,
     // ---------------
     serach2Service,
+    searchSongService,
 };

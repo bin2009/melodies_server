@@ -434,6 +434,7 @@ const getRecentUserService = async ({ page = 1, limit = 10 } = {}) => {
 };
 
 const registerService = async (data) => {
+    const transaction = await db.sequelize.transaction();
     try {
         const hashPass = await bcrypt.hash(data.password, saltRounds);
         data.password = hashPass;
@@ -441,16 +442,50 @@ const registerService = async (data) => {
         data.statusPassword = false;
         data.accountType = 'Free';
         data.status = true;
-        const newUser = await db.User.create(data);
-        return {
-            errCode: 0,
-            errMess: 'User created successfully',
-        };
+        const newUser = await db.User.create(data, { transaction });
+        await db.Playlist.create(
+            {
+                userId: newUser.id,
+                title: 'Yêu thích',
+                description: 'Các bài nhạc đã thích.',
+            },
+            { transaction },
+        );
+        await transaction.commit();
     } catch (error) {
-        return {
-            errCode: 8,
-            errMess: `User creation failed: ${error.message}`,
-        };
+        await transaction.rollback();
+    }
+};
+
+const userUploadSongService = async ({ user, data } = {}) => {
+    try {
+        const currentUser = await db.User.findByPk(user.id);
+        if (currentUser.accountType !== 'Premium')
+            throw new ApiError(StatusCodes.FORBIDDEN, 'Please upgrade your account to perform this function.');
+
+        // upload nhạc -> check max upload ->
+        const playlist = await db.Playlist.findOne({ where: { title: 'Nhạc của tôi', userId: user.id } });
+        // const package = await db.if(playlist.length);
+    } catch (error) {
+        throw error;
+    }
+};
+
+const updateAccountType = async () => {
+    try {
+        const users = await db.User.findAll({ where: { accountType: 'Premium' }, raw: true });
+        const bills = await db.Subscriptions.findAll({ where: { userId: { [Op.in]: users.map((u) => u.id) } } });
+        const currentDate = new Date().getTime();
+
+        for (const bill of bills) {
+            if (new Date(bill.endDate).getTime() > currentDate) {
+                console.log('max');
+            } else {
+                console.log('min');
+            }
+        }
+    } catch (error) {
+        throw error;
     }
 };
 
@@ -481,4 +516,7 @@ export const userService = {
 
     // -----------------..
     registerService,
+    userUploadSongService,
+    // ---------------cron job
+    updateAccountType,
 };

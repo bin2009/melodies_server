@@ -69,15 +69,8 @@ const emailOtpService = async (email) => {
     try {
         await sendOtp(email, otp);
         await client.setEx(String(email), 60, String(otp));
-        return {
-            errCode: 0,
-            errMess: 'OTP sent to your email',
-        };
     } catch (error) {
-        return {
-            errCode: 8,
-            errMess: `Internal server error: ${error.message}`,
-        };
+        throw error;
     }
 };
 

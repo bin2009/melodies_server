@@ -24,6 +24,7 @@
         "bcryptjs": "^2.4.3",
         "cookie-parser": "1.4.7",
         "cors": "^2.8.5",
+        "cron": "^3.2.1",
         "cross-env": "^7.0.3",
         "crypto": "^1.0.1",
         "crypto-js": "^4.2.0",

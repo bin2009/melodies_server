@@ -38,10 +38,11 @@ Router.route('/user/actions/followed').post(authMiddleWare.verifyToken, userCont
 Router.route('/user/actions/comment').post(authMiddleWare.verifyToken, userController.comment);
 Router.route('/user/actions/report').post(authMiddleWare.verifyToken, userController.reportComment);
 
-Router.route('/user/otp').post(authMiddleWare.checkEmailExits, emailController.sendOtp);
+Router.route('/user/otp').post(authMiddleWare.checkEmailAndUsernameExits, emailController.sendOtp);
 Router.route('/user/register').post(userController.register);
 
 Router.route('/user').get(authMiddleWare.verifyToken, userController.getInfoUser);
+Router.route('/user/uploadSong').post(authMiddleWare.verifyToken, userController.userUploadSong);
 
 Router.route('/test').patch((req, res) => {
     res.status(200).json('hah');

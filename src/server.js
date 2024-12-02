@@ -11,6 +11,7 @@ import { Server } from 'socket.io';
 import connection from '~/config/database';
 import { errorHandlingMiddleware } from './middleware/errorHandlingMiddleware';
 import setupSocketIO from '~/sockets/socketManager';
+import './utils/accountJob';
 
 import authRoute from '~/routes/authRoute';
 import adminRoute from '~/routes/adminRoute';
