@@ -3,8 +3,11 @@ import { handleSocketError } from '~/middleware/errorHandlingMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const rooms = {};
+const notification = {};
+let ioRoot;
 
 const setupSocketIO = (io) => {
+    ioRoot = io;
     io.use((socket, next) => {
         socketAuthMiddleware(socket, (err) => {
             if (err) return handleSocketError(err, socket, next);
@@ -14,6 +17,7 @@ const setupSocketIO = (io) => {
 
     io.on('connection', (socket) => {
         console.warn(`User connected:`, socket.user.id);
+        notification[socket.user.id] = socket;
 
         socket.on('createRoom', () => {
             if (socket.user.accountType !== 'Premium') {
@@ -119,4 +123,16 @@ const setupSocketIO = (io) => {
     });
 };
 
+const sendMessageToUser = (userId, event, data) => {
+    const socket = notification[userId];
+    if (socket) {
+        console.log('demo:', event, data);
+        socket.emit(event, data);
+    } else {
+        console.error(`Socket not found for user ID: ${userId}`);
+    }
+};
+
 export default setupSocketIO;
+// module.exports = setupSocketIO;
+export { sendMessageToUser };

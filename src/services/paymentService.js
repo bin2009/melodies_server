@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { PACKAGE_TIME } from '~/data/enum';
 import db from '~/models';
+import { sendMessageToUser } from '~/sockets/socketManager';
 
 import payos from '~/config/paymentConfig';
 
@@ -23,7 +24,6 @@ const createPaymentService = async ({ user, data } = {}) => {
             },
             { transaction },
         );
-        console.log('paymentL ', payment);
 
         const quantity = 1;
         const price = quantity * pack.fare;
@@ -64,6 +64,11 @@ const listenForPaymentStatus = (orderCode, id, userId) => {
                 case 'EXPIRED':
                     await db.Subscriptions.update({ status: 'Expired' }, { where: { id: id } }, { transaction });
                     clearInterval(interval);
+
+                    sendMessageToUser(userId, 'paymentStatus', {
+                        status: 'Paid',
+                        message: 'Payment successful. Your account is now Premium.',
+                    });
                     break;
                 case 'PAID':
                     await db.Subscriptions.update({ statusUse: false }, { where: { userId: userId } }, { transaction });

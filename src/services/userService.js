@@ -457,16 +457,32 @@ const registerService = async (data) => {
     }
 };
 
-const userUploadSongService = async ({ user, data } = {}) => {
+const userUploadSongService = async ({ user, title, file, duration, lyric } = {}) => {
+    const transaction = await db.sequelize.transaction();
     try {
-        const currentUser = await db.User.findByPk(user.id);
-        if (currentUser.accountType !== 'Premium')
-            throw new ApiError(StatusCodes.FORBIDDEN, 'Please upgrade your account to perform this function.');
+        const id = uuidv4();
 
-        // upload nhạc -> check max upload ->
-        const playlist = await db.Playlist.findOne({ where: { title: 'Nhạc của tôi', userId: user.id } });
-        // const package = await db.if(playlist.length);
+        let filePathAudio = null;
+        if (file) {
+            filePathAudio = await awsService.userUploadSong(id, file);
+        }
+        // if (lyric) {
+        // lyric = await
+        // }
+        await db.PersonalSong.create(
+            {
+                id: id,
+                userId: user.id,
+                title: title,
+                duration: duration * 1000,
+                filePathAudio: filePathAudio,
+                lyric: null,
+            },
+            { transaction },
+        );
+        await transaction.commit();
     } catch (error) {
+        await transaction.rollback();
         throw error;
     }
 };

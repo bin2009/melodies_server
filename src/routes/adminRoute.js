@@ -128,7 +128,7 @@ Router.route('/test/:songId').get(async (req, res) => {
     res.render('updateSong', { song: song });
 });
 Router.route('/test2').get(async (req, res) => {
-    res.render('updateSong');
+    res.render('userUploadSong');
 });
 Router.route('/data').post(upload.single('avatar'), (req, res, next) => {
     try {

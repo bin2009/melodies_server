@@ -283,7 +283,20 @@ const register = async (req, res, next) => {
 
 const userUploadSong = async (req, res, next) => {
     try {
-        await userService.userUploadSongService();
+        const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
+        const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
+
+        await userService.userUploadSongService({
+            user: req.user,
+            title: req.body.title,
+            file: audioFile,
+            duration: req.duration,
+            lyric: lyricFile,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Upload song success',
+        });
     } catch (error) {
         next(error);
     }
