@@ -54,6 +54,18 @@ Router.route('/user/uploadSong').post(
     appMiddleWare.calculateDuration,
     userController.userUploadSong,
 );
+Router.route('/user/song/:songId')
+    .get(authMiddleWare.verifyToken, userController.getUserSong)
+    .patch(
+        authMiddleWare.verifyToken,
+        appMiddleWare.checkPremium,
+        upload.fields([
+            { name: 'audioFile', maxCount: 1 },
+            { name: 'lyricFile', maxCount: 1 },
+        ]),
+        appMiddleWare.calculateDuration,
+        userController.updateUserSong,
+    );
 
 Router.route('/test').patch((req, res) => {
     res.status(200).json('hah');
