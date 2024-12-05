@@ -9,7 +9,8 @@
         "build": "npm run clean && npm run build-babel",
         "production": "npm run build && cross-env BUILD_MODE=production node ./build/src/server.js",
         "dev": "cross-env BUILD_MODE=dev nodemon --exec babel-node ./src/server.js",
-        "start-dev": "pm2 start ecosystem.config.js --env development"
+        "start-dev": "pm2 start ecosystem.config.js --env development",
+        "test": "echo \"No tests specified\" && exit 0"
     },
     "keywords": [
         "melodies"
