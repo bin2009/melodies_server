@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>User upload Song</title>
+        <style>
+            .sub-artist-input {
+                margin-bottom: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>User upload Song</h1>
+        <form id="uploadSongForm">
+            <div>
+                <label for="title">Title:</label>
+                <input type="text" id="title" name="title" />
+            </div>
+            <div>
+                <label for="audioFile">Audio File:</label>
+                <input type="file" id="audioFile" name="audioFile" accept="audio/*" />
+            </div>
+            <div>
+                <label for="lyricFile">JSON File:</label>
+                <input type="file" id="lyricFile" name="lyricFile" accept="application/json" />
+            </div>
+            <button type="submit">Upload</button>
+        </form>
+        <p id="statusMessage"></p>
+
+        <script>
+            document.getElementById('uploadSongForm').addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                const title = document.getElementById('title').value;
+                const audioFile = document.getElementById('audioFile').files[0];
+                const lyricFile = document.getElementById('lyricFile').files[0];
+                const statusMessage = document.getElementById('statusMessage');
+
+                if (!audioFile) {
+                    statusMessage.textContent = 'Please select an audio file to upload.';
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('title', JSON.stringify(title));
+                formData.append('audioFile', audioFile);
+                formData.append('lyricFile', lyricFile);
+                const accessToken =
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQ4ZDUwYTU1LTdjODMtNDQ1YS04NGViLTU5Y2Y2ZWYwNDc0NSIsInJvbGUiOiJVc2VyIiwidXNlcm5hbWUiOiJ1c2VybmFtZTIiLCJhY2NvdW50VHlwZSI6IlByZW1pdW0iLCJpYXQiOjE3MzMzODk4MzgsImV4cCI6MTczMzQ3NjIzOH0.VQTppt_Xwvq7RqXKgIEmqbn1fk54obQ42axTfvxzcO8';
+                try {
+                    const response = await fetch('/api/user/uploadSong', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`, // Thêm Bearer Token vào header
+                            // 'Accept': 'application/json', // Có thể thêm các header khác nếu cần
+                        },
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        statusMessage.textContent = 'Upload Song successfully.';
+                    } else {
+                        statusMessage.textContent = `Error: ${result.message}`;
+                    }
+                } catch (error) {
+                    statusMessage.textContent = `Error: ${error.message}`;
+                }
+            });
+        </script>
+    </body>
+</html>

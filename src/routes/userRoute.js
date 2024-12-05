@@ -6,6 +6,7 @@ import { authMiddleWare } from '~/middleware/authMiddleWare';
 import { userController } from '~/controllers/userController';
 const emailController = require('~/controllers/emailController');
 import { playlistValidations } from '~/validations/playlistValidations';
+import { appMiddleWare } from '~/middleware/appMiddleWare';
 
 const upload = multer();
 
@@ -42,7 +43,29 @@ Router.route('/user/otp').post(authMiddleWare.checkEmailAndUsernameExits, emailC
 Router.route('/user/register').post(userController.register);
 
 Router.route('/user').get(authMiddleWare.verifyToken, userController.getInfoUser);
-Router.route('/user/uploadSong').post(authMiddleWare.verifyToken, userController.userUploadSong);
+Router.route('/user/uploadSong').post(
+    authMiddleWare.verifyToken,
+    appMiddleWare.checkPremium,
+    appMiddleWare.checkMaxUpload,
+    upload.fields([
+        { name: 'audioFile', maxCount: 1 },
+        { name: 'lyricFile', maxCount: 1 },
+    ]),
+    appMiddleWare.calculateDuration,
+    userController.userUploadSong,
+);
+Router.route('/user/song/:songId')
+    .get(authMiddleWare.verifyToken, userController.getUserSong)
+    .patch(
+        authMiddleWare.verifyToken,
+        appMiddleWare.checkPremium,
+        upload.fields([
+            { name: 'audioFile', maxCount: 1 },
+            { name: 'lyricFile', maxCount: 1 },
+        ]),
+        appMiddleWare.calculateDuration,
+        userController.updateUserSong,
+    );
 
 Router.route('/test').patch((req, res) => {
     res.status(200).json('hah');

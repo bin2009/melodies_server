@@ -1,5 +1,6 @@
 import AWS from 'aws-sdk';
 import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
 
 const spacesEndpoint = new AWS.Endpoint('nyc3.digitaloceanspaces.com');
 const s3 = new AWS.S3({
@@ -87,7 +88,9 @@ const uploadSong = async (songId, file) => {
             'nyc3.digitaloceanspaces.com/audiomelodies',
             'https://audiomelodies.nyc3.cdn.digitaloceanspaces.com',
         );
-    } catch (error) {}
+    } catch (error) {
+        throw error;
+    }
 };
 
 const uploadLyricFile = async (songId, lyric) => {
@@ -124,6 +127,53 @@ const uploadAlbumCover = async (mainArtistId, albumId, file) => {
 
     const data = await s3.upload(params).promise();
     return data.Location;
+};
+
+const userUploadSong = async (userId, songId, file) => {
+    try {
+        const fileExtension = path.extname(file.originalname);
+        const fileName = `PBL6/USER/${userId}/SONG/${songId}${fileExtension}`;
+
+        const params = {
+            Bucket: process.env.DO_SPACES_BUCKET,
+            Key: fileName,
+            Body: file.buffer,
+            ACL: 'public-read', // Đặt quyền truy cập công khai
+        };
+
+        const data = await s3.upload(params).promise();
+
+        return data.Location.replace(
+            'nyc3.digitaloceanspaces.com/audiomelodies',
+            'https://audiomelodies.nyc3.cdn.digitaloceanspaces.com',
+        );
+    } catch (error) {
+        throw error;
+    }
+};
+
+const userUploadSongLyric = async (userId, songId, lyric) => {
+    try {
+        const fileExtension = path.extname(lyric.originalname);
+        const fileName = `PBL6/USER/${userId}/SONG/lyric_${songId}${fileExtension}`;
+
+        const params = {
+            Bucket: process.env.DO_SPACES_BUCKET,
+            Key: fileName,
+            Body: lyric.buffer,
+            ACL: 'public-read', // Đặt quyền truy cập công khai
+            ContentType: 'application/json',
+        };
+
+        const data = await s3.upload(params).promise();
+
+        return data.Location.replace(
+            'nyc3.digitaloceanspaces.com/audiomelodies',
+            'https://audiomelodies.nyc3.cdn.digitaloceanspaces.com',
+        );
+    } catch (error) {
+        throw error;
+    }
 };
 
 const deleteFile = async (filePath) => {
@@ -207,6 +257,8 @@ export const awsService = {
     uploadSongWithLyric,
     uploadLyricFile,
     uploadAlbumCover,
+    userUploadSong,
+    userUploadSongLyric,
     deleteFile,
     deleteFolder,
     copyFile,

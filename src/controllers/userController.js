@@ -283,7 +283,56 @@ const register = async (req, res, next) => {
 
 const userUploadSong = async (req, res, next) => {
     try {
-        await userService.userUploadSongService();
+        const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
+        const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
+
+        await userService.userUploadSongService({
+            user: req.user,
+            title: JSON.parse(req.body.title),
+            file: audioFile,
+            duration: req.duration,
+            lyric: lyricFile,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Upload song success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getUserSong = async (req, res, next) => {
+    try {
+        const song = await userService.getUserSongService(req.user, req.params.songId);
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get song success',
+            song: song,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const updateUserSong = async (req, res, next) => {
+    try {
+        const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
+        const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
+
+        const song = await userService.updateUserSongService({
+            user: req.user,
+            songId: req.params.songId,
+            title: JSON.parse(req.body.title),
+            file: audioFile,
+            duration: req.duration,
+            lyric: lyricFile,
+        });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Update song success',
+            song: song,
+        });
     } catch (error) {
         next(error);
     }
@@ -311,4 +360,6 @@ export const userController = {
     register,
     // -----------
     userUploadSong,
+    getUserSong,
+    updateUserSong,
 };
