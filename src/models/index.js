@@ -1,19 +1,38 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const Sequelize = require('sequelize');
-const process = require('process');
+import fs from 'fs';
+import path from 'path';
+import Sequelize from 'sequelize';
+import process from 'process';
 const basename = path.basename(__filename);
 const env = process.env.NODE_ENV || 'development';
-const config = require(__dirname + '/../config/config.js')[env];
+import config from '~/config/config';
 const db = {};
 
 let sequelize;
-if (config.use_env_variable) {
-    sequelize = new Sequelize(process.env[config.use_env_variable], config);
-} else {
-    sequelize = new Sequelize(config.database, config.username, config.password, config);
+if (env === 'production') {
+    const database = process.env.DB_NAME;
+    const username = process.env.DB_USER;
+    const password = process.env.DB_PASSWORD;
+    const host = process.env.DB_HOST;
+    const port = process.env.DB_PORT || 25060;
+
+    sequelize = new Sequelize(database, username, password, {
+        host,
+        port,
+        dialect: 'postgres',
+        logging: false,
+        dialectOptions: {
+            ssl: {
+                require: true,
+                rejectUnauthorized: false,
+            },
+        },
+    });
+} else if (env === 'development') {
+    sequelize = new Sequelize(config[env].database, config[env].username, config[env].password, {
+        ...config[env],
+    });
 }
 
 fs.readdirSync(__dirname)
@@ -36,4 +55,4 @@ Object.keys(db).forEach((modelName) => {
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
-module.exports = db;
+export default db;

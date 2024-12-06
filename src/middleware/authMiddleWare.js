@@ -29,31 +29,16 @@ const verifyToken = (req, res, next) => {
 };
 
 const verifyTokenAndAdmin = (req, res, next) => {
-    try {
-        verifyToken(req, res, () => {
-            if (req.user && req.user.role === 'Admin') {
-                next();
-            } else {
-                throw new ApiError(StatusCodes.FORBIDDEN, "You're not allowed");
-            }
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-const verifyTokenAndAuthorization = (req, res, next) => {
-    try {
-        verifyToken(req, res, () => {
-            if (req.user.id == req.params.id || req.user.role === 'Admin') {
-                next();
-            } else {
-                throw new ApiError(StatusCodes.FORBIDDEN, "You're not allowed");
-            }
-        });
-    } catch (error) {
-        next(error);
-    }
+    verifyToken(req, res, (err) => {
+        if (err) {
+            return next(err);
+        }
+        if (req.user && req.user.role === 'Admin') {
+            next();
+        } else {
+            next(new ApiError(StatusCodes.FORBIDDEN, "You're not allowed"));
+        }
+    });
 };
 
 const optionalVerifyToken = async (req, res, next) => {
@@ -68,6 +53,7 @@ const optionalVerifyToken = async (req, res, next) => {
                     throw new ApiError(StatusCodes.FORBIDDEN, err.message);
                 }
                 req.user = user;
+                next();
             });
         }
     } catch (error) {
@@ -91,7 +77,6 @@ const checkEmailAndUsernameExits = async (req, res, next) => {
 export const authMiddleWare = {
     verifyToken,
     verifyTokenAndAdmin,
-    verifyTokenAndAuthorization,
     optionalVerifyToken,
     checkEmailAndUsernameExits,
 };

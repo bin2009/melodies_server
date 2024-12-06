@@ -4,7 +4,6 @@ import ApiError from '~/utils/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import { v4 as uuidv4 } from 'uuid';
 
-import { timeFormatter } from '~/validations/timeFormatter';
 import { albumService } from './albumService';
 import { songService } from './songService';
 import { genreService } from './genreService';
