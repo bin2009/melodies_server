@@ -8,13 +8,6 @@ module.exports = (sequelize, DataTypes) => {
          * The `models/index` file will call this method automatically.
          */
         static associate(models) {
-            // define association here
-            // Comment.belongsToMany(models.User, {
-            //     through: 'Report',
-            //     as: 'reportedByUsers',
-            //     foreignKey: 'commentId',
-            //     otherKey: 'userId',
-            // });
             Comment.belongsTo(models.User, {
                 foreignKey: 'userId',
                 as: 'user',
@@ -71,6 +64,7 @@ module.exports = (sequelize, DataTypes) => {
         {
             sequelize,
             modelName: 'Comment',
+            freezeTableName: true,
             indexes: [
                 {
                     unique: false, // Set to true if you want to ensure unique combinations of userId and songId

@@ -1,33 +1,46 @@
-const nodemailer = require('nodemailer');
-const crypto = require('crypto');
+// const nodemailer = require('nodemailer');
+// const crypto = require('crypto');
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
+import ejs from 'ejs';
+import path from 'path';
 
 // redis
 const { client } = require('./redisService');
 
-const db = require('../models');
+// const db = require('../models');
+import db from '~/models';
 const User = db.User;
 
 const generateOtp = () => {
     return crypto.randomInt(10000, 99999);
 };
 
-const sendOtp = async (email, otp) => {
-    const transporter = nodemailer.createTransport({
+let transporter;
+try {
+    transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
             user: process.env.EMAIL,
             pass: process.env.EMAIL_PASSWORD,
         },
     });
+} catch (error) {
+    throw error;
+}
 
-    const mailOptions = {
-        from: process.env.EMAIL,
-        to: email,
-        subject: 'Your OTP Code',
-        text: `Your OTP code is ${otp}`,
-    };
-
-    await transporter.sendMail(mailOptions);
+const sendOtp = async (email, otp) => {
+    try {
+        const mailOptions = {
+            from: process.env.EMAIL,
+            to: email,
+            subject: 'Your OTP Code',
+            text: `Your OTP code is ${otp}`,
+        };
+        await transporter.sendMail(mailOptions);
+    } catch (error) {
+        throw error;
+    }
 };
 
 const sendResetPasswordLink = async (email, link) => {
@@ -66,6 +79,7 @@ const emailResetPasswordService = async (email, link) => {
 
 const emailOtpService = async (email) => {
     const otp = generateOtp();
+    console.log('otp: ', otp);
     try {
         await sendOtp(email, otp);
         await client.setEx(String(email), 60, String(otp));
@@ -85,7 +99,7 @@ const emailVerifyOtpService = async (email, inputOtp) => {
         }
         return true;
     } catch (error) {
-        return false;
+        throw error;
     }
 };
 
@@ -110,9 +124,58 @@ const checkEmailExitsService = async (email) => {
     }
 };
 
-module.exports = {
+const emailNotiLockAccount = async ({ email, username, time } = {}) => {
+    try {
+        const htmlContent = await ejs.renderFile(path.join(__dirname, '..', 'views/templates', 'lockAccount.ejs'), {
+            username: username,
+            duration: time,
+        });
+
+        const mailOptions = {
+            from: process.env.EMAIL,
+            to: email,
+            subject: '🚫 Notice - Your Account Has Been Suspended',
+            html: htmlContent,
+        };
+
+        await transporter.sendMail(mailOptions);
+    } catch (error) {
+        throw error;
+    }
+};
+
+const emailWarnAccount = async ({ email, username } = {}) => {
+    try {
+        const htmlContent = await ejs.renderFile(path.join(__dirname, '..', 'views/templates', 'warnAccount.ejs'), {
+            username: username,
+        });
+
+        const mailOptions = {
+            from: process.env.EMAIL,
+            to: email,
+            subject: '⚠️ Account Warning - Community Guidelines Violation',
+            html: htmlContent,
+        };
+
+        await transporter.sendMail(mailOptions);
+    } catch (error) {
+        throw error;
+    }
+};
+
+// module.exports = {
+//     checkEmailExitsService,
+//     emailOtpService,
+//     emailVerifyOtpService,
+//     emailResetPasswordService,
+//     emailNotiLockAccount,
+// };
+
+export const emailService = {
     checkEmailExitsService,
     emailOtpService,
     emailVerifyOtpService,
     emailResetPasswordService,
+    emailNotiLockAccount,
+    emailWarnAccount,
 };

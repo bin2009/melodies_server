@@ -1,16 +1,17 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const authController = require('../controllers/authController');
+
+import { authController } from '~/controllers/authController';
 
 // middleware
-const authMiddleWare = require('../middleware/authMiddleWare');
+import { authMiddleWare } from '~/middleware/authMiddleWare';
 
 router.get('', (req, res) => {
     return res.status(200).json('auth route');
 });
 
 router.post('/login', authController.login);
-router.post('/logout', authController.logout);
+router.post('/logout', authMiddleWare.verifyToken, authController.logout);
 router.post('/refresh', authController.refresh);
 router.post('/otpreset', authController.getOtpResetPass);
 router.post('/request-reset-password', authController.requestResetPassword);

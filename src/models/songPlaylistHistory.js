@@ -50,6 +50,7 @@ module.exports = (sequelize, DataTypes) => {
         {
             sequelize,
             modelName: 'SongPlayHistory',
+            freezeTableName: true,
             indexes: [
                 {
                     unique: false, // Ensure no unique constraint

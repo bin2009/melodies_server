@@ -1,5 +1,6 @@
 'use strict';
 const { Model } = require('sequelize');
+const { PACKAGE_TIME } = require('~/data/enum');
 module.exports = (sequelize, DataTypes) => {
     class SubscriptionPackage extends Model {
         /**
@@ -15,6 +16,10 @@ module.exports = (sequelize, DataTypes) => {
                 foreignKey: 'packageId',
                 otherKey: 'userId',
             });
+            SubscriptionPackage.hasMany(models.Subscriptions, {
+                foreignKey: 'packageId',
+                as: 'subs',
+            });
         }
     }
     SubscriptionPackage.init(
@@ -25,7 +30,7 @@ module.exports = (sequelize, DataTypes) => {
                 defaultValue: DataTypes.UUIDV4,
             },
             time: {
-                type: DataTypes.ENUM('week', '3month'),
+                type: DataTypes.ENUM(Object.values(PACKAGE_TIME)),
                 allowNull: false,
             },
             fare: {
@@ -57,6 +62,7 @@ module.exports = (sequelize, DataTypes) => {
         {
             sequelize,
             modelName: 'SubscriptionPackage',
+            freezeTableName: true,
         },
     );
     return SubscriptionPackage;

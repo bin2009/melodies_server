@@ -1,5 +1,6 @@
 'use strict';
 const { Model } = require('sequelize');
+const { ACCOUNTTYPE } = require('~/data/enum');
 module.exports = (sequelize, DataTypes) => {
     class User extends Model {
         /**
@@ -25,7 +26,6 @@ module.exports = (sequelize, DataTypes) => {
                 foreignKey: 'userId',
                 otherKey: 'artistId',
             });
-            // User.hasMany(models.Playlist, { foreignKey: 'userId', as: 'playlists' });
             User.belongsToMany(models.Song, {
                 through: 'SongPlayHistory',
                 as: 'playedSongs',
@@ -61,6 +61,10 @@ module.exports = (sequelize, DataTypes) => {
             User.hasMany(models.Report, {
                 foreignKey: 'userId',
                 as: 'reports',
+            });
+            User.hasMany(models.Subscriptions, {
+                foreignKey: 'userId',
+                as: 'subs',
             });
         }
     }
@@ -109,9 +113,9 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: true,
             },
             accountType: {
-                type: DataTypes.ENUM('Premium', 'Free'),
+                type: DataTypes.ENUM(Object.values(ACCOUNTTYPE)),
                 allowNull: false,
-                defaultValue: 'Free',
+                defaultValue: ACCOUNTTYPE.FREE,
             },
             status: {
                 type: DataTypes.BOOLEAN,
@@ -127,6 +131,7 @@ module.exports = (sequelize, DataTypes) => {
         {
             sequelize,
             modelName: 'User',
+            freezeTableName: true,
         },
     );
     return User;

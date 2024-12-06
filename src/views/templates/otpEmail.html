@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                font-family: Arial, sans-serif;
+            }
+            .header {
+                background-color: #4caf50;
+                color: white;
+                padding: 20px;
+                text-align: center;
+            }
+            .content {
+                padding: 20px;
+                background-color: #f8f9fa;
+            }
+            .otp-code {
+                font-size: 32px;
+                font-weight: bold;
+                text-align: center;
+                color: #4caf50;
+                padding: 20px;
+                margin: 20px 0;
+                background-color: white;
+                border-radius: 5px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Your OTP Code</h1>
+            </div>
+            <div class="content">
+                <p>Hello,</p>
+                <p>Your One-Time Password (OTP) is:</p>
+                <div class="otp-code">{{otp}}</div>
+                <p>This code will expire in 5 minutes.</p>
+                <p>If you didn't request this code, please ignore this email.</p>
+            </div>
+        </div>
+    </body>
+</html>

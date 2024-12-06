@@ -1,13 +1,12 @@
-const db = require('../models');
-const User = db.User;
-const bcrypt = require('bcryptjs');
+import db from '~/models';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { client } from '~/services/redisService';
+import { Op } from 'sequelize';
+import { emailService } from '~/services/emailService';
+import ApiError from '~/utils/ApiError';
+import { StatusCodes } from 'http-status-codes';
 const saltRounds = 10;
-const jwt = require('jsonwebtoken');
-const { client } = require('../services/redisService');
-const { Op } = require('sequelize');
-const emailService = require('../services/emailService');
-const { default: ApiError } = require('~/utils/ApiError');
-const { StatusCodes } = require('http-status-codes');
 
 const generateAccessToken = (user) => {
     return jwt.sign(
@@ -35,7 +34,7 @@ const generateToken = (user) => {
 
 const loginService = async (data) => {
     try {
-        const user = await User.findOne({
+        const user = await db.User.findOne({
             where: {
                 [Op.or]: [{ username: data.username }, { email: data.username }],
             },
@@ -47,8 +46,10 @@ const loginService = async (data) => {
 
         if (user && validPass) {
             // kiểm tra active
-            if (user.status2 !== 'normal')
-                throw new ApiError(StatusCodes.FORBIDDEN, `Your account has been locked: ${user.status2}`);
+            if (user.status2 !== 'normal') {
+                const date = user.status2 === 'lock3' ? 3 : user.status2 === 'lock7' ? 7 : 'Permanent';
+                throw new ApiError(StatusCodes.FORBIDDEN, `Your account has been locked: ${date}`);
+            }
 
             // kiểm tra đã login chưa
             const checkLogin = await client.get(String(user.id));
@@ -71,6 +72,7 @@ const loginService = async (data) => {
             return {
                 role: user.role,
                 direct: direct,
+                accountType: user.accountType,
                 accessToken: accessToken,
                 refreshToken: refreshToken,
             };
@@ -121,24 +123,13 @@ const refreshService = async (authorization) => {
             accessToken: newAccessToken,
         };
     } catch (error) {
-        return {
-            errCode: 500,
-            message: `Internal Server Error: ${error.message}`,
-        };
+        throw error;
     }
 };
 
 const logoutService = async (authorization) => {
     try {
-        // truyền vào accesstoken
-        if (!authorization) {
-            return {
-                errCode: 401,
-                message: 'Access token is required',
-            };
-        }
         const accesstoken = authorization.split(' ')[1];
-        // console.log('refreshToken', accesstoken);
 
         // lấy ra id từ accesstoken
         const user = jwt.verify(accesstoken, process.env.ACCESS_TOKEN_SECRET);
@@ -146,26 +137,13 @@ const logoutService = async (authorization) => {
         // kiểm tra có refreshtoken không
         const storedRefreshToken = await client.get(String(user.id));
         if (!storedRefreshToken) {
-            return {
-                errCode: 404,
-                message: 'No refresh token found for user',
-            };
+            throw new ApiError(StatusCodes.NOT_FOUND, 'No refresh token found for user');
         } else {
             // xóa refreshtoken
             await client.del(String(user.id));
-
-            // hủy accesstoken -> accesstoken hết hạn
         }
-
-        return {
-            errCode: 200,
-            message: 'Loggout successful',
-        };
-    } catch (err) {
-        return {
-            errCode: 500,
-            message: `Internal Server Error: ${err}`,
-        };
+    } catch (error) {
+        throw error;
     }
 };
 
@@ -242,7 +220,7 @@ const resetPasswordService = async (token, password) => {
     }
 };
 
-module.exports = {
+export const authService = {
     generateAccessToken,
     generateRefreshToken,
     loginService,

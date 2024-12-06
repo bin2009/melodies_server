@@ -2,7 +2,7 @@ import { CronJob } from 'cron';
 import { userService } from '~/services/userService';
 
 const jobUpdateAccount = new CronJob(
-    '48 21 * * *',
+    '38 13 * * *',
     () => {
         console.log('Checking for expired premium accounts...');
         userService.updateAccountType();

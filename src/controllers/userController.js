@@ -5,7 +5,7 @@ import { userService } from '~/services/userService';
 import { playlistService } from '~/services/playlistService';
 import { songService } from '~/services/songService';
 
-import emailController from '~/controllers/emailController';
+import { emailController } from '~/controllers/emailController';
 
 const statusCodes = require('../utils/statusCodes');
 
@@ -338,6 +338,32 @@ const updateUserSong = async (req, res, next) => {
     }
 };
 
+const getAllNotifications = async (req, res, next) => {
+    try {
+        const notifications = await userService.getAllNotificationsService({ user: req.user });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Notifications',
+            notifications: notifications,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getReportDetail = async (req, res, next) => {
+    try {
+        const report = await userService.getReportDetailService({ user: req.user, reportId: req.params.reportId });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get report success',
+            reportDetail: report,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const userController = {
     getInfoUser,
     getPlaylist,
@@ -348,18 +374,16 @@ export const userController = {
     updatePlaylist,
     deleteSong,
     deletePlaylist,
-
     // ---------actions
     playTime,
     likedSong,
     followedArtist,
     comment,
     reportComment,
-
-    // -------- ....
     register,
-    // -----------
     userUploadSong,
     getUserSong,
     updateUserSong,
+    getAllNotifications,
+    getReportDetail,
 };

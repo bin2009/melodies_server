@@ -1,15 +1,12 @@
-const statusCodes = require('~/utils/statusCodes');
-const emailService = require('../services/emailService');
-const { StatusCodes } = require('http-status-codes');
-
-const checkEmailExits = async (req, res) => {
-    const response = await emailService.checkEmailExitsService(req.body.email);
-    return res.status(statusCodes[response.errCode]).json(response);
-};
+import { StatusCodes } from 'http-status-codes';
+import { emailService } from '~/services/emailService';
+// const checkEmailExits = async (req, res) => {
+//     const response = await emailService.checkEmailExitsService(req.body.email);
+//     return res.status(statusCodes[response.errCode]).json(response);
+// };
 
 const sendOtp = async (req, res, next) => {
     try {
-        // await userz.checkUser(req.body);
         await emailService.emailOtpService(req.body.email);
         res.status(StatusCodes.OK).json({
             status: 'success',
@@ -21,12 +18,16 @@ const sendOtp = async (req, res, next) => {
 };
 
 const verifyEmailOtp = async (email, otp) => {
-    const verify = await emailService.emailVerifyOtpService(email, otp);
-    return verify;
+    try {
+        const verify = await emailService.emailVerifyOtpService(email, otp);
+        return verify;
+    } catch (error) {
+        throw error;
+    }
 };
 
-module.exports = {
-    checkEmailExits,
+export const emailController = {
+    // checkEmailExits,
     sendOtp,
     verifyEmailOtp,
 };

@@ -38,6 +38,7 @@ module.exports = (sequelize, DataTypes) => {
         {
             sequelize,
             modelName: 'Follow',
+            freezeTableName: true,
             indexes: [
                 {
                     unique: false,

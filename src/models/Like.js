@@ -42,6 +42,7 @@ module.exports = (sequelize, DataTypes) => {
         {
             sequelize,
             modelName: 'Like',
+            freezeTableName: true,
             indexes: [
                 {
                     unique: false, // Set to true if you want to ensure unique combinations of userId and songId

@@ -11,6 +11,7 @@ import { artistService } from './artistService';
 import { awsService } from './awsService';
 import formatTime from '~/utils/timeFormat';
 import encodeData from '~/utils/encryption';
+import { NOTIFICATIONS } from '~/data/enum';
 
 const saltRounds = 10;
 
@@ -229,7 +230,12 @@ const createPlaylistService = async ({ data, user } = {}) => {
             );
         }
         await transaction.commit();
-        return { newPlaylist: newPlaylist };
+        const { id, ...other } = newPlaylist.toJSON();
+        const formatter = {
+            playlistId: id,
+            ...other,
+        };
+        return { newPlaylist: formatter };
     } catch (error) {
         await transaction.rollback();
         throw error;
@@ -404,15 +410,39 @@ const commentService = async ({ data, user } = {}) => {
 };
 
 const reportCommentService = async ({ data, user } = {}) => {
+    const transaction = await db.sequelize.transaction();
     try {
-        const report = await db.Report.create({
-            userId: user.id,
-            commentId: data.commentId,
-            content: data.content,
-            status: false,
-        });
+        const comment = await db.Comment.findByPk(data.commentId);
+        if (!comment) throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');
+
+        const [report] = await Promise.all([
+            db.Report.create(
+                {
+                    userId: user.id,
+                    commentId: comment.id,
+                    content: data.content,
+                    status: false,
+                },
+                { transaction },
+            ),
+            db.Notifications.create(
+                { userId: user.id, type: NOTIFICATIONS.REPORTED, message: comment.content, from: comment.id },
+                { transaction },
+            ),
+            db.Notifications.create(
+                {
+                    userId: comment.userId,
+                    type: NOTIFICATIONS.COMMENT_REPORTED,
+                    message: comment.content,
+                    from: comment.id,
+                },
+                { transaction },
+            ),
+        ]);
+        await transaction.commit();
         return report;
     } catch (error) {
+        await transaction.rollback();
         throw error;
     }
 };
@@ -455,6 +485,7 @@ const registerService = async (data) => {
         await transaction.commit();
     } catch (error) {
         await transaction.rollback();
+        throw error;
     }
 };
 
@@ -556,6 +587,73 @@ const updateUserSongService = async ({ user, songId, title, file, duration, lyri
     }
 };
 
+const getAllNotificationsService = async ({ user, page = 1, limit = 10 } = {}) => {
+    try {
+        const offset = (page - 1) * limit;
+        const notifications = await db.Notifications.findAll({
+            order: [
+                ['isRead', 'ASC'],
+                ['createdAt', 'DESC'],
+            ],
+            limit: limit,
+            offset: offset,
+        });
+        return notifications;
+    } catch (error) {
+        throw error;
+    }
+};
+
+const getReportDetailService = async ({ user, reportId } = {}) => {
+    try {
+        const report = await db.Report.findByPk(reportId);
+        if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Report not found');
+        if (!(user.role === 'Admin' || report.userId === user.id))
+            throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access');
+
+        const reportDetail = await db.Report.findOne({
+            where: { id: reportId },
+            attributes: ['id', 'content', 'status', 'createdAt'],
+            include: [
+                {
+                    model: db.User,
+                    as: 'user',
+                    attributes: ['id', 'username', 'name', 'email', 'image', 'accountType', 'status2', 'createdAt'],
+                },
+                {
+                    model: db.Comment,
+                    as: 'comment',
+                },
+            ],
+        });
+
+        const formatter = reportDetail.toJSON();
+        const [song, userComment] = await Promise.all([
+            songService.fetchSongs({ conditions: { id: formatter.comment.songId }, mode: 'findOne' }),
+            db.User.findOne({
+                where: { id: formatter.comment.userId },
+                attributes: ['id', 'username', 'name', 'email', 'image', 'accountType', 'status2', 'createdAt'],
+            }),
+        ]);
+        formatter.comment.song = song;
+        formatter.comment.userComment = userComment.toJSON();
+        delete formatter.comment.userId;
+        delete formatter.comment.songId;
+
+        formatter.createdAt = formatTime(formatter.createdAt);
+        formatter.user.createdAt = formatTime(formatter.user.createdAt);
+        formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
+        formatter.comment.updatedAt = formatTime(formatter.comment.updatedAt);
+        formatter.comment.userComment.createdAt = formatTime(formatter.comment.userComment.createdAt);
+
+        return formatter;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// --------------------------cron job
+
 const updateAccountType = async () => {
     const transaction = await db.sequelize.transaction();
     try {
@@ -568,17 +666,21 @@ const updateAccountType = async () => {
             raw: true,
         });
         if (expiredBills.length > 0) {
+            const notifications = expiredBills.map((b) => ({
+                userId: b.userId,
+                message: 'Your premium subscription has expired. Please renew to continue enjoying premium features.',
+            }));
+
             await Promise.all([
                 db.User.update(
                     { accountType: 'Free' },
-                    { where: { id: expiredBills.map((b) => b.userId) } },
-                    { transaction },
+                    { where: { id: expiredBills.map((b) => b.userId) }, transaction },
                 ),
                 db.Subscriptions.update(
                     { statusUse: false },
-                    { where: { id: { [Op.in]: expiredBills.map((b) => b.id) } } },
-                    { transaction },
+                    { where: { id: { [Op.in]: expiredBills.map((b) => b.id) } }, transaction },
                 ),
+                db.Notifications.bulkCreate(notifications, { transaction }),
             ]);
             console.log(`Updated account types to Free for users: ${expiredBills.map((b) => b.userId)}`);
         } else {
@@ -621,6 +723,8 @@ export const userService = {
     userUploadSongService,
     getUserSongService,
     updateUserSongService,
+    getAllNotificationsService,
+    getReportDetailService,
     // ---------------cron job
     updateAccountType,
 };

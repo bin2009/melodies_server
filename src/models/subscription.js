@@ -1,5 +1,6 @@
 'use strict';
 const { Model } = require('sequelize');
+const { PAYMENT } = require('~/data/enum');
 module.exports = (sequelize, DataTypes) => {
     class Subscriptions extends Model {
         /**
@@ -9,6 +10,14 @@ module.exports = (sequelize, DataTypes) => {
          */
         static associate(models) {
             // define association here
+            Subscriptions.belongsTo(models.User, {
+                foreignKey: 'userId',
+                as: 'user',
+            });
+            Subscriptions.belongsTo(models.SubscriptionPackage, {
+                foreignKey: 'packageId',
+                as: 'package',
+            });
         }
     }
     Subscriptions.init(
@@ -43,7 +52,7 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: false,
             },
             status: {
-                type: DataTypes.ENUM('Pending', 'Expired', 'Paid', 'Cancelled'),
+                type: DataTypes.ENUM(Object.values(PAYMENT)),
                 allowNull: false,
             },
             statusUse: {
@@ -55,6 +64,7 @@ module.exports = (sequelize, DataTypes) => {
         {
             sequelize,
             modelName: 'Subscriptions',
+            freezeTableName: true,
         },
     );
     return Subscriptions;

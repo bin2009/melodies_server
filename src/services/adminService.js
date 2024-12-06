@@ -12,6 +12,8 @@ import { userService } from './userService';
 import { awsService } from './awsService';
 import { songService } from './songService';
 import formatTime from '~/utils/timeFormat';
+import { NOTIFICATIONS, SUSPENSION_DURATION } from '~/data/enum';
+import { emailService } from './emailService';
 
 const saltRounds = 10;
 
@@ -341,33 +343,60 @@ const getReportService = async (reportId) => {
 const verifyReportService = async (reportId) => {
     const transaction = await db.sequelize.transaction();
     try {
-        const report = await db.Report.findOne({ id: reportId });
+        const report = await db.Report.findByPk(reportId);
+        const comment = await db.Comment.findByPk(report.commentId);
+
         if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');
-        // await db.Report.update({ status: true }, { where: { reportId: reportId } }, { transaction });
-        // await db.Comment.update({ hide: true }, { where: { id: report.commentId } }, { transaction });
+        // if (report.status) throw new ApiError(StatusCodes.CONFLICT, 'The reported comment has already been verified');
+
         const [reportResult, commentResult] = await Promise.all([
-            db.Report.update({ status: true }, { where: { id: reportId } }, { transaction }),
-            db.Comment.update({ hide: true }, { where: { id: report.commentId } }, { transaction }),
+            db.Report.update({ status: true }, { where: { id: reportId }, transaction }),
+            db.Comment.update({ hide: true }, { where: { id: report.commentId }, transaction }),
+            db.Notifications.create(
+                {
+                    userId: comment.userId,
+                    type: NOTIFICATIONS.COMMENT_VIOLATION,
+                    message: comment.content,
+                    from: comment.id,
+                },
+                { transaction },
+            ),
         ]);
 
         if (reportResult[0] === 1) {
-            const userOfComment = await db.Comment.findOne({
-                where: { id: report.commentId },
-                attributes: ['userId'],
-            });
-
-            const count = await db.Comment.count({ where: { userId: userOfComment.userId, hide: true } });
+            const count = await db.Comment.count({ where: { userId: comment.userId, hide: true } });
+            const user = await db.User.findByPk(comment.userId);
             switch (count) {
                 case 3:
-                    await db.User.update(
-                        { status2: 'lock3' },
-                        { where: { id: userOfComment.userId } },
-                        { transaction },
-                    );
-                    console.log('Message: ');
-                    // send message
+                    await emailService.emailWarnAccount({
+                        email: user.email,
+                        username: user.username,
+                    });
                     break;
-
+                case 7:
+                    await db.User.update({ status2: 'lock3' }, { where: { id: comment.userId }, transaction });
+                    await emailService.emailNotiLockAccount({
+                        email: user.email,
+                        username: user.username,
+                        time: SUSPENSION_DURATION.LOCK3,
+                    });
+                    break;
+                case 10:
+                    await db.User.update({ status2: 'lock7' }, { where: { id: comment.userId }, transaction });
+                    await emailService.emailNotiLockAccount({
+                        email: user.email,
+                        username: user.username,
+                        time: SUSPENSION_DURATION.LOCK7,
+                    });
+                    break;
+                case 15:
+                    await db.User.update({ status2: 'permanent' }, { where: { id: comment.userId }, transaction });
+                    await emailService.emailNotiLockAccount({
+                        email: user.email,
+                        username: user.username,
+                        time: SUSPENSION_DURATION.PERMANENT,
+                    });
+                    break;
                 default:
                     break;
             }

@@ -38,6 +38,7 @@ module.exports = (sequelize, DataTypes) => {
         {
             sequelize,
             modelName: 'SearchHistory',
+            freezeTableName: true,
         },
     );
     return SearchHistory;

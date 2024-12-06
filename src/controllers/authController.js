@@ -1,13 +1,12 @@
-const { StatusCodes } = require('http-status-codes');
-const authService = require('../services/authService');
+import { StatusCodes } from 'http-status-codes';
+import { authService } from '~/services/authService';
 
 const login = async (req, res, next) => {
     try {
         console.log('login: ', req.body);
         const response = await authService.loginService(req.body);
-        const { refreshToken, ...other } = response;
 
-        res.cookie('refreshToken', refreshToken, {
+        res.cookie('refreshToken', response.refreshToken, {
             httpOnly: true,
             secure: false, // true nếu sử dụng HTTPS
             path: '/',
@@ -16,17 +15,24 @@ const login = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Login success',
-            ...other,
+            ...response,
         });
     } catch (error) {
         next(error);
     }
 };
 
-const logout = async (req, res) => {
-    const authorization = req.headers['authorization'];
-    const response = await authService.logoutService(authorization);
-    return res.status(response.errCode).json(response);
+const logout = async (req, res, next) => {
+    try {
+        const authorization = req.headers['authorization'];
+        await authService.logoutService(authorization);
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Loggout successful',
+        });
+    } catch (error) {
+        next(error);
+    }
 };
 
 const refresh = async (req, res) => {
@@ -90,7 +96,7 @@ const resetPassword = async (req, res) => {
     return res.status(response.errCode).json(response);
 };
 
-module.exports = {
+export const authController = {
     login,
     logout,
     refresh,

@@ -4,7 +4,7 @@ import multer from 'multer';
 
 import { authMiddleWare } from '~/middleware/authMiddleWare';
 import { userController } from '~/controllers/userController';
-const emailController = require('~/controllers/emailController');
+import { emailController } from '~/controllers/emailController';
 import { playlistValidations } from '~/validations/playlistValidations';
 import { appMiddleWare } from '~/middleware/appMiddleWare';
 
@@ -66,6 +66,9 @@ Router.route('/user/song/:songId')
         appMiddleWare.calculateDuration,
         userController.updateUserSong,
     );
+
+Router.route('/user/notifications').get(authMiddleWare.verifyToken, userController.getAllNotifications);
+Router.route('/user/report/:reportId').get(authMiddleWare.verifyToken, userController.getReportDetail);
 
 Router.route('/test').patch((req, res) => {
     res.status(200).json('hah');

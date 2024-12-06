@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                font-family: Arial, sans-serif;
+            }
+            .header {
+                background-color: #dc3545;
+                color: white;
+                padding: 20px;
+                text-align: center;
+                border-radius: 5px 5px 0 0;
+            }
+            .content {
+                padding: 30px;
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 0 0 5px 5px;
+            }
+            .warning-icon {
+                font-size: 48px;
+                text-align: center;
+                color: #dc3545;
+                margin: 20px 0;
+            }
+            .reason {
+                background-color: #fff;
+                padding: 15px;
+                border-left: 4px solid #dc3545;
+                margin: 20px 0;
+            }
+            .support {
+                background-color: #e9ecef;
+                padding: 15px;
+                border-radius: 5px;
+                margin-top: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Account Suspended</h1>
+            </div>
+            <div class="content">
+                <div class="warning-icon">⚠️</div>
+                <p>Dear <%= username%>,</p>
+                <p>
+                    Your account has been temporarily suspended due to multiple violations of our Community Guidelines.
+                </p>
+
+                <div class="reason">
+                    <strong>Reason for suspension:</strong>
+                    <p>Multiple reports of inappropriate comments that violate our community standards.</p>
+                    <strong>Duration:</strong>
+                    <% if (duration === 'permanent') { %>
+                    <p>Your account has been permanently suspended.</p>
+                    <% } else { %>
+                    <p>Your account will be suspended for <%= duration %> days.</p>
+                    <% } %>
+                </div>
+
+                <p>During this period, you will not be able to log into our website</p>
+
+                <div class="support">
+                    <p>
+                        If you believe this is a mistake or would like to appeal this decision, please contact our
+                        support team at:
+                    </p>
+                    <p>📧 <a href="mailto:npbloc.cntt@gmail.com">npbloc.cntt@gmail.com</a></p>
+                </div>
+
+                <p>We encourage you to review our Community Guidelines to prevent future violations.</p>
+                <p>Best regards,<br />The Melodies Team</p>
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,24 +1,15 @@
 'use strict';
 const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
-    class Report extends Model {
+    class Notifications extends Model {
         /**
          * Helper method for defining associations.
          * This method is not a part of Sequelize lifecycle.
          * The `models/index` file will call this method automatically.
          */
-        static associate(models) {
-            Report.belongsTo(models.User, {
-                foreignKey: 'userId',
-                as: 'user',
-            });
-            Report.belongsTo(models.Comment, {
-                foreignKey: 'commentId',
-                as: 'comment',
-            });
-        }
+        static associate(models) {}
     }
-    Report.init(
+    Notifications.init(
         {
             id: {
                 type: DataTypes.UUID,
@@ -33,35 +24,29 @@ module.exports = (sequelize, DataTypes) => {
                 },
                 allowNull: false,
             },
-            commentId: {
-                type: DataTypes.UUID,
-                references: {
-                    model: 'Comment',
-                    key: 'id',
-                },
-                allowNull: false,
-            },
-            content: {
+            type: {
                 type: DataTypes.STRING,
                 allowNull: false,
+                defaultValue: 'SYSTEM',
             },
-            status: {
-                type: DataTypes.BOOLEAN,
+            message: {
+                type: DataTypes.TEXT,
                 allowNull: false,
+            },
+            isRead: {
+                type: DataTypes.BOOLEAN,
                 defaultValue: false,
+            },
+            from: {
+                type: DataTypes.UUID,
+                allowNull: true,
             },
         },
         {
             sequelize,
-            modelName: 'Report',
+            modelName: 'Notifications',
             freezeTableName: true,
-            indexes: [
-                {
-                    unique: false, // Set to true if you want to ensure unique combinations of userId and songId
-                    fields: ['userId', 'commentId'],
-                },
-            ],
         },
     );
-    return Report;
+    return Notifications;
 };
