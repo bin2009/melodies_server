@@ -210,6 +210,7 @@ const deleteAlbum = async (req, res, next) => {
 
 const deleteArtist = async (req, res, next) => {
     try {
+        console.log('artists: ', req.body.artistIds);
         await adminService.deleteArtistService({ artistIds: req.body.artistIds });
         res.status(StatusCodes.OK).json({
             status: 'success',

@@ -62,7 +62,7 @@ Router.route('/update/song/:songId').patch(
 // ----------- delete
 
 Router.route('/delete/album').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteAlbum);
-Router.route('/delete/artist').patch(authMiddleWare.verifyTokenAndAdmin, adminController.deleteArtist);
+Router.route('/delete/artist').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteArtist);
 Router.route('/delete/song').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteSong);
 
 // -----------------------------------

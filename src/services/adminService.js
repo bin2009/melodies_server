@@ -843,30 +843,31 @@ const deleteArtistService = async ({ artistIds } = {}) => {
                 { where: { id: { [Op.in]: artistIds } }, transaction },
             ),
             db.Report.destroy({
-                where: { commentId: { [Op.in]: comments.map((c) => c.id) } },
+                where: { commentId: { [Op.in]: comments?.map((c) => c.id) } },
                 transaction,
             }),
             db.Like.destroy({
-                where: { songId: { [Op.in]: songIds.map((s) => s.songId) } },
+                where: { songId: { [Op.in]: songIds?.map((s) => s.songId) } },
                 transaction,
             }),
             db.SongPlayHistory.destroy({
-                where: { songId: { [Op.in]: songIds.map((s) => s.songId) } },
+                where: { songId: { [Op.in]: songIds?.map((s) => s.songId) } },
                 transaction,
             }),
             db.PlaylistSong.destroy({
-                where: { songId: { [Op.in]: songIds.map((s) => s.songId) } },
+                where: { songId: { [Op.in]: songIds?.map((s) => s.songId) } },
                 transaction,
             }),
         ]);
 
         await Promise.all([
             db.Comment.destroy({
-                where: { id: { [Op.in]: comments.map((c) => c.id) } },
+                where: { id: { [Op.in]: comments?.map((c) => c.id) } },
                 transaction,
             }),
             db.Song.destroy({
-                where: { id: { [Op.in]: songIds.map((s) => s.songId) } },
+                where: { id: { [Op.in]: songIds?.map((s) => s.songId) } },
+                transaction,
             }),
         ]);
         await transaction.commit();

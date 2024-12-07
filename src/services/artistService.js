@@ -202,7 +202,8 @@ const getPopularArtistService = async ({ limit = 10, page = 1, user } = {}) => {
     }
 };
 
-const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user, limit = 10 } = {}) => {
+// remove
+const getAllArtistService2 = async ({ sortBy, sortOrder = 'desc', page = 1, user, limit = 10 } = {}) => {
     try {
         const offset = (page - 1) * limit;
         const start = (page - 1) * limit;
@@ -286,24 +287,38 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
     }
 };
 
-const getAllArtistService2 = async ({ sortBy, sortOrder = 'desc', page = 1, user, limit = 10 } = {}) => {
+const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user, limit = 10 } = {}) => {
     try {
         // sort by: artist name / num song / num album / num follow
         // sort order: desc / asc
 
         const offset = (page - 1) * limit;
-
+        const allArtist = await db.Artist.count({ where: { hide: false } });
         if (!sortBy) {
             // lấy mặc định : createdAt
             const artists = await db.Artist.findAll({
+                attributes: ['id', 'name', 'avatar', 'bio', 'createdAt'],
+                where: { hide: false },
+                include: [
+                    { model: db.Genre, as: 'genres', attributes: ['genreId', 'name'], through: { attributes: [] } },
+                ],
                 order: [['createdAt', sortOrder]],
                 limit: limit,
                 offset: offset,
             });
 
-            const [songIds, totalFollow] = await Promise.all([
+            const [songIdsPerArtist, songsPerArtist, totalFollow] = await Promise.all([
                 db.ArtistSong.findAll({
                     where: { artistId: { [Op.in]: artists.map((a) => a.id) }, main: true },
+                    attributes: ['artistId', [db.Sequelize.fn('ARRAY_AGG', db.Sequelize.col('songId')), 'songIds']],
+                    group: ['artistId'],
+                    raw: true,
+                }),
+                db.ArtistSong.findAll({
+                    where: { artistId: { [Op.in]: artists.map((a) => a.id) }, main: true },
+                    attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'totalSong']],
+                    group: ['artistId'],
+                    raw: true,
                 }),
                 db.Follow.findAll({
                     where: { artistId: { [Op.in]: artists.map((a) => a.id) } },
@@ -313,7 +328,45 @@ const getAllArtistService2 = async ({ sortBy, sortOrder = 'desc', page = 1, user
                 }),
             ]);
 
-            return { totalFollow: totalFollow };
+            const songsPerArtistMap = songsPerArtist.reduce((acc, item) => {
+                acc[item.artistId] = item.totalSong;
+                return acc;
+            }, {});
+            const totalFollowMap = totalFollow.reduce((acc, item) => {
+                acc[item.artistId] = item.totalFollow;
+                return acc;
+            }, {});
+            const songIdsPerArtistMap = songIdsPerArtist.reduce((acc, item) => {
+                acc[item.artistId] = item.songIds;
+                return acc;
+            }, {});
+
+            const albumSongsCountPerArtist = {};
+            for (const artistId in songIdsPerArtistMap) {
+                const songIds = songIdsPerArtistMap[artistId];
+                const count = await db.AlbumSong.count({
+                    where: { songId: { [Op.in]: songIds } },
+                });
+                albumSongsCountPerArtist[artistId] = count;
+            }
+
+            const result = artists.map((a) => {
+                const { createdAt, ...other } = a.toJSON();
+
+                return {
+                    ...other,
+                    createdAt: formatTime(createdAt),
+                    totalSong: songsPerArtistMap[a.id] ?? 0,
+                    totalAlbum: albumSongsCountPerArtist[a.id] ?? 0,
+                    totalFollow: totalFollowMap[a.id] ?? 0,
+                };
+            });
+
+            return {
+                page: page,
+                totalPage: Math.ceil(allArtist / limit),
+                artists: result,
+            };
         } else {
         }
     } catch (error) {
