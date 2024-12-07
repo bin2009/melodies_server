@@ -770,7 +770,7 @@ const updateSongService = async ({ songId, data, duration, file, lyric } = {}) =
                 );
             } else {
                 const path = await awsService.uploadSong(songId, file);
-                await db.Song.update({ filePathAudio: path, lyric: null }, { where: { id: songId } });
+                await db.Song.update({ filePathAudio: path }, { where: { id: songId } });
             }
         } else {
             if (lyric) {
@@ -822,9 +822,56 @@ const deleteAlbumService = async ({ albumIds } = {}) => {
 };
 
 const deleteArtistService = async ({ artistIds } = {}) => {
+    const transaction = await db.sequelize.transaction();
     try {
-        await db.Artist.update({ hide: true }, { where: { id: { [Op.in]: artistIds } } });
+        const songIds = await db.ArtistSong.findAll({
+            where: { artistId: { [Op.in]: artistIds }, main: true },
+            attributes: ['songId'],
+            raw: true,
+        });
+        const comments = await db.Comment.findAll({
+            where: { songId: { [Op.in]: songIds.map((s) => s.songId) } },
+            raw: true,
+        });
+
+        await Promise.all([
+            db.ArtistGenre.destroy({ where: { artistId: { [Op.in]: artistIds } }, transaction }),
+            db.ArtistSong.destroy({ where: { artistId: { [Op.in]: artistIds } }, transaction }),
+            db.Follow.destroy({ where: { artistId: { [Op.in]: artistIds } }, transaction }),
+            db.Artist.update(
+                { avatar: null, bio: null, hide: true },
+                { where: { id: { [Op.in]: artistIds } }, transaction },
+            ),
+            db.Report.destroy({
+                where: { commentId: { [Op.in]: comments.map((c) => c.id) } },
+                transaction,
+            }),
+            db.Like.destroy({
+                where: { songId: { [Op.in]: songIds.map((s) => s.songId) } },
+                transaction,
+            }),
+            db.SongPlayHistory.destroy({
+                where: { songId: { [Op.in]: songIds.map((s) => s.songId) } },
+                transaction,
+            }),
+            db.PlaylistSong.destroy({
+                where: { songId: { [Op.in]: songIds.map((s) => s.songId) } },
+                transaction,
+            }),
+        ]);
+
+        await Promise.all([
+            db.Comment.destroy({
+                where: { id: { [Op.in]: comments.map((c) => c.id) } },
+                transaction,
+            }),
+            db.Song.destroy({
+                where: { id: { [Op.in]: songIds.map((s) => s.songId) } },
+            }),
+        ]);
+        await transaction.commit();
     } catch (error) {
+        await transaction.rollback();
         throw error;
     }
 };

@@ -7,6 +7,7 @@ const createPlaylistValidation = async (req, res, next) => {
         title: Joi.string().max(20).trim().strict().optional(),
         description: Joi.string().max(40).trim().strict().optional(),
         playlistImage: Joi.string().trim().strict().optional(),
+        songId: Joi.string().uuid().trim().strict().optional(),
     });
 
     try {

@@ -286,6 +286,41 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
     }
 };
 
+const getAllArtistService2 = async ({ sortBy, sortOrder = 'desc', page = 1, user, limit = 10 } = {}) => {
+    try {
+        // sort by: artist name / num song / num album / num follow
+        // sort order: desc / asc
+
+        const offset = (page - 1) * limit;
+
+        if (!sortBy) {
+            // lấy mặc định : createdAt
+            const artists = await db.Artist.findAll({
+                order: [['createdAt', sortOrder]],
+                limit: limit,
+                offset: offset,
+            });
+
+            const [songIds, totalFollow] = await Promise.all([
+                db.ArtistSong.findAll({
+                    where: { artistId: { [Op.in]: artists.map((a) => a.id) }, main: true },
+                }),
+                db.Follow.findAll({
+                    where: { artistId: { [Op.in]: artists.map((a) => a.id) } },
+                    attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'totalFollow']],
+                    group: ['artistId'],
+                    raw: true,
+                }),
+            ]);
+
+            return { totalFollow: totalFollow };
+        } else {
+        }
+    } catch (error) {
+        throw error;
+    }
+};
+
 const getArtistService = async ({ artistId } = {}) => {
     try {
         const checkArtist = await checkArtistExits(artistId);

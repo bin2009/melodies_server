@@ -213,7 +213,7 @@ const deleteArtist = async (req, res, next) => {
         await adminService.deleteArtistService({ artistIds: req.body.artistIds });
         res.status(StatusCodes.OK).json({
             status: 'success',
-            message: 'Hide artist success',
+            message: 'Delete artist success',
         });
     } catch (error) {
         next(error);

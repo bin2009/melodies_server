@@ -39,5 +39,5 @@ export const handleSocketError = (err, socket, next) => {
         socket.emit('errorToken', { code: err.data.code, message: err.data.message });
         socket.disconnect();
     }
-    next();
+    // next();
 };
