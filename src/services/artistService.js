@@ -19,7 +19,7 @@ const fetchArtistCount = async ({ conditions = {} } = {}) => {
     return count;
 };
 
-const fetchArtistName = async ({ conditions = {} } = {}) => {
+const fetchArtistName = async ({ conditions } = {}) => {
     const artists = await db.Artist.findAll({
         where: conditions,
         attributes: ['id', 'name', 'avatar'],
@@ -168,13 +168,13 @@ const getPopularArtistService = async ({ limit = 10, page = 1, user } = {}) => {
     try {
         const offset = (page - 1) * limit;
         const [totalArtist, topArtist] = await Promise.all([
-            fetchArtistCount(),
+            fetchArtistCount({ conditions: { hide: false } }),
             fetchFollowCount({ limit: limit, offset: offset }),
         ]);
 
         const [popularArtists, followed] = await Promise.all([
             fetchArtist({
-                conditions: { id: { [Op.in]: topArtist.map((record) => record.artistId) } },
+                conditions: { id: { [Op.in]: topArtist.map((record) => record.artistId) }, hide: false },
             }),
             user && fetchUserFollowArtist({ userId: user.id, artistIds: topArtist }),
         ]);
@@ -378,6 +378,7 @@ const getArtistService = async ({ artistId } = {}) => {
     try {
         const checkArtist = await checkArtistExits(artistId);
         if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
+        if (checkArtist.hide) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
 
         const [artist, totalFollow, totalSong] = await Promise.all([
             fetchArtist({ mode: 'findOne', conditions: { id: artistId } }),
@@ -526,13 +527,16 @@ const getArtistFeatService = async ({ artistId, page = 1, limit = 10 } = {}) => 
 
         const checkArtist = await checkArtistExits(artistId);
         if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
+        if (checkArtist.hide) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
 
         const songIds = await fetchSongIdsByArtist({ artistId: artistId });
 
         const artistFeatIds = await fetchSArtistFeatByArtist({
             conditions: { songId: { [Op.in]: songIds.map((i) => i.songId) }, main: false },
         });
-        const artistFeat = await fetchArtist({ conditions: { id: { [Op.in]: artistFeatIds.map((a) => a.artistId) } } });
+        const artistFeat = await fetchArtist({
+            conditions: { id: { [Op.in]: artistFeatIds.map((a) => a.artistId) }, hide: false },
+        });
 
         return {
             page: page,
@@ -550,6 +554,7 @@ const getArtistSameGenreService = async ({ artistId, page = 1, limit = 10 } = {}
 
         const checkArtist = await checkArtistExits(artistId);
         if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
+        if (checkArtist.hide) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
 
         const genreIds = await fetchGenreIdsByArtist({ conditions: { artistId: artistId } });
         const genre = await genreService.fetchGenre({
@@ -567,7 +572,7 @@ const getArtistSameGenreService = async ({ artistId, page = 1, limit = 10 } = {}
         const artists = await fetchArtist({
             limit: limit,
             offset: offset,
-            conditions: { id: { [Op.in]: artistIdsArray } },
+            conditions: { id: { [Op.in]: artistIdsArray }, hide: false },
         });
 
         return {

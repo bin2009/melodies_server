@@ -345,7 +345,7 @@ const getAllGenreName = async (req, res, next) => {
 
 const getAllArtistName = async (req, res, next) => {
     try {
-        const artists = await artistService.fetchArtistName();
+        const artists = await artistService.fetchArtistName({ conditions: { hide: false } });
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: `Get artist name success`,

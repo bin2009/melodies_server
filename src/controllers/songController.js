@@ -205,10 +205,13 @@ const getCommentChild = async (req, res, next) => {
     }
 };
 
-const search = async (req, res) => {
-    // return res.status(200).json(req.query.query);
-    const response = await songService.serach2Service(req.query.query);
-    return res.status(response.errCode).json(response);
+const search = async (req, res, next) => {
+    try {
+        const response = await songService.serach2Service(req.query.query);
+        res.status(response.errCode).json(response);
+    } catch (error) {
+        next(error);
+    }
 };
 
 const searchSong = async (req, res, next) => {
