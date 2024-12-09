@@ -87,7 +87,7 @@ Router.route('/report/:reportId')
 Router.route('/allPayment').get(authMiddleWare.verifyTokenAndAdmin, adminController.getAllPayment);
 Router.route('/payment/:paymentId').get(authMiddleWare.verifyToken, adminController.getPaymentDetail);
 
-Router.route('/allPackage').get(authMiddleWare.verifyTokenAndAdmin, adminController.getAllPackage);
+Router.route('/allPackage').get(adminController.getAllPackage);
 
 import db from '~/models';
 import { albumService } from '~/services/albumService';
