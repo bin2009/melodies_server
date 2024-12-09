@@ -66,6 +66,7 @@ Router.route('/delete/album').delete(authMiddleWare.verifyTokenAndAdmin, adminCo
 Router.route('/delete/artist').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteArtist);
 Router.route('/delete/song').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteSong);
 Router.route('/delete/genre').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteGenre);
+Router.route('/delete/payment').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deletePayment);
 
 // -----------------------------------
 Router.route('/recentUser').get(authMiddleWare.verifyTokenAndAdmin, adminController.getRecentUser);
@@ -83,6 +84,8 @@ Router.route('/allReport').get(authMiddleWare.verifyTokenAndAdmin, adminControll
 Router.route('/report/:reportId')
     .get(authMiddleWare.verifyTokenAndAdmin, adminController.getReport)
     .post(authMiddleWare.verifyTokenAndAdmin, adminController.verifyReport);
+Router.route('/allPayment').get(authMiddleWare.verifyTokenAndAdmin, adminController.getAllPayment);
+Router.route('/payment/:paymentId').get(authMiddleWare.verifyToken, adminController.getPaymentDetail);
 
 Router.route('/allPackage').get(authMiddleWare.verifyTokenAndAdmin, adminController.getAllPackage);
 

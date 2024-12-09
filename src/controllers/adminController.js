@@ -202,7 +202,7 @@ const updateGenre = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Update genre success',
-            genre: genre,
+            ...genre,
         });
     } catch (error) {
         next(error);
@@ -254,6 +254,18 @@ const deleteGenre = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Delete genres success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deletePayment = async (req, res, next) => {
+    try {
+        await adminService.deletePaymentService({ paymentIds: req.body.paymentIds });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Delete payment success',
         });
     } catch (error) {
         next(error);
@@ -438,6 +450,32 @@ const verifyReport = async (req, res, next) => {
     }
 };
 
+const getAllPayment = async (req, res, next) => {
+    try {
+        const payments = await adminService.getAllPaymentService();
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get all payments success',
+            ...payments,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getPaymentDetail = async (req, res, next) => {
+    try {
+        const payment = await adminService.getPaymentDetailService({ user: req.user, paymentId: req.params.paymentId });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get payment success',
+            payment: payment,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const getAllPackage = async (req, res, next) => {
     try {
         const packages = await packageService.fetchAllPackage();
@@ -468,6 +506,7 @@ export const adminController = {
     deleteArtist,
     deleteSong,
     deleteGenre,
+    deletePayment,
     // --------------
     getRecentUser,
     getRecentComment,
@@ -482,6 +521,8 @@ export const adminController = {
     getAllReport,
     getReport,
     verifyReport,
+    getAllPayment,
+    getPaymentDetail,
     // ------------
     getAllAlbum,
 };
