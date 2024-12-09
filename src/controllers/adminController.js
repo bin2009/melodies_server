@@ -194,6 +194,21 @@ const updateSong = async (req, res, next) => {
     }
 };
 
+const updateGenre = async (req, res, next) => {
+    try {
+        if (!req.params.genreId) throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: genre id');
+
+        const genre = await adminService.updateGenreService({ genreId: req.params.genreId, data: req.body });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Update genre success',
+            genre: genre,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // -----------------------------------------------------------------------------------------------
 
 const deleteAlbum = async (req, res, next) => {
@@ -227,6 +242,18 @@ const deleteSong = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Delete songs success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteGenre = async (req, res, next) => {
+    try {
+        await adminService.deleteGenreService({ genreIds: req.body.genreIds });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Delete genres success',
         });
     } catch (error) {
         next(error);
@@ -435,10 +462,12 @@ export const adminController = {
     updateAlbum,
     updateArtist,
     updateSong,
+    updateGenre,
     // --------------
     deleteAlbum,
     deleteArtist,
     deleteSong,
+    deleteGenre,
     // --------------
     getRecentUser,
     getRecentComment,

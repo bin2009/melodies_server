@@ -58,12 +58,14 @@ Router.route('/update/song/:songId').patch(
     appMiddleWare.calculateDuration,
     adminController.updateSong,
 );
+Router.route('/update/genre/:genreId').patch(authMiddleWare.verifyTokenAndAdmin, adminController.updateGenre);
 
 // ----------- delete
 
 Router.route('/delete/album').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteAlbum);
 Router.route('/delete/artist').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteArtist);
 Router.route('/delete/song').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteSong);
+Router.route('/delete/genre').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteGenre);
 
 // -----------------------------------
 Router.route('/recentUser').get(authMiddleWare.verifyTokenAndAdmin, adminController.getRecentUser);

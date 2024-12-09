@@ -52,8 +52,8 @@ const loginService = async (data) => {
             }
 
             // kiểm tra đã login chưa
-            const checkLogin = await client.get(String(user.id));
-            if (checkLogin) throw new ApiError(StatusCodes.UNAUTHORIZED, 'User is already logged in');
+            // const checkLogin = await client.get(String(user.id));
+            // if (checkLogin) throw new ApiError(StatusCodes.UNAUTHORIZED, 'User is already logged in');
 
             // nếu chưa login
             const accessToken = generateAccessToken(user);

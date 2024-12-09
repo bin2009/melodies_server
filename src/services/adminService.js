@@ -801,6 +801,19 @@ const updateSongService = async ({ songId, data, duration, file, lyric } = {}) =
     }
 };
 
+const updateGenreService = async ({ genreId, data } = {}) => {
+    try {
+        const checkGenre = await db.Genre.findByPk(genreId);
+        if (!checkGenre) throw new ApiError(StatusCodes.NOT_FOUND, 'Genre not found');
+
+        await db.Genre.update({ name: data.name }, { where: { genreId: genreId } });
+        const genre = await db.Genre.findByPk(genreId);
+        return { genre: genre };
+    } catch (error) {
+        throw error;
+    }
+};
+
 // -----------------------------------------------------------------------------------------------
 
 const deleteAlbumService = async ({ albumIds } = {}) => {
@@ -893,6 +906,24 @@ const deleteSongService = async ({ songIds } = {}) => {
     }
 };
 
+const deleteGenreService = async ({ genreIds } = {}) => {
+    const transaction = await db.sequelize.transaction();
+    try {
+        await db.ArtistGenre.destroy({
+            where: { genreId: { [Op.in]: genreIds } },
+            transaction,
+        });
+        await db.Genre.destroy({
+            where: { genreId: { [Op.in]: genreIds } },
+            transaction,
+        });
+        await transaction.commit();
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
+};
+
 export const adminService = {
     fetchAlbumSong,
     // ---------------
@@ -915,8 +946,10 @@ export const adminService = {
     updateAlbumService,
     updateArtistService,
     updateSongService,
+    updateGenreService,
     // -----------------
     deleteAlbumService,
     deleteArtistService,
     deleteSongService,
+    deleteGenreService,
 };
