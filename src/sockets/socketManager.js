@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 const rooms = {};
 const notification = {};
 let ioRoot;
+let loc2;
 
 const setupSocketIO = (io) => {
     ioRoot = io;
@@ -35,6 +36,7 @@ const setupSocketIO = (io) => {
                     currentSong: { song: {}, isPlaying: true, currentTime: 0 },
                     proposalList: [],
                     waitingList: [],
+                    now: 0,
                 };
                 socket.join(roomId);
                 socket.roomId = roomId;
@@ -96,13 +98,36 @@ const setupSocketIO = (io) => {
             });
 
             socket.on('SyncAudio', (data) => {
+                // console.log('data:', data);
                 const room = rooms[socket.roomId];
+                const a = Date.now();
+                // if (room.currentSong.isPlaying !== data.isPlaying) {
+                //     room.currentSong.isPlaying = data.isPlaying;
+                //     room.currentSong.currentTime = data.currentTime;
+                //     room.now = a;
+                //     socket.to(socket.roomId).emit('UpdateAudio', {
+                //         isPlaying: room.currentSong.isPlaying,
+                //         currentTime: room.currentSong.currentTime,
+                //     });
+                // } else {
+                //     if (a - room.now > 1000) {
+                //         room.currentSong.currentTime = data.currentTime;
+                //         room.now = a;
+                //         socket.to(socket.roomId).emit('UpdateAudio', {
+                //             isPlaying: room.currentSong.isPlaying,
+                //             currentTime: room.currentSong.currentTime,
+                //         });
+                //     }
+                // }
+                // if (a - room.now > 1000) {
                 room.currentSong.isPlaying = data.isPlaying;
                 room.currentSong.currentTime = data.currentTime;
+                room.now = a;
                 socket.to(socket.roomId).emit('UpdateAudio', {
                     isPlaying: room.currentSong.isPlaying,
                     currentTime: room.currentSong.currentTime,
                 });
+                // }
             });
 
             socket.on('addSongToProposalList', (song) => {
@@ -140,12 +165,22 @@ const setupSocketIO = (io) => {
                 const song = proposalListMap.get(songId);
 
                 if (song) {
-                    room.waitingList.push(song);
-                    room.proposalList = room.proposalList.filter((s) => s.id !== songId);
-                    io.to(socket.roomId).emit('updateListSong', {
-                        waitingList: room.waitingList,
-                        proposalList: room.proposalList,
-                    });
+                    const checkSongExists = waitingListMap.get(song.id);
+                    if (checkSongExists) {
+                        socket.emit('forwardSongFailed', 'Song existed in waiting list');
+                        room.proposalList = room.proposalList.filter((s) => s.id !== checkSongExists.id);
+                        io.to(socket.roomId).emit('updateListSong', {
+                            waitingList: room.waitingList,
+                            proposalList: room.proposalList,
+                        });
+                    } else {
+                        room.waitingList.push(song);
+                        room.proposalList = room.proposalList.filter((s) => s.id !== songId);
+                        io.to(socket.roomId).emit('updateListSong', {
+                            waitingList: room.waitingList,
+                            proposalList: room.proposalList,
+                        });
+                    }
                 } else {
                     socket.emit('refreshListSong');
                     // handle refresh list song : 2
@@ -162,7 +197,10 @@ const setupSocketIO = (io) => {
                     room.currentSong.song = song;
                     room.isPlaying = true;
                     room.currentTime = 0;
+                    loc2 = Date.now();
+                    room.now = loc2;
                     io.to(socket.roomId).emit('playSong', room.currentSong);
+                    console.log('loc2:', loc2);
                 } else {
                     socket.emit('refreshListSong');
                 }
@@ -170,6 +208,97 @@ const setupSocketIO = (io) => {
 
             socket.on('SendMessage', (data) => {
                 io.to(socket.roomId).emit('ServerSendMessage', { user: socket.user, message: data.message });
+            });
+
+            socket.on('nextSong', () => {
+                // lấy ra bài đang hát -> index -> xóa bài hát từ index
+                const room = rooms[socket.roomId];
+                const currentSongId = room.currentSong.song.id;
+                const waitingListMap = room.waitingList.reduce((acc, item) => {
+                    acc[item.id] = item;
+                    return acc;
+                }, {});
+                const index = room.waitingList.findIndex((item) => item.id === currentSongId);
+                if (room.waitingList.length === index + 1) {
+                    console.log('đã hết bài tiếp theo');
+                    socket.emit('nextSongFailed', 'You are listening to the last song');
+                } else {
+                    room.currentSong.song = room.waitingList[index + 1];
+                    room.currentSong.isPlaying = true;
+                    room.currentSong.currentTime = 0;
+                    // room.waitingList.splice(index, 1);
+                    io.to(socket.roomId).emit('playSong', room.currentSong);
+                    io.to(socket.roomId).emit('updateListSong', {
+                        waitingList: room.waitingList,
+                        proposalList: room.proposalList,
+                    });
+                    console.log('bài hát: ', waitingListMap[currentSongId]);
+                    console.log('index ', index);
+                }
+            });
+
+            socket.on('previousSong', () => {
+                const room = rooms[socket.roomId];
+                const currentSongId = room.currentSong.song.id;
+                const waitingListMap = room.waitingList.reduce((acc, item) => {
+                    acc[item.id] = item;
+                    return acc;
+                }, {});
+                const index = room.waitingList.findIndex((item) => item.id === currentSongId);
+                if (index === 0) {
+                    console.log('đã hết bài');
+                    socket.emit('previousSongFailed', 'You are listening to the first song');
+                } else {
+                    room.currentSong.song = room.waitingList[index - 1];
+                    room.currentSong.isPlaying = true;
+                    room.currentSong.currentTime = 0;
+                    // room.waitingList.splice(index, 1);
+                    io.to(socket.roomId).emit('playSong', room.currentSong);
+                    io.to(socket.roomId).emit('updateListSong', {
+                        waitingList: room.waitingList,
+                        proposalList: room.proposalList,
+                    });
+                    // console.log('bài hát: ', waitingListMap[currentSongId]);
+                    console.log('index ', index);
+                }
+            });
+
+            socket.on('randomSongPlay', () => {
+                const room = rooms[socket.roomId];
+                const currentSongId = room.currentSong.song.id;
+                const otherSongs = room.waitingList.filter((item) => item.id !== currentSongId);
+
+                if (otherSongs.length === 0) {
+                    socket.emit('randomSongPlayFailed', 'Waiting list has only 1 song');
+                } else {
+                    const randomIndex = Math.floor(Math.random() * otherSongs.length);
+                    const randomSong = otherSongs[randomIndex];
+                    room.currentSong.song = randomSong;
+                    room.currentSong.isPlaying = true;
+                    room.currentSong.currentTime = 0;
+                    io.to(socket.roomId).emit('playSong', room.currentSong);
+                }
+            });
+
+            // socket.on('skipBackward', () => {
+            //     const room = rooms[socket.roomId];
+            //     console.log('ban đầu: ', room.currentSong.currentTime);
+            //     const currentTime = room.currentSong.currentTime;
+            //     if (currentTime - 5 < 0) {
+            //         room.currentSong.currentTime = 0;
+            //     } else {
+            //         room.currentSong.currentTime = currentTime - 5;
+            //     }
+            //     console.log('lúc sau: ', room.currentSong.currentTime);
+            //     socket.to(socket.roomId).emit('UpdateAudio', {
+            //         isPlaying: room.currentSong.isPlaying,
+            //         currentTime: room.currentSong.currentTime,
+            //     });
+            // });
+
+            socket.on('repeatSong', () => {
+                const room = rooms[socket.roomId];
+                socket.to(socket.roomId).emit('repeatSong');
             });
 
             socket.on('disconnect', () => {
