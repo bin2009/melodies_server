@@ -333,6 +333,34 @@ const deletePlaylistService = async ({ playlistId, user } = {}) => {
     }
 };
 
+const updateUserService = async ({ user, data, file } = {}) => {
+    try {
+        const findUser = await db.User.findByPk(user.id);
+        if (!findUser) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+
+        const validPass = await bcrypt.compare(data.oldPassword, findUser.password);
+        if (!validPass) throw new ApiError(StatusCodes.UNAUTHORIZED, 'Old password is incorrect.');
+
+        let imageFile;
+        if (file) {
+            imageFile = await awsService.userUploadImage(user.id, file);
+        }
+
+        const updateData = {};
+        if (data.name) updateData.name = data.name;
+        if (data.password) {
+            const hashPass = await bcrypt.hash(data.password, saltRounds);
+            updateData.password = hashPass;
+        }
+        if (imageFile && imageFile !== null) {
+            updateData.image = imageFile;
+        }
+        await db.User.update(updateData, { where: { id: user.id } });
+    } catch (error) {
+        throw error;
+    }
+};
+
 // ------------------------------------------
 const playTimeService = async ({ data, user } = {}) => {
     try {
@@ -707,6 +735,7 @@ export const userService = {
     updatePlaylistService,
     deleteSongService,
     deletePlaylistService,
+    updateUserService,
     // ---------------actions
     playTimeService,
     likedSongService,

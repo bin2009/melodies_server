@@ -198,6 +198,18 @@ const deletePlaylist = async (req, res, next) => {
     }
 };
 
+const updateUser = async (req, res, next) => {
+    try {
+        await userService.updateUserService({ user: req.user, data: req.body, file: req.file });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Update user success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // ----------------------actions
 
 const playTime = async (req, res, next) => {
@@ -374,6 +386,7 @@ export const userController = {
     updatePlaylist,
     deleteSong,
     deletePlaylist,
+    updateUser,
     // ---------actions
     playTime,
     likedSong,

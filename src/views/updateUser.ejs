@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Update user</title>
+    </head>
+    <body>
+        <h1>Update user</h1>
+        <form id="updateUserForm">
+            <input type="hidden" id="userId" name="userId" value="<%= user.id %>" />
+
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" value="<%= user.name %>" required /><br /><br />
+
+            <label for="image">Current Image:</label><br />
+            <% if (user.image) { %>
+            <img src="<%= user.image %>" alt="User image" style="max-width: 200px" /><br /><br />
+            <% } %>
+
+            <label for="image">Update image:</label>
+            <input type="file" id="image" name="image" accept="image/*" /><br /><br />
+
+            <label for="oldPassword">Old Password:</label>
+            <input type="oldPassword" id="oldPassword" name="oldPassword" /><br /><br />
+
+            <label for="password">New Password:</label>
+            <input type="password" id="password" name="password" /><br /><br />
+
+            <label for="confirmPassword">Confirm New Password:</label>
+            <input type="password" id="confirmPassword" name="confirmPassword" /><br /><br />
+
+            <button type="submit">Update User</button>
+        </form>
+
+        <script>
+            document.getElementById('updateUserForm').addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                const form = event.target;
+                const formData = new FormData();
+
+                const name = document.getElementById('name').value;
+                const password = document.getElementById('password').value;
+                const oldPassword = document.getElementById('oldPassword').value;
+                const image = document.getElementById('image').files[0];
+
+                formData.append('name', name);
+                formData.append('password', password);
+                formData.append('oldPassword', oldPassword);
+                formData.append('image', image);
+                const token =
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQyMDA3Nzc2LTY4NDQtNDljOS05YzJiLTBjMTBlNWFkOTQ4MCIsInJvbGUiOiJVc2VyIiwidXNlcm5hbWUiOiJ1c2VybmFtZTEiLCJhY2NvdW50VHlwZSI6IlByZW1pdW0iLCJpYXQiOjE3MzQyMjc3NDQsImV4cCI6MTczNDMxNDE0NH0.hsfWqLE7wOIasXK-Daagbz_CWzdwl-NoKvSsj9-oFpg';
+                try {
+                    const response = await fetch(`/api/user`, {
+                        method: 'PATCH',
+                        headers: {
+                            Authorization: `Bearer ${token}`, // Replace `token` with your actual token variable
+                        },
+                        body: formData,
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        alert('Album updated successfully!');
+                    } else {
+                        alert('Error updating album: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error updating album');
+                }
+            });
+        </script>
+    </body>
+</html>

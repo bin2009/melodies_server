@@ -176,6 +176,26 @@ const userUploadSongLyric = async (userId, songId, lyric) => {
     }
 };
 
+const userUploadImage = async (userId, file) => {
+    try {
+        const fileName = `PBL6/USER/IMAGE/${userId}_image`;
+        const params = {
+            Bucket: process.env.DO_SPACES_BUCKET,
+            Key: fileName,
+            Body: file.buffer,
+            ACL: 'public-read', // Đặt quyền truy cập công khai
+        };
+
+        const data = await s3.upload(params).promise();
+        return data.Location.replace(
+            'nyc3.digitaloceanspaces.com/audiomelodies',
+            'https://audiomelodies.nyc3.cdn.digitaloceanspaces.com',
+        );
+    } catch (error) {
+        throw error;
+    }
+};
+
 const deleteFile = async (filePath) => {
     console.log('file path: ', filePath);
     const bucketName = 'audiomelodies'; // Tên bucket
@@ -259,6 +279,7 @@ export const awsService = {
     uploadAlbumCover,
     userUploadSong,
     userUploadSongLyric,
+    userUploadImage,
     deleteFile,
     deleteFolder,
     copyFile,

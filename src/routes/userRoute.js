@@ -7,6 +7,7 @@ import { userController } from '~/controllers/userController';
 import { emailController } from '~/controllers/emailController';
 import { playlistValidations } from '~/validations/playlistValidations';
 import { appMiddleWare } from '~/middleware/appMiddleWare';
+import { userService } from '~/services/userService';
 
 const upload = multer();
 
@@ -42,7 +43,9 @@ Router.route('/user/actions/report').post(authMiddleWare.verifyToken, userContro
 Router.route('/user/otp').post(authMiddleWare.checkEmailAndUsernameExits, emailController.sendOtp);
 Router.route('/user/register').post(userController.register);
 
-Router.route('/user').get(authMiddleWare.verifyToken, userController.getInfoUser);
+Router.route('/user')
+    .get(authMiddleWare.verifyToken, userController.getInfoUser)
+    .patch(authMiddleWare.verifyToken, upload.single('image'), userController.updateUser);
 Router.route('/user/uploadSong').post(
     authMiddleWare.verifyToken,
     appMiddleWare.checkPremium,
@@ -70,7 +73,16 @@ Router.route('/user/song/:songId')
 Router.route('/user/notifications').get(authMiddleWare.verifyToken, userController.getAllNotifications);
 Router.route('/user/report/:reportId').get(authMiddleWare.verifyToken, userController.getReportDetail);
 
-Router.route('/test').patch((req, res) => {
-    res.status(200).json('hah');
+import db from '~/models';
+Router.route('/user/test/:userId').get(async (req, res, next) => {
+    try {
+        const user = await db.User.findByPk(req.params.userId);
+        // console.log('user: ', user);
+        // const user = await userService.getInfoUserService(req.user);
+        res.render('updateUser', { user: user.get({ plain: true }) });
+    } catch (error) {
+        next(error);
+    }
 });
+
 export default Router;
