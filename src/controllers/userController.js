@@ -297,13 +297,15 @@ const userUploadSong = async (req, res, next) => {
     try {
         const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
         const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
+        const imageFile = req.files.imageFile ? req.files.imageFile[0] : null;
 
         await userService.userUploadSongService({
             user: req.user,
             title: JSON.parse(req.body.title),
             file: audioFile,
-            duration: req.duration,
+            duration: parseInt(req.duration * 1000),
             lyric: lyricFile,
+            image: imageFile,
         });
         res.status(StatusCodes.OK).json({
             status: 'success',
@@ -331,19 +333,33 @@ const updateUserSong = async (req, res, next) => {
     try {
         const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
         const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
+        const imageFile = req.files.imageFile ? req.files.imageFile[0] : null;
 
         const song = await userService.updateUserSongService({
             user: req.user,
             songId: req.params.songId,
             title: JSON.parse(req.body.title),
             file: audioFile,
-            duration: req.duration,
+            duration: parseInt(req.duration * 1000),
             lyric: lyricFile,
+            image: imageFile,
         });
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Update song success',
             song: song,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteUserSong = async (req, res, next) => {
+    try {
+        await userService.deleteUserSongService({ user: req.user, songId: req.params.songId });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Delete song success',
         });
     } catch (error) {
         next(error);
@@ -397,6 +413,7 @@ export const userController = {
     userUploadSong,
     getUserSong,
     updateUserSong,
+    deleteUserSong,
     getAllNotifications,
     getReportDetail,
 };

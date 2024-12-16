@@ -9,13 +9,37 @@
         <h1>Update Song</h1>
         <form id="updateSongForm">
             <label for="title">Title:</label>
-            <input type="text" id="title" name="title" required /><br /><br />
+            <input type="text" id="title" name="title" value="<%= song.title%>" required /><br /><br />
+
+            <label for="oldAudioFile">Audio Current:</label><br />
+            <% if (song.filePathAudio) { %>
+            <input
+                type="text"
+                id="oldAudioFile"
+                name="oldAudioFile"
+                value="<%= song.filePathAudio%>"
+                readonly
+            /><br /><br />
+            <% } %>
 
             <label for="audioFile">Audio File:</label>
             <input type="file" id="audioFile" name="audioFile" /><br /><br />
 
+            <label for="oldLyricFile">Lyric Current:</label><br />
+            <% if (song.lyric) { %>
+            <input type="text" id="oldLyricFile" name="oldLyricFile" value="<%= song.lyric%>" readonly /><br /><br />
+            <% } %>
+
             <label for="lyricFile">Lyric File:</label>
             <input type="file" id="lyricFile" name="lyricFile" /><br /><br />
+
+            <label for="oldImageFile">Image Current:</label><br />
+            <% if (song.image) { %>
+            <img src="<%= song.image %>" alt="oldImageFile" style="max-width: 200px" /><br /><br />
+            <% } %>
+
+            <label for="imageFile">Image File:</label>
+            <input type="file" id="imageFile" name="imageFile" /><br /><br />
 
             <button type="submit">Update Song</button>
         </form>
@@ -29,6 +53,7 @@
                 const title = document.getElementById('title').value;
                 const audioFile = document.getElementById('audioFile').files[0];
                 const lyricFile = document.getElementById('lyricFile').files[0];
+                const imageFile = document.getElementById('imageFile').files[0];
                 const statusMessage = document.getElementById('statusMessage');
 
                 if (!title) {
@@ -38,18 +63,14 @@
 
                 const formData = new FormData();
                 formData.append('title', JSON.stringify(title));
-                if (audioFile) {
-                    formData.append('audioFile', audioFile);
-                }
-                if (lyricFile) {
-                    formData.append('lyricFile', lyricFile);
-                }
+                formData.append('audioFile', audioFile);
+                formData.append('lyricFile', lyricFile);
+                formData.append('imageFile', imageFile);
 
                 const accessToken =
-                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQ4ZDUwYTU1LTdjODMtNDQ1YS04NGViLTU5Y2Y2ZWYwNDc0NSIsInJvbGUiOiJVc2VyIiwidXNlcm5hbWUiOiJ1c2VybmFtZTIiLCJhY2NvdW50VHlwZSI6IlByZW1pdW0iLCJpYXQiOjE3MzMzODk4MzgsImV4cCI6MTczMzQ3NjIzOH0.VQTppt_Xwvq7RqXKgIEmqbn1fk54obQ42axTfvxzcO8';
-
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQyMDA3Nzc2LTY4NDQtNDljOS05YzJiLTBjMTBlNWFkOTQ4MCIsInJvbGUiOiJVc2VyIiwidXNlcm5hbWUiOiJ1c2VybmFtZTEiLCJhY2NvdW50VHlwZSI6IlByZW1pdW0iLCJpYXQiOjE3MzQzMjgyOTksImV4cCI6MTczNDQxNDY5OX0.C4S2rlpEeXBrtwHvTBwJRXjpS1b1LxJFhrQb5o1O5no';
                 try {
-                    const response = await fetch('/api/user/song/dfb631d1-2b63-467d-888b-bde4d25d8108', {
+                    const response = await fetch(`/api/user/song/<%=song.id%>`, {
                         method: 'PATCH',
                         body: formData,
                         headers: {

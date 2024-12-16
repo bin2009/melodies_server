@@ -53,6 +53,7 @@ Router.route('/user/uploadSong').post(
     upload.fields([
         { name: 'audioFile', maxCount: 1 },
         { name: 'lyricFile', maxCount: 1 },
+        { name: 'imageFile', maxCount: 1 },
     ]),
     appMiddleWare.calculateDuration,
     userController.userUploadSong,
@@ -65,10 +66,12 @@ Router.route('/user/song/:songId')
         upload.fields([
             { name: 'audioFile', maxCount: 1 },
             { name: 'lyricFile', maxCount: 1 },
+            { name: 'imageFile', maxCount: 1 },
         ]),
         appMiddleWare.calculateDuration,
         userController.updateUserSong,
-    );
+    )
+    .delete(authMiddleWare.verifyToken, appMiddleWare.checkPremium, userController.deleteUserSong);
 
 Router.route('/user/notifications').get(authMiddleWare.verifyToken, userController.getAllNotifications);
 Router.route('/user/report/:reportId').get(authMiddleWare.verifyToken, userController.getReportDetail);
@@ -85,4 +88,20 @@ Router.route('/user/test/:userId').get(async (req, res, next) => {
     }
 });
 
+Router.route('/user/haha/:songId').get(async (req, res, next) => {
+    try {
+        // res.render('userUploadSong');
+        const song = await db.PersonalSong.findByPk(req.params.songId);
+        res.render('userUpdateSong', { song: song });
+    } catch (error) {
+        next(error);
+    }
+});
+Router.route('/user/haha2').get(async (req, res, next) => {
+    try {
+        res.render('userUploadSong');
+    } catch (error) {
+        next(error);
+    }
+});
 export default Router;

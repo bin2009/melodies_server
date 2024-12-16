@@ -129,10 +129,11 @@ const uploadAlbumCover = async (mainArtistId, albumId, file) => {
     return data.Location;
 };
 
+// personal song
 const userUploadSong = async (userId, songId, file) => {
     try {
         const fileExtension = path.extname(file.originalname);
-        const fileName = `PBL6/USER/${userId}/SONG/${songId}${fileExtension}`;
+        const fileName = `PBL6/USER/USER_${userId}/SONG_${songId}/audio/audio${fileExtension}`;
 
         const params = {
             Bucket: process.env.DO_SPACES_BUCKET,
@@ -155,7 +156,7 @@ const userUploadSong = async (userId, songId, file) => {
 const userUploadSongLyric = async (userId, songId, lyric) => {
     try {
         const fileExtension = path.extname(lyric.originalname);
-        const fileName = `PBL6/USER/${userId}/SONG/lyric_${songId}${fileExtension}`;
+        const fileName = `PBL6/USER/USER_${userId}/SONG_${songId}/lyric/lyric${fileExtension}`;
 
         const params = {
             Bucket: process.env.DO_SPACES_BUCKET,
@@ -167,6 +168,27 @@ const userUploadSongLyric = async (userId, songId, lyric) => {
 
         const data = await s3.upload(params).promise();
 
+        return data.Location.replace(
+            'nyc3.digitaloceanspaces.com/audiomelodies',
+            'https://audiomelodies.nyc3.cdn.digitaloceanspaces.com',
+        );
+    } catch (error) {
+        throw error;
+    }
+};
+
+const userUploadSongImage = async (userId, songId, image) => {
+    try {
+        const fileExtension = path.extname(image.originalname);
+        const fileName = `PBL6/USER/USER_${userId}/SONG_${songId}/image/image${fileExtension}`;
+        const params = {
+            Bucket: process.env.DO_SPACES_BUCKET,
+            Key: fileName,
+            Body: image.buffer,
+            ACL: 'public-read', // Đặt quyền truy cập công khai
+        };
+
+        const data = await s3.upload(params).promise();
         return data.Location.replace(
             'nyc3.digitaloceanspaces.com/audiomelodies',
             'https://audiomelodies.nyc3.cdn.digitaloceanspaces.com',
@@ -197,17 +219,30 @@ const userUploadImage = async (userId, file) => {
 };
 
 const deleteFile = async (filePath) => {
-    console.log('file path: ', filePath);
-    const bucketName = 'audiomelodies'; // Tên bucket
-    const key = filePath.substring(filePath.indexOf(bucketName) + bucketName.length + 1); // Lấy key
+    try {
+        // console.log('file path: ', filePath);
+        // const bucketName = 'audiomelodies'; // Tên bucket
+        // const key = filePath.substring(filePath.indexOf(bucketName) + bucketName.length + 1); // Lấy key
 
-    console.log('key: ', key);
-    const params = {
-        Bucket: bucketName,
-        Key: key,
-    };
+        // console.log('key: ', key);
+        // const params = {
+        //     Bucket: bucketName,
+        //     Key: key,
+        // };
 
-    return s3.deleteObject(params).promise();
+        // return s3.deleteObject(params).promise();
+
+        // console.log('file path: ', filePath);
+        const bucketName = 'audiomelodies'; // Tên bucket
+        const params = {
+            Bucket: bucketName,
+            Key: filePath,
+        };
+
+        return s3.deleteObject(params).promise();
+    } catch (error) {
+        throw error;
+    }
 };
 
 const deleteFolder = async (folderPath) => {
@@ -270,6 +305,31 @@ const copyFolder = async (sourceFolder, destinationFolder) => {
     if (listedObjects.IsTruncated) await copyFolder(sourceFolder, destinationFolder);
 };
 
+const moveFile = async (sourceKey, destinationKey) => {
+    try {
+        const bucketName = process.env.DO_SPACES_BUCKET;
+        await s3.headObject({ Bucket: bucketName, Key: sourceKey }).promise();
+        console.log('Source file exists.');
+
+        await s3
+            .copyObject({
+                Bucket: bucketName,
+                CopySource: `${bucketName}/${sourceKey}`,
+                Key: destinationKey,
+            })
+            .promise();
+
+        await s3
+            .deleteObject({
+                Bucket: bucketName,
+                Key: sourceKey,
+            })
+            .promise();
+    } catch (error) {
+        throw error;
+    }
+};
+
 export const awsService = {
     uploadArtistAvatar,
     uploadPlaylistAvatar,
@@ -279,9 +339,11 @@ export const awsService = {
     uploadAlbumCover,
     userUploadSong,
     userUploadSongLyric,
+    userUploadSongImage,
     userUploadImage,
     deleteFile,
     deleteFolder,
     copyFile,
     copyFolder,
+    moveFile,
 };

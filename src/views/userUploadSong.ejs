@@ -25,6 +25,10 @@
                 <label for="lyricFile">JSON File:</label>
                 <input type="file" id="lyricFile" name="lyricFile" accept="application/json" />
             </div>
+            <div>
+                <label for="imageFile">song image:</label>
+                <input type="file" id="imageFile" name="imageFile" accept="image/*" /><br /><br />
+            </div>
             <button type="submit">Upload</button>
         </form>
         <p id="statusMessage"></p>
@@ -36,6 +40,7 @@
                 const title = document.getElementById('title').value;
                 const audioFile = document.getElementById('audioFile').files[0];
                 const lyricFile = document.getElementById('lyricFile').files[0];
+                const imageFile = document.getElementById('imageFile').files[0];
                 const statusMessage = document.getElementById('statusMessage');
 
                 if (!audioFile) {
@@ -47,8 +52,9 @@
                 formData.append('title', JSON.stringify(title));
                 formData.append('audioFile', audioFile);
                 formData.append('lyricFile', lyricFile);
+                formData.append('imageFile', imageFile);
                 const accessToken =
-                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQ4ZDUwYTU1LTdjODMtNDQ1YS04NGViLTU5Y2Y2ZWYwNDc0NSIsInJvbGUiOiJVc2VyIiwidXNlcm5hbWUiOiJ1c2VybmFtZTIiLCJhY2NvdW50VHlwZSI6IlByZW1pdW0iLCJpYXQiOjE3MzMzODk4MzgsImV4cCI6MTczMzQ3NjIzOH0.VQTppt_Xwvq7RqXKgIEmqbn1fk54obQ42axTfvxzcO8';
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQyMDA3Nzc2LTY4NDQtNDljOS05YzJiLTBjMTBlNWFkOTQ4MCIsInJvbGUiOiJVc2VyIiwidXNlcm5hbWUiOiJ1c2VybmFtZTEiLCJhY2NvdW50VHlwZSI6IlByZW1pdW0iLCJpYXQiOjE3MzQzMjgyOTksImV4cCI6MTczNDQxNDY5OX0.C4S2rlpEeXBrtwHvTBwJRXjpS1b1LxJFhrQb5o1O5no';
                 try {
                     const response = await fetch('/api/user/uploadSong', {
                         method: 'POST',
