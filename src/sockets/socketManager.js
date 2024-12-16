@@ -31,7 +31,8 @@ const setupSocketIO = (io) => {
                 const roomId = uuidv4();
                 rooms[roomId] = {
                     host: socket.user.id,
-                    members: [{ [socket.user.id]: socket.user }],
+                    // members: [{ [socket.user.id]: socket.user }],
+                    members: [socket.user],
                     songState: { isPlaying: true, currentTime: 0 },
                     currentSong: { song: {}, isPlaying: true, currentTime: 0 },
                     proposalList: [],
@@ -41,7 +42,9 @@ const setupSocketIO = (io) => {
                 socket.join(roomId);
                 socket.roomId = roomId;
                 socket.emit('createRoomSuccess', roomId);
-                io.to(roomId).emit('members', rooms[roomId].members);
+                socket.emit('members', rooms[roomId].members);
+                // io.to(roomId).emit('members', rooms[roomId].members);
+                // io.to(roomId).emit('members', rooms[roomId].members);
             });
 
             socket.on('joinRoom', (roomId) => {
@@ -59,7 +62,8 @@ const setupSocketIO = (io) => {
                 socket.roomId = roomId;
 
                 // rooms[roomId].members.push(socket.user.username);
-                rooms[roomId].members.push({ [socket.user.id]: socket.user });
+                // rooms[roomId].members.push({ [socket.user.id]: socket.user });
+                rooms[roomId].members.push(socket.user);
 
                 socket.to(roomId).emit('memberJoined', { username: socket.user.username });
                 socket.emit('joinRoomSuccess', {
@@ -74,13 +78,23 @@ const setupSocketIO = (io) => {
 
             socket.on('leaveRoom', () => {
                 const roomId = socket.roomId;
-                if (rooms[roomId]) {
-                    if (rooms[roomId].host === socket.user.id) {
-                        socket.roomId = null;
+                const room = rooms[socket.roomId];
+                if (room) {
+                    if (room.host === socket.user.id) {
+                        // Gửi thông báo đến tất cả thành viên trong phòng
                         socket.emit('leaveRoomSuccess');
-                        io.to(roomId).emit('roomClosed');
+                        socket.to(roomId).emit('roomClosed', 'The room has been closed because the owner left.');
+
+                        for (const client of io.sockets.adapter.rooms.get(roomId) || []) {
+                            const socketInstance = io.sockets.sockets.get(client);
+                            if (socketInstance) {
+                                delete socketInstance.roomId; // Xóa giá trị roomId
+                            }
+                        }
+                        io.in(roomId).socketsLeave(roomId);
                         delete rooms[roomId];
                     } else {
+                        socket.leave(roomId);
                         socket.roomId = null;
                         socket.emit('leaveRoomSuccess');
                         const memberIndex = rooms[roomId].members.indexOf(socket.user.username);
