@@ -73,13 +73,38 @@ const uploadSongWithLyric = async (songId, file, lyric) => {
 const uploadSong = async (songId, file) => {
     try {
         console.log('upload song', file);
-        const fileName = `PBL6/SONG/${songId}/${file.originalname}`;
+        const fileExtension = path.extname(file.originalname);
+        const fileName = `PBL6/SONG/SONG_${songId}/audio/audio${fileExtension}`;
 
         const params = {
             Bucket: process.env.DO_SPACES_BUCKET,
             Key: fileName,
             Body: file.buffer,
             ACL: 'public-read', // Đặt quyền truy cập công khai
+        };
+
+        const data = await s3.upload(params).promise();
+
+        return data.Location.replace(
+            'nyc3.digitaloceanspaces.com/audiomelodies',
+            'https://audiomelodies.nyc3.cdn.digitaloceanspaces.com',
+        );
+    } catch (error) {
+        throw error;
+    }
+};
+
+const uploadSongLyric = async (songId, lyric) => {
+    try {
+        const fileExtension = path.extname(lyric.originalname);
+        const fileName = `PBL6/SONG/SONG_${songId}/lyric/lyric${fileExtension}`;
+
+        const params = {
+            Bucket: process.env.DO_SPACES_BUCKET,
+            Key: fileName,
+            Body: lyric.buffer,
+            ACL: 'public-read', // Đặt quyền truy cập công khai
+            ContentType: 'application/json',
         };
 
         const data = await s3.upload(params).promise();
@@ -334,6 +359,7 @@ export const awsService = {
     uploadArtistAvatar,
     uploadPlaylistAvatar,
     uploadSong,
+    uploadSongLyric,
     uploadSongWithLyric,
     uploadLyricFile,
     uploadAlbumCover,

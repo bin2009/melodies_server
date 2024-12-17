@@ -49,9 +49,9 @@ const createSong = async (req, res, next) => {
         const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
         const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
 
-        if (parsedData.type === 'single' && parsedData.songIds.length > 1) {
-            throw new ApiError(StatusCodes.BAD_REQUEST, 'Type single just has only one song');
-        }
+        // if (parsedData.type === 'single' && parsedData.songIds.length > 1) {
+        //     throw new ApiError(StatusCodes.BAD_REQUEST, 'Type single just has only one song');
+        // }
 
         await adminService.createSongService({
             data: parsedData,
