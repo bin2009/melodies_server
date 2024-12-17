@@ -31,3 +31,8 @@ export const SUSPENSION_DURATION = Object.freeze({
     LOCK7: 7,
     PERMANENT: 'permanent',
 });
+
+export const PLAYLIST_TYPE = Object.freeze({
+    MYMUSIC: 'Nhạc của tôi',
+    FAVOURITE: 'Yêu thích',
+});

@@ -71,14 +71,6 @@ module.exports = (sequelize, DataTypes) => {
                 primaryKey: true,
                 defaultValue: DataTypes.UUIDV4,
             },
-            // albumId: {
-            //     type: DataTypes.UUID,
-            //     references: {
-            //         model: 'Album',
-            //         key: 'albumId',
-            //     },
-            //     allowNull: true,
-            // },
             title: {
                 type: DataTypes.STRING,
                 allowNull: false,
@@ -111,8 +103,9 @@ module.exports = (sequelize, DataTypes) => {
             releaseDate: {
                 type: DataTypes.DATE,
             },
-            viewCount: {
-                type: DataTypes.INTEGER,
+            image: {
+                type: DataTypes.STRING,
+                allowNull: true,
             },
         },
         {

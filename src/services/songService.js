@@ -190,7 +190,10 @@ const getAllSongService = async ({ page = 1, limit = 10 } = {}) => {
     try {
         const offset = (page - 1) * limit;
 
-        const [totalSong, songs] = await Promise.all([db.Song.count(), fetchSongs({ limit: limit, offset: offset })]);
+        const [totalSong, songs] = await Promise.all([
+            db.Song.count({ where: { privacy: false } }),
+            fetchSongs({ limit: limit, offset: offset, conditions: { privacy: false } }),
+        ]);
 
         const result = songs.map((s) => {
             const { album, artists, ...other } = s;
@@ -217,7 +220,7 @@ const getAllSongService = async ({ page = 1, limit = 10 } = {}) => {
 const getSongService = async (songId, user) => {
     try {
         const [song, likedSongs] = await Promise.all([
-            fetchSongs({ conditions: { id: songId }, mode: 'findOne' }),
+            fetchSongs({ conditions: { id: songId, privacy: false }, mode: 'findOne' }),
             user && db.Like.findOne({ where: { songId: songId, userId: user.id }, raw: true }),
         ]);
 
@@ -260,7 +263,7 @@ const getWeeklyTopSongsService = async ({ page = 1, limit = 10, user } = {}) => 
             .slice(start, end);
 
         const [songs, likedSongs] = await Promise.all([
-            fetchSongs({ conditions: { id: { [Op.in]: topSongIds.map((rec) => rec.songId) } } }),
+            fetchSongs({ conditions: { id: { [Op.in]: topSongIds.map((rec) => rec.songId) }, privacy: false } }),
             user &&
                 db.Like.findAll({
                     where: { songId: { [Op.in]: topSongIds?.map((rec) => rec.songId) }, userId: user.id },
@@ -332,6 +335,7 @@ const getTrendingSongsService = async ({ page = 1, limit = 10, user } = {}) => {
                     id: {
                         [Op.in]: sortedSongStats.map((song) => song.songId),
                     },
+                    privacy: false,
                 },
             }),
             user &&
@@ -384,7 +388,7 @@ const getNewReleaseSongsService = async ({ page = 1, limit = 10, user } = {}) =>
                 db.Like.findAll({
                     where: { songId: { [Op.in]: newReleaseSongs?.map((rec) => rec.songId) }, userId: user.id },
                 }),
-            db.Song.count(),
+            db.Song.count({ where: { privacy: false } }),
         ]);
 
         const likedSongsMap = new Set(likedSongs?.map((like) => like.songId));
@@ -424,7 +428,7 @@ const getOtherSongByArtistService = async ({ artistId, page = 1, limit = 10, use
         const songIds = allSongIdsSet.slice(start, end);
 
         const [songs, likedSongs] = await Promise.all([
-            fetchSongs({ conditions: { id: { [Op.in]: songIds.map((s) => s.songId) } } }),
+            fetchSongs({ conditions: { id: { [Op.in]: songIds.map((s) => s.songId) }, privacy: false } }),
             user &&
                 db.Like.findAll({
                     where: { songId: { [Op.in]: songIds?.map((rec) => rec.songId) }, userId: user.id },
@@ -476,7 +480,7 @@ const getSongOtherArtistService = async ({ artistId, page = 1, limit = 10, user 
         const songIds = allSongIdsSet.slice(start, end);
 
         const [songs, likedSongs] = await Promise.all([
-            fetchSongs({ conditions: { id: { [Op.in]: songIds.map((s) => s.songId) } } }),
+            fetchSongs({ conditions: { id: { [Op.in]: songIds.map((s) => s.songId) }, privacy: false } }),
             user &&
                 db.Like.findAll({
                     where: { songId: { [Op.in]: songIds?.map((rec) => rec.songId) }, userId: user.id },
@@ -531,7 +535,7 @@ const getSongSameGenreService = async ({ artistId, page = 1, limit = 10, user } 
         const songIds = allSongIdsSet.slice(start, end);
 
         const [songs, likedSongs] = await Promise.all([
-            fetchSongs({ conditions: { id: { [Op.in]: songIds.map((s) => s.songId) } } }),
+            fetchSongs({ conditions: { id: { [Op.in]: songIds.map((s) => s.songId) }, privacy: false } }),
             user &&
                 db.Like.findAll({
                     where: { songId: { [Op.in]: songIds.map((s) => s.songId) }, userId: user.id },
@@ -700,7 +704,7 @@ const serach2Service = async (query, page = 1, limit = 10) => {
 
         const [artists, songs, albums] = await Promise.all([
             db.Artist.findAll({ order: [['createdAt', 'DESC']], where: { hide: false } }),
-            db.Song.findAll({ order: [['releaseDate', 'DESC']] }),
+            db.Song.findAll({ order: [['releaseDate', 'DESC']], where: { privacy: false } }),
             db.Album.findAll({ order: [['releaseDate', 'DESC']] }),
         ]);
 
@@ -751,13 +755,18 @@ const serach2Service = async (query, page = 1, limit = 10) => {
         const [topResult, songTopResult, artistData, songData, albumData] = await Promise.all([
             combinedResults[0].type === 'artist' ? db.Artist.findByPk(combinedResults[0].id) : [],
             combinedResults[0].type === 'artist'
-                ? fetchSongs({ conditions: { id: { [Op.in]: songIds?.map((s) => s.songId) } }, limit: 5 })
+                ? fetchSongs({
+                      conditions: { id: { [Op.in]: songIds?.map((s) => s.songId) }, privacy: false },
+                      limit: 5,
+                  })
                 : [],
             db.Artist.findAll({
                 where: { id: { [Op.in]: resultArtist.map((r) => r.item.id).slice(start, end) } },
                 attributes: ['id', 'name', 'avatar', 'bio'],
             }),
-            fetchSongs({ conditions: { id: { [Op.in]: resultSong.map((r) => r.item.id).slice(start, end) } } }),
+            fetchSongs({
+                conditions: { id: { [Op.in]: resultSong.map((r) => r.item.id).slice(start, end) }, privacy: false },
+            }),
             db.Album.findAll({
                 where: { albumId: { [Op.in]: resultAlbum.map((a) => a.item.albumId).slice(start, end) } },
                 attributes: ['albumId', 'title', 'releaseDate'],
@@ -772,7 +781,7 @@ const serach2Service = async (query, page = 1, limit = 10) => {
                     songId &&
                     (await db.Song.findOne({
                         // where: { albumId: album.albumId },
-                        where: { id: songId.songId },
+                        where: { id: songId.songId, privacy: false },
                         attributes: [],
                         include: [
                             {
@@ -815,7 +824,7 @@ const searchSongService = async (query, page = 1, limit = 10) => {
         const start = (page - 1) * limit;
         const end = start + limit;
 
-        const allSongs = await db.Song.findAll();
+        const allSongs = await db.Song.findAll({ where: { privacy: false } });
         const dataSong = allSongs.map((s) => ({ id: s.id, title: s.title }));
         const optionsSong = {
             keys: ['title'],
@@ -827,7 +836,9 @@ const searchSongService = async (query, page = 1, limit = 10) => {
         const sortedResults = resultSong.sort((a, b) => a.score - b.score);
         const resultSongTop = sortedResults.slice(start, end);
 
-        const songs = await fetchSongs({ conditions: { id: { [Op.in]: resultSongTop.map((r) => r.item.id) } } });
+        const songs = await fetchSongs({
+            conditions: { id: { [Op.in]: resultSongTop.map((r) => r.item.id) }, privacy: false },
+        });
         const songsMap = songs.reduce((acc, item) => {
             acc[item.id] = item;
             return acc;

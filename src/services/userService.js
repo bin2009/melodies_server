@@ -11,7 +11,7 @@ import { artistService } from './artistService';
 import { awsService } from './awsService';
 import formatTime from '~/utils/timeFormat';
 import encodeData from '~/utils/encryption';
-import { NOTIFICATIONS } from '~/data/enum';
+import { NOTIFICATIONS, PLAYLIST_TYPE } from '~/data/enum';
 
 const saltRounds = 10;
 
@@ -521,10 +521,13 @@ const userUploadSongService = async ({ user, title, file, duration, lyric, image
     const transaction = await db.sequelize.transaction();
     let songId;
     try {
-        const song = await db.PersonalSong.create(
+        const song = await db.Song.create(
             {
                 userId: user.id,
                 title: title,
+                filePathAudio: 'No file',
+                privacy: true,
+                uploadUserId: user.id,
             },
             { transaction },
         );
@@ -555,7 +558,16 @@ const userUploadSongService = async ({ user, title, file, duration, lyric, image
             );
         }
         await Promise.all(uploadPromises.map((fn) => fn()));
-        await db.PersonalSong.update(updates, { where: { id: songId }, transaction });
+        await db.Song.update(updates, { where: { id: songId }, transaction });
+        //  lấy ra playlist của user đó -> thêm nhạc vào
+        const playlist = await db.Playlist.findOne({ where: { userId: user.id, title: PLAYLIST_TYPE.MYMUSIC } });
+        await db.PlaylistSong.create(
+            {
+                playlistId: playlist.id,
+                songId: songId,
+            },
+            { transaction },
+        );
         await transaction.commit();
     } catch (error) {
         await transaction.rollback();
@@ -566,9 +578,10 @@ const userUploadSongService = async ({ user, title, file, duration, lyric, image
 
 const getUserSongService = async (user, songId) => {
     try {
-        const song = await db.PersonalSong.findByPk(songId);
+        const song = await db.Song.findByPk(songId);
         if (!song) throw new ApiError(StatusCodes.NOT_FOUND, 'Song not found');
-        if (song.userId !== user.id) throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access to the song');
+        if (song.uploadUserId !== user.id)
+            throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access to the song');
 
         const formatter = song.toJSON();
         formatter.createdAt = formatTime(formatter.createdAt);
@@ -664,9 +677,10 @@ const updateUserSongService = async ({ user, songId, title, file, duration, lyri
     };
 
     try {
-        const song = await db.PersonalSong.findByPk(songId);
+        const song = await db.Song.findByPk(songId);
         if (!song) throw new ApiError(StatusCodes.NOT_FOUND, 'Song not found');
-        if (song.userId !== user.id) throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access to the song');
+        if (song.uploadUserId !== user.id)
+            throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access to the song');
 
         if (file) {
             const oldFilePathAudio = song.filePathAudio ? prefix + song.filePathAudio.split(prefix)[1] : null;
@@ -735,13 +749,12 @@ const updateUserSongService = async ({ user, songId, title, file, duration, lyri
         await Promise.all(operations.move.map((fn) => fn()));
         await Promise.all(operations.upload.map((fn) => fn()));
 
-        await db.PersonalSong.update(updates, { where: { id: song.id }, transaction });
+        await db.Song.update(updates, { where: { id: song.id }, transaction });
 
         await awsService.deleteFolder(`COPY/${prefix}/USER/USER_${user.id}/SONG_${songId}`);
         await transaction.commit();
-        const newSong = await db.PersonalSong.findByPk(songId);
+        const newSong = await db.Song.findByPk(songId);
         const formatter = newSong.toJSON();
-        delete formatter.userId;
         if (formatter.filePathAudio) formatter.filePathAudio = encodeData(formatter.filePathAudio);
         if (formatter.lyric) formatter.lyric = encodeData(formatter.lyric);
         if (formatter.image) formatter.image = encodeData(formatter.image);
@@ -759,13 +772,19 @@ const updateUserSongService = async ({ user, songId, title, file, duration, lyri
 };
 
 const deleteUserSongService = async ({ user, songId } = {}) => {
+    const transaction = await db.sequelize.transaction();
     try {
-        const song = await db.PersonalSong.findByPk(songId);
+        const song = await db.Song.findByPk(songId);
         if (!song) throw new ApiError(StatusCodes.NOT_FOUND, 'Song not found');
-        if (song.userId !== user.id) throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access to the song');
+        if (song.uploadUserId !== user.id)
+            throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access to the song');
 
-        await db.PersonalSong.destroy({ where: { id: song.id } });
+        const playlist = await db.Playlist.findOne({ where: { userId: user.id, title: PLAYLIST_TYPE.MYMUSIC } });
+        await db.PlaylistSong.destroy({ where: { playlistId: playlist.id, songId: song.id }, transaction });
+        await db.Song.destroy({ where: { id: song.id }, transaction });
+        await transaction.commit();
     } catch (error) {
+        await transaction.rollback();
         throw error;
     }
 };

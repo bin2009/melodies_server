@@ -91,7 +91,7 @@ Router.route('/user/test/:userId').get(async (req, res, next) => {
 Router.route('/user/haha/:songId').get(async (req, res, next) => {
     try {
         // res.render('userUploadSong');
-        const song = await db.PersonalSong.findByPk(req.params.songId);
+        const song = await db.Song.findByPk(req.params.songId);
         res.render('userUpdateSong', { song: song });
     } catch (error) {
         next(error);

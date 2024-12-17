@@ -1,6 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { duration } from 'moment-timezone';
 import { parseBuffer } from 'music-metadata';
+import { PLAYLIST_TYPE } from '~/data/enum';
 import db from '~/models';
 import ApiError from '~/utils/ApiError';
 
@@ -14,15 +15,22 @@ const checkMaxUpload = async (req, res, next) => {
             raw: true,
         });
         const packInfo = await db.SubscriptionPackage.findOne({ where: { id: packOfUser.packageId }, raw: true });
-        const playlist = await db.Playlist.findOne({
-            where: { title: 'Nhạc của tôi', userId: req.user.id },
-            raw: true,
-        });
-        const totalSong = await db.PlaylistSong.count({ where: { playlistId: playlist.id } });
-        if (packInfo.uploads <= totalSong) {
-            throw new ApiError(StatusCodes.BAD_REQUEST, 'You have reached the maximum number of uploads allowed.');
+        if (packInfo.uploads === null) {
+            next();
+        } else {
+            const playlist = await db.Playlist.findOne({
+                where: { title: PLAYLIST_TYPE.MYMUSIC, userId: req.user.id },
+                raw: true,
+            });
+            const totalSong = await db.PlaylistSong.count({ where: { playlistId: playlist.id } });
+            if (packInfo.uploads <= totalSong) {
+                throw new ApiError(
+                    StatusCodes.BAD_REQUEST,
+                    "You've hit the upload limit for your current plan. Upgrade now to unlock unlimited uploads and keep going!",
+                );
+            }
+            next();
         }
-        next();
     } catch (error) {
         next(error);
     }

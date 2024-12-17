@@ -119,7 +119,7 @@ const getUserGrowthService = async () => {
 const getTotalService = async () => {
     try {
         const data = {
-            totalSongs: (await db.Song.count()) || 0,
+            totalSongs: (await db.Song.count({ where: { privacy: false } })) || 0,
             totalArtists: (await db.Artist.count()) || 0,
             totalAlbums: (await db.Album.count()) || 0,
             totalPlaylist: (await db.Playlist.count()) || 0,
