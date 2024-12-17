@@ -42,7 +42,7 @@ const setupSocketIO = (io) => {
                 socket.join(roomId);
                 socket.roomId = roomId;
                 socket.emit('createRoomSuccess', roomId);
-                socket.emit('members', rooms[roomId].members);
+                // socket.emit('members', rooms[roomId].members);
                 // io.to(roomId).emit('members', rooms[roomId].members);
                 // io.to(roomId).emit('members', rooms[roomId].members);
             });
@@ -108,6 +108,23 @@ const setupSocketIO = (io) => {
                     socket.emit('leaveRoomSuccess');
                 } else {
                     socket.emit('leaveRoomFailed');
+                }
+            });
+
+            socket.on('getData', () => {
+                const room = rooms[socket.roomId];
+                if (room.host === socket.user.id) {
+                    socket.emit('members', rooms[socket.roomId].members);
+                } else {
+                    socket.emit('members', rooms[socket.roomId].members);
+                    socket.emit('roomData', {
+                        roomId: socket.roomId,
+                        permit: false,
+                        currentSong: rooms[socket.roomId].currentSong,
+                        waitingList: rooms[socket.roomId].waitingList,
+                        proposalList: rooms[socket.roomId].proposalList,
+                        currentSong: rooms[socket.roomId].currentSong,
+                    });
                 }
             });
 
