@@ -981,6 +981,7 @@ const deleteSongService = async ({ songIds } = {}) => {
             db.PlaylistSong.destroy({ where: { songId: { [Op.in]: songIds } } }),
             db.ArtistSong.destroy({ where: { songId: { [Op.in]: songIds } } }),
             db.AlbumSong.destroy({ where: { songId: { [Op.in]: songIds } } }),
+            db.Download.destroy({ where: { songId: { [Op.in]: songIds } } }),
         ]);
         await db.Song.destroy({ where: { id: { [Op.in]: songIds } } });
     } catch (error) {

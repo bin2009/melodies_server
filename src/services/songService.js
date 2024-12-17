@@ -19,7 +19,7 @@ const fetchSongs = async ({
     mode = 'findAll', // or findOne
 } = {}) => {
     try {
-        const [songs, totalPlay, totalComment, totalLike] = await Promise.all([
+        const [songs, totalPlay, totalComment, totalLike, totalDownload] = await Promise.all([
             db.Song[mode]({
                 attributes: [
                     'id',
@@ -81,6 +81,11 @@ const fetchSongs = async ({
                 group: ['songId'],
                 raw: true,
             }),
+            db.Download.findAll({
+                attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'totalDownload']],
+                group: ['songId'],
+                raw: true,
+            }),
         ]);
 
         const totalPlayMap = totalPlay.reduce((acc, curr) => {
@@ -95,6 +100,10 @@ const fetchSongs = async ({
             acc[curr.songId] = curr.totalLike;
             return acc;
         }, {});
+        const totalDownloadMap = totalDownload.reduce((acc, curr) => {
+            acc[curr.songId] = curr.totalDownload;
+            return acc;
+        }, {});
 
         if (mode === 'findAll') {
             const formattedSongs = songs.map((song) => {
@@ -107,7 +116,7 @@ const fetchSongs = async ({
                 formattedSong.totalPlay = totalPlayMap[formattedSong.id] ?? 0;
                 formattedSong.totalComment = totalCommentMap[formattedSong.id] ?? 0;
                 formattedSong.totalLike = totalLikeMap[formattedSong.id] ?? 0;
-                formattedSong.totalDownload = 0;
+                formattedSong.totalDownload = totalDownloadMap[formattedSong.id] ?? 0;
                 formattedSong.album.map((a) => (a.releaseDate = formatTime(a.releaseDate)));
                 return formattedSong;
             });
@@ -125,7 +134,7 @@ const fetchSongs = async ({
             formattedSong.totalPlay = totalPlayMap[formattedSong.id] ?? 0;
             formattedSong.totalComment = totalCommentMap[formattedSong.id] ?? 0;
             formattedSong.totalLike = totalLikeMap[formattedSong.id] ?? 0;
-            formattedSong.totalDownload = 0;
+            formattedSong.totalDownload = totalDownload[formattedSong.id] ?? 0;
             formattedSong.album.map((a) => (a.releaseDate = formatTime(a.releaseDate)));
             return formattedSong;
         }
