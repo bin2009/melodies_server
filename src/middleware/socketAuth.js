@@ -16,7 +16,14 @@ const socketAuthMiddleware = async (socket, next) => {
     try {
         const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
         const user = await userService.getInfoUserService(decoded);
-        socket.user = user; // Lưu userId vào socket
+        const dataUser = {
+            id: user.id,
+            username: user.username,
+            image: user.image,
+            accountType: user.accountType,
+            name: user.name,
+        };
+        socket.user = dataUser;
         next();
     } catch (err) {
         const error = new ApiError(StatusCodes.UNAUTHORIZED, err.message);
