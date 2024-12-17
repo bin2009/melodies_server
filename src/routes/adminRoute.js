@@ -58,12 +58,15 @@ Router.route('/update/song/:songId').patch(
     appMiddleWare.calculateDuration,
     adminController.updateSong,
 );
+Router.route('/update/genre/:genreId').patch(authMiddleWare.verifyTokenAndAdmin, adminController.updateGenre);
 
 // ----------- delete
 
 Router.route('/delete/album').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteAlbum);
 Router.route('/delete/artist').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteArtist);
 Router.route('/delete/song').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteSong);
+Router.route('/delete/genre').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteGenre);
+Router.route('/delete/payment').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deletePayment);
 
 // -----------------------------------
 Router.route('/recentUser').get(authMiddleWare.verifyTokenAndAdmin, adminController.getRecentUser);
@@ -81,8 +84,10 @@ Router.route('/allReport').get(authMiddleWare.verifyTokenAndAdmin, adminControll
 Router.route('/report/:reportId')
     .get(authMiddleWare.verifyTokenAndAdmin, adminController.getReport)
     .post(authMiddleWare.verifyTokenAndAdmin, adminController.verifyReport);
+Router.route('/allPayment').get(authMiddleWare.verifyTokenAndAdmin, adminController.getAllPayment);
+Router.route('/payment/:paymentId').get(authMiddleWare.verifyToken, adminController.getPaymentDetail);
 
-Router.route('/allPackage').get(authMiddleWare.verifyTokenAndAdmin, adminController.getAllPackage);
+Router.route('/allPackage').get(adminController.getAllPackage);
 
 import db from '~/models';
 import { albumService } from '~/services/albumService';

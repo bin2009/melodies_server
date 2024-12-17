@@ -194,6 +194,21 @@ const updateSong = async (req, res, next) => {
     }
 };
 
+const updateGenre = async (req, res, next) => {
+    try {
+        if (!req.params.genreId) throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: genre id');
+
+        const genre = await adminService.updateGenreService({ genreId: req.params.genreId, data: req.body });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Update genre success',
+            ...genre,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // -----------------------------------------------------------------------------------------------
 
 const deleteAlbum = async (req, res, next) => {
@@ -227,6 +242,30 @@ const deleteSong = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Delete songs success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteGenre = async (req, res, next) => {
+    try {
+        await adminService.deleteGenreService({ genreIds: req.body.genreIds });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Delete genres success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deletePayment = async (req, res, next) => {
+    try {
+        await adminService.deletePaymentService({ paymentIds: req.body.paymentIds });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Delete payment success',
         });
     } catch (error) {
         next(error);
@@ -411,6 +450,32 @@ const verifyReport = async (req, res, next) => {
     }
 };
 
+const getAllPayment = async (req, res, next) => {
+    try {
+        const payments = await adminService.getAllPaymentService();
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get all payments success',
+            ...payments,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getPaymentDetail = async (req, res, next) => {
+    try {
+        const payment = await adminService.getPaymentDetailService({ user: req.user, paymentId: req.params.paymentId });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get payment success',
+            payment: payment,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const getAllPackage = async (req, res, next) => {
     try {
         const packages = await packageService.fetchAllPackage();
@@ -435,10 +500,13 @@ export const adminController = {
     updateAlbum,
     updateArtist,
     updateSong,
+    updateGenre,
     // --------------
     deleteAlbum,
     deleteArtist,
     deleteSong,
+    deleteGenre,
+    deletePayment,
     // --------------
     getRecentUser,
     getRecentComment,
@@ -453,6 +521,8 @@ export const adminController = {
     getAllReport,
     getReport,
     verifyReport,
+    getAllPayment,
+    getPaymentDetail,
     // ------------
     getAllAlbum,
 };

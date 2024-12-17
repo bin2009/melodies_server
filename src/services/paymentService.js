@@ -41,7 +41,7 @@ const createPaymentService = async ({ user, data } = {}) => {
             items: items,
             returnUrl: `${process.env.DOMAIN}/success.html`,
             cancelUrl: `${process.env.DOMAIN}/cancel.html`,
-            expiredAt: Math.floor(Date.now() / 1000) + 10,
+            expiredAt: Math.floor(Date.now() / 1000) + 5 * 60,
         };
         const paymentLink = await payos.createPaymentLink(order);
 

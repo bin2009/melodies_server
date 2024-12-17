@@ -327,7 +327,7 @@ const getReportService = async (reportId) => {
                 { model: db.Comment, as: 'comment' },
             ],
         });
-        if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');
+        if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Report not found');
         const formatter = report.toJSON();
         formatter.createdAt = formatTime(formatter.createdAt);
         formatter.updatedAt = formatTime(formatter.updatedAt);
@@ -407,6 +407,88 @@ const verifyReportService = async (reportId) => {
         throw error;
     }
 };
+
+const getAllPaymentService = async ({ page = 1, limit = 10 } = {}) => {
+    try {
+        const offset = (page - 1) * limit;
+
+        const [totalPayment, payments] = await Promise.all([
+            db.Subscriptions.count(),
+            db.Subscriptions.findAll({
+                order: [['updatedAt', 'desc']],
+                include: [
+                    {
+                        model: db.User,
+                        as: 'user',
+                        attributes: ['id', 'username', 'name', 'email', 'image', 'status2', 'createdAt'],
+                    },
+                    { model: db.SubscriptionPackage, as: 'package' },
+                ],
+                limit: limit,
+                offset: offset,
+            }),
+        ]);
+
+        const formatters = payments.map((p) => {
+            const formatter = p.toJSON();
+            delete formatter.userId;
+            delete formatter.packageId;
+            formatter.startDate = formatTime(formatter.startDate);
+            formatter.endDate = formatTime(formatter.endDate);
+            formatter.createdAt = formatTime(formatter.createdAt);
+            formatter.updatedAt = formatTime(formatter.updatedAt);
+            formatter.user.createdAt = formatTime(formatter.user.createdAt);
+            formatter.package.createdAt = formatTime(formatter.package.createdAt);
+            formatter.package.updatedAt = formatTime(formatter.package.updatedAt);
+            return formatter;
+        });
+
+        return {
+            page: page,
+            totalPage: Math.ceil(totalPayment / limit),
+            payments: formatters,
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+const getPaymentDetailService = async ({ user, paymentId } = {}) => {
+    try {
+        const checkPayment = await db.Subscriptions.findByPk(paymentId);
+        if (!checkPayment) throw new ApiError(StatusCodes.NOT_FOUND, 'Payment not found');
+        if (!(checkPayment.userId === user.id || user.role === 'Admin'))
+            throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access');
+
+        const payment = await db.Subscriptions.findOne({
+            where: { id: paymentId },
+            include: [
+                {
+                    model: db.User,
+                    as: 'user',
+                    attributes: ['id', 'username', 'name', 'email', 'image', 'status2', 'createdAt'],
+                },
+                { model: db.SubscriptionPackage, as: 'package' },
+            ],
+        });
+
+        const formatter = payment.toJSON();
+        delete formatter.userId;
+        delete formatter.packageId;
+        formatter.startDate = formatTime(formatter.startDate);
+        formatter.endDate = formatTime(formatter.endDate);
+        formatter.createdAt = formatTime(formatter.createdAt);
+        formatter.updatedAt = formatTime(formatter.updatedAt);
+        formatter.user.createdAt = formatTime(formatter.user.createdAt);
+        formatter.package.createdAt = formatTime(formatter.package.createdAt);
+        formatter.package.updatedAt = formatTime(formatter.package.updatedAt);
+        return formatter;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// ---------------------------
 
 const createSongService = async ({ data, file, lyric, duration } = {}) => {
     const transaction = await db.sequelize.transaction();
@@ -801,6 +883,19 @@ const updateSongService = async ({ songId, data, duration, file, lyric } = {}) =
     }
 };
 
+const updateGenreService = async ({ genreId, data } = {}) => {
+    try {
+        const checkGenre = await db.Genre.findByPk(genreId);
+        if (!checkGenre) throw new ApiError(StatusCodes.NOT_FOUND, 'Genre not found');
+
+        await db.Genre.update({ name: data.name }, { where: { genreId: genreId } });
+        const genre = await db.Genre.findByPk(genreId);
+        return { genre: genre };
+    } catch (error) {
+        throw error;
+    }
+};
+
 // -----------------------------------------------------------------------------------------------
 
 const deleteAlbumService = async ({ albumIds } = {}) => {
@@ -893,6 +988,36 @@ const deleteSongService = async ({ songIds } = {}) => {
     }
 };
 
+const deleteGenreService = async ({ genreIds } = {}) => {
+    const transaction = await db.sequelize.transaction();
+    try {
+        await db.ArtistGenre.destroy({
+            where: { genreId: { [Op.in]: genreIds } },
+            transaction,
+        });
+        await db.Genre.destroy({
+            where: { genreId: { [Op.in]: genreIds } },
+            transaction,
+        });
+        await transaction.commit();
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
+};
+
+const deletePaymentService = async ({ paymentIds } = {}) => {
+    const transaction = await db.sequelize.transaction();
+    try {
+        await db.Notifications.destroy({ where: { from: { [Op.in]: paymentIds } }, transaction });
+        await db.Subscriptions.destroy({ where: { id: { [Op.in]: paymentIds } }, transaction });
+        await transaction.commit();
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
+};
+
 export const adminService = {
     fetchAlbumSong,
     // ---------------
@@ -907,6 +1032,8 @@ export const adminService = {
     getAllReportService,
     getReportService,
     verifyReportService,
+    getAllPaymentService,
+    getPaymentDetailService,
     // ------------create
     createSongService,
     createAlbum,
@@ -915,8 +1042,11 @@ export const adminService = {
     updateAlbumService,
     updateArtistService,
     updateSongService,
+    updateGenreService,
     // -----------------
     deleteAlbumService,
     deleteArtistService,
     deleteSongService,
+    deleteGenreService,
+    deletePaymentService,
 };

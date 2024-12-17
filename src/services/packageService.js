@@ -2,7 +2,18 @@ import db from '~/models';
 import { v4 as uuidv4 } from 'uuid';
 
 const fetchAllPackage = async () => {
-    return await db.SubscriptionPackage.findAll();
+    try {
+        const allPackages = await db.SubscriptionPackage.findAll({ order: [['createdAt', 'desc']] });
+        const formatters = allPackages.map((p) => {
+            const formatter = p.toJSON();
+            formatter.createdAt = formatTime(formatter.createdAt);
+            formatter.updatedAt = formatTime(formatter.updatedAt);
+            return formatter;
+        });
+        return formatters;
+    } catch (error) {
+        throw error;
+    }
 };
 
 const createPackageService = async ({ data } = {}) => {
