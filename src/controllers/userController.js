@@ -392,6 +392,18 @@ const getReportDetail = async (req, res, next) => {
     }
 };
 
+const downloadSong = async (req, res, next) => {
+    try {
+        await userService.downloadSongService({ user: req.user, songId: req.params.songId });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Download song success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const userController = {
     getInfoUser,
     getPlaylist,
@@ -416,4 +428,5 @@ export const userController = {
     deleteUserSong,
     getAllNotifications,
     getReportDetail,
+    downloadSong,
 };

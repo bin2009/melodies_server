@@ -854,6 +854,17 @@ const getReportDetailService = async ({ user, reportId } = {}) => {
     }
 };
 
+const downloadSongService = async ({ user, songId } = {}) => {
+    try {
+        const song = await db.Song.findOne({ where: { id: songId, privacy: false } });
+        if (!song) throw new ApiError(StatusCodes.NOT_FOUND, 'Song not found');
+
+        await db.Download.create({ userId: user.id, songId: songId });
+    } catch (error) {
+        throw error;
+    }
+};
+
 // --------------------------cron job
 
 const updateAccountType = async () => {
@@ -929,6 +940,7 @@ export const userService = {
     deleteUserSongService,
     getAllNotificationsService,
     getReportDetailService,
+    downloadSongService,
     // ---------------cron job
     updateAccountType,
 };

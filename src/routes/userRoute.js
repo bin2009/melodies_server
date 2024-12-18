@@ -75,6 +75,7 @@ Router.route('/user/song/:songId')
 
 Router.route('/user/notifications').get(authMiddleWare.verifyToken, userController.getAllNotifications);
 Router.route('/user/report/:reportId').get(authMiddleWare.verifyToken, userController.getReportDetail);
+Router.route('/user/download/:songId').post(authMiddleWare.verifyToken, userController.downloadSong);
 
 import db from '~/models';
 Router.route('/user/test/:userId').get(async (req, res, next) => {

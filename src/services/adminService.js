@@ -1006,15 +1006,14 @@ const deleteArtistService = async ({ artistIds } = {}) => {
 
 const deleteSongService = async ({ songIds } = {}) => {
     const transaction = await db.sequelize.transaction();
-    // const copy = `PBL6/SONG/SONG_${songId}`
-    const deletePromises = [];
+    const prefix = 'PBL6';
     const operations = {
         move: [],
-        delete: [],
         rollback: [],
     };
     try {
-        await Promise.all([
+        const [songs] = await Promise.all([
+            db.Song.findAll({ where: { id: { [Op.in]: songIds } } }),
             db.Like.destroy({ where: { songId: { [Op.in]: songIds } }, transaction }),
             db.Comment.destroy({ where: { songId: { [Op.in]: songIds } }, transaction }),
             db.SongPlayHistory.destroy({ where: { songId: { [Op.in]: songIds } }, transaction }),
@@ -1024,20 +1023,25 @@ const deleteSongService = async ({ songIds } = {}) => {
             db.Download.destroy({ where: { songId: { [Op.in]: songIds } }, transaction }),
         ]);
         await db.Song.destroy({ where: { id: { [Op.in]: songIds } }, transaction });
-        songIds.map((id) => {
-            const oldPath = `PBL6/SONG/SONG_${id}`;
-            const copyPath = `COPY_DELETE/${oldPath}`;
-            operations.move.push(() => awsService.moveFile(oldPath, copyPath));
-            operations.delete.push(() => awsService.deleteFolder(`PBL6/SONG/SONG_${id}`));
-            operations.rollback.push(() => awsService.moveFile(copyPath, oldPath));
+        songs.map((song) => {
+            const oldPathAudio = song.filePathAudio ? prefix + song.filePathAudio.split(prefix)[1] : null;
+            const oldPathLyric = song.lyric ? prefix + song.lyric.split(prefix)[1] : null;
+            console.log('ha: ', oldPathAudio, ' //// ', oldPathLyric);
+            if (oldPathAudio) {
+                operations.move.push(() => awsService.moveFile(oldPathAudio, `COPY_DELETE/${oldPathAudio}`));
+                operations.rollback.push(() => awsService.moveFile(`COPY_DELETE/${oldPathAudio}`, oldPathAudio));
+            }
+            if (oldPathLyric) {
+                operations.move.push(() => awsService.moveFile(oldPathLyric, `COPY_DELETE/${oldPathLyric}`));
+                operations.rollback.push(() => awsService.moveFile(`COPY_DELETE/${oldPathLyric}`, oldPathLyric));
+            }
         });
         await Promise.all(operations.move.map((fn) => fn()));
-        await Promise.all(operations.delete.map((fn) => fn()));
         await transaction.commit();
         await awsService.deleteFolder('COPY_DELETE');
     } catch (error) {
+        console.log('loi');
         await transaction.rollback();
-        await Promise.all(operations.delete.map((fn) => fn()));
         await Promise.all(operations.rollback.map((fn) => fn()));
         throw error;
     }

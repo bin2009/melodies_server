@@ -17,9 +17,10 @@ const fetchSongs = async ({
     additionalAttributes = [],
     group = [],
     mode = 'findAll', // or findOne
+    role,
 } = {}) => {
     try {
-        const [songs, totalPlay, totalComment, totalLike] = await Promise.all([
+        const [songs, totalPlay, totalComment, totalLike, totalDownload] = await Promise.all([
             db.Song[mode]({
                 attributes: [
                     'id',
@@ -81,6 +82,11 @@ const fetchSongs = async ({
                 group: ['songId'],
                 raw: true,
             }),
+            db.Download.findAll({
+                attributes: ['songId', [db.Sequelize.fn('COUNT', db.Sequelize.col('songId')), 'totalDownload']],
+                group: ['songId'],
+                raw: true,
+            }),
         ]);
 
         const totalPlayMap = totalPlay.reduce((acc, curr) => {
@@ -95,6 +101,10 @@ const fetchSongs = async ({
             acc[curr.songId] = curr.totalLike;
             return acc;
         }, {});
+        const totalDownloadMap = totalDownload.reduce((acc, curr) => {
+            acc[curr.songId] = curr.totalDownload;
+            return acc;
+        }, {});
 
         if (mode === 'findAll') {
             const formattedSongs = songs.map((song) => {
@@ -102,12 +112,15 @@ const fetchSongs = async ({
                 formattedSong.createdAt = formatTime(formattedSong.createdAt);
                 formattedSong.releaseDate = formatTime(formattedSong.releaseDate);
                 formattedSong.filePathAudio = encodeData(formattedSong.filePathAudio);
-                formattedSong.lyric = formattedSong.lyric ? encodeData(formattedSong.lyric) : null;
-                formattedSong.lyric = formattedSong.lyric;
+                if (role === 'Admin') {
+                    formattedSong.lyric = formattedSong.lyric;
+                } else {
+                    formattedSong.lyric = formattedSong.lyric ? encodeData(formattedSong.lyric) : null;
+                }
                 formattedSong.totalPlay = totalPlayMap[formattedSong.id] ?? 0;
                 formattedSong.totalComment = totalCommentMap[formattedSong.id] ?? 0;
                 formattedSong.totalLike = totalLikeMap[formattedSong.id] ?? 0;
-                formattedSong.totalDownload = 0;
+                formattedSong.totalDownload = totalDownloadMap[formattedSong.id] ?? 0;
                 formattedSong.album.map((a) => (a.releaseDate = formatTime(a.releaseDate)));
                 return formattedSong;
             });
@@ -120,12 +133,15 @@ const fetchSongs = async ({
             formattedSong.createdAt = formatTime(formattedSong.createdAt);
             formattedSong.releaseDate = formatTime(formattedSong.releaseDate);
             formattedSong.filePathAudio = encodeData(formattedSong.filePathAudio);
-            formattedSong.lyric = formattedSong.lyric ? encodeData(formattedSong.lyric) : null;
-            formattedSong.lyric = formattedSong.lyric;
+            if (role && role === 'Admin') {
+                formattedSong.lyric = formattedSong.lyric;
+            } else {
+                formattedSong.lyric = formattedSong.lyric ? encodeData(formattedSong.lyric) : null;
+            }
             formattedSong.totalPlay = totalPlayMap[formattedSong.id] ?? 0;
             formattedSong.totalComment = totalCommentMap[formattedSong.id] ?? 0;
             formattedSong.totalLike = totalLikeMap[formattedSong.id] ?? 0;
-            formattedSong.totalDownload = 0;
+            formattedSong.totalDownload = totalDownload[formattedSong.id] ?? 0;
             formattedSong.album.map((a) => (a.releaseDate = formatTime(a.releaseDate)));
             return formattedSong;
         }
@@ -192,7 +208,7 @@ const getAllSongService = async ({ page = 1, limit = 10 } = {}) => {
 
         const [totalSong, songs] = await Promise.all([
             db.Song.count({ where: { privacy: false } }),
-            fetchSongs({ limit: limit, offset: offset, conditions: { privacy: false } }),
+            fetchSongs({ limit: limit, offset: offset, conditions: { privacy: false }, role: 'Admin' }),
         ]);
 
         const result = songs.map((s) => {
@@ -220,7 +236,7 @@ const getAllSongService = async ({ page = 1, limit = 10 } = {}) => {
 const getSongService = async (songId, user) => {
     try {
         const [song, likedSongs] = await Promise.all([
-            fetchSongs({ conditions: { id: songId, privacy: false }, mode: 'findOne' }),
+            fetchSongs({ conditions: { id: songId, privacy: false }, mode: 'findOne', role: 'Admin' }),
             user && db.Like.findOne({ where: { songId: songId, userId: user.id }, raw: true }),
         ]);
 
