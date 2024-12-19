@@ -14,6 +14,7 @@ import { songService } from './songService';
 import formatTime from '~/utils/timeFormat';
 import { NOTIFICATIONS, SUSPENSION_DURATION } from '~/data/enum';
 import { emailService } from './emailService';
+import encodeData from '~/utils/encryption';
 
 const saltRounds = 10;
 
@@ -299,8 +300,12 @@ const getAllReportService = async ({ page = 1, limit = 10 } = {}) => {
     try {
         const offset = (page - 1) * limit;
 
-        const reports = await db.Comment.findAll({
+        const reports = await db.Report.findAll({
             order: [['createdAt', 'DESC']],
+            include: [
+                { model: db.User, as: 'user', attributes: ['id', 'name', 'username', 'email', 'image', 'createdAt'] },
+                { model: db.Comment, as: 'comment', include: [{ model: db.Song, as: 'song' }] },
+            ],
             limit: limit,
             offset: offset,
         });
@@ -309,8 +314,19 @@ const getAllReportService = async ({ page = 1, limit = 10 } = {}) => {
             const formatter = { ...r.toJSON() };
             formatter.createdAt = formatTime(formatter.createdAt);
             formatter.updatedAt = formatTime(formatter.updatedAt);
+            formatter.user.createdAt = formatTime(formatter.user.createdAt);
+            formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
+            formatter.comment.updatedAt = formatTime(formatter.comment.updatedAt);
+            formatter.comment.song.createdAt = formatTime(formatter.comment.song.createdAt);
+            formatter.comment.song.updatedAt = formatTime(formatter.comment.song.updatedAt);
+            formatter.comment.song.releaseDate = formatTime(formatter.comment.song.releaseDate);
+            if (formatter.comment.song.lyric) formatter.comment.song.lyric = encodeData(formatter.comment.song.lyric);
+            if (formatter.comment.song.filePathAudio)
+                formatter.comment.song.filePathAudio = encodeData(formatter.comment.song.filePathAudio);
+
             return formatter;
         });
+
         return formatters;
     } catch (error) {
         throw error;
@@ -324,7 +340,7 @@ const getReportService = async (reportId) => {
             attributes: ['id', 'content', 'status', 'createdAt', 'updatedAt'],
             include: [
                 { model: db.User, as: 'user', attributes: ['id', 'name', 'username', 'email', 'image', 'createdAt'] },
-                { model: db.Comment, as: 'comment' },
+                { model: db.Comment, as: 'comment', include: [{ model: db.Song, as: 'song' }] },
             ],
         });
         if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Report not found');
@@ -334,6 +350,12 @@ const getReportService = async (reportId) => {
         formatter.user.createdAt = formatTime(formatter.user.createdAt);
         formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
         formatter.comment.updatedAt = formatTime(formatter.comment.updatedAt);
+        formatter.comment.song.createdAt = formatTime(formatter.comment.song.createdAt);
+        formatter.comment.song.updatedAt = formatTime(formatter.comment.song.updatedAt);
+        formatter.comment.song.releaseDate = formatTime(formatter.comment.song.releaseDate);
+        if (formatter.comment.song.lyric) formatter.comment.song.lyric = encodeData(formatter.comment.song.lyric);
+        if (formatter.comment.song.filePathAudio)
+            formatter.comment.song.filePathAudio = encodeData(formatter.comment.song.filePathAudio);
         return formatter;
     } catch (error) {
         throw error;
