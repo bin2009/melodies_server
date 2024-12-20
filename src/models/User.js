@@ -1,6 +1,6 @@
 'use strict';
 const { Model } = require('sequelize');
-const { ACCOUNTTYPE } = require('~/data/enum');
+const { ACCOUNTTYPE, ROLE, ACCOUNT_STATUS } = require('~/data/enum');
 module.exports = (sequelize, DataTypes) => {
     class User extends Model {
         /**
@@ -15,10 +15,6 @@ module.exports = (sequelize, DataTypes) => {
                 as: 'subscriptions',
                 foreignKey: 'userId',
                 otherKey: 'packageId',
-            });
-            User.hasMany(models.SearchHistory, {
-                foreignKey: 'userId',
-                as: 'searchHistories',
             });
             User.belongsToMany(models.Artist, {
                 through: 'Follow',
@@ -77,7 +73,7 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: false,
             },
             role: {
-                type: DataTypes.ENUM('Admin', 'User', 'Guest'),
+                type: DataTypes.ENUM(Object.keys(ROLE)),
                 allowNull: false,
                 defaultValue: 'User',
             },
@@ -95,15 +91,6 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.STRING,
                 allowNull: false,
             },
-            secondPassword: {
-                type: DataTypes.STRING,
-                allowNull: true,
-            },
-            statusPassword: {
-                type: DataTypes.BOOLEAN,
-                allowNull: false,
-                defaultValue: false,
-            },
             name: {
                 type: DataTypes.STRING,
                 allowNull: true,
@@ -113,19 +100,14 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: true,
             },
             accountType: {
-                type: DataTypes.ENUM(Object.values(ACCOUNTTYPE)),
+                type: DataTypes.ENUM(Object.keys(ACCOUNTTYPE)),
                 allowNull: false,
-                defaultValue: ACCOUNTTYPE.FREE,
+                defaultValue: 'FREE',
             },
             status: {
-                type: DataTypes.BOOLEAN,
+                type: DataTypes.ENUM(Object.keys(ACCOUNT_STATUS)),
                 allowNull: false,
-                defaultValue: true,
-            },
-            status2: {
-                type: DataTypes.ENUM('normal', 'lock3', 'lock7', 'permanent'),
-                allowNull: false,
-                defaultValue: 'normal',
+                defaultValue: 'NORMAL',
             },
         },
         {

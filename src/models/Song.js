@@ -80,7 +80,7 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: true,
             },
             lyric: {
-                type: DataTypes.TEXT,
+                type: DataTypes.STRING,
                 allowNull: true,
             },
             filePathAudio: {

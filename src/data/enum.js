@@ -36,3 +36,29 @@ export const PLAYLIST_TYPE = Object.freeze({
     MYMUSIC: 'Nhạc của tôi',
     FAVOURITE: 'Yêu thích',
 });
+
+export const REPORT_STATUS = Object.freeze({
+    AI: 'AI',
+    PENDING: 'Pending',
+    DELETE: 'Deleted',
+    NOTDELETE: 'Not deleted',
+});
+
+export const ROLE = Object.freeze({
+    Admin: 'Admin',
+    User: 'User',
+});
+
+export const ACCOUNT_STATUS = Object.freeze({
+    NORMAL: 'normal',
+    LOCK3: 'block 3 days',
+    LOCK7: 'block 7 days',
+    PERMANENT: 'block permanent',
+});
+
+export const NOTIFICATIONS_TYPE = Object.freeze({
+    SYSTEM: 'System',
+    PAYMENT: 'Payment',
+    COMMENT: 'Comment',
+    PACKAGE: 'Package',
+});

@@ -12,7 +12,7 @@ import { userService } from './userService';
 import { awsService } from './awsService';
 import { songService } from './songService';
 import formatTime from '~/utils/timeFormat';
-import { NOTIFICATIONS, SUSPENSION_DURATION } from '~/data/enum';
+import { ACCOUNT_STATUS, NOTIFICATIONS, SUSPENSION_DURATION } from '~/data/enum';
 import { emailService } from './emailService';
 import encodeData from '~/utils/encryption';
 
@@ -260,27 +260,9 @@ const getAllUserService = async ({ page = 1, limit = 10 } = {}) => {
         ]);
 
         const result = users.map((user) => {
-            const { status2, ...other } = user;
-            let statusMessage = '';
-            switch (status2) {
-                case 'normal':
-                    statusMessage = 'normal';
-                    break;
-                case 'lock3':
-                    statusMessage = 'block 3 days';
-                    break;
-                case 'lock7':
-                    statusMessage = 'block 7 days';
-                    break;
-                case 'permanent':
-                    statusMessage = 'permanently locked';
-                    break;
-                default:
-                    statusMessage = 'unknown status';
-                    break;
-            }
+            let statusMessage = ACCOUNT_STATUS[user.status];
             return {
-                ...other,
+                ...user,
                 status2: statusMessage,
                 totalViolation: Math.floor(Math.random() * (100 - 1 + 1)) + 1,
             };
@@ -396,7 +378,7 @@ const verifyReportService = async (reportId) => {
                     });
                     break;
                 case 7:
-                    await db.User.update({ status2: 'lock3' }, { where: { id: comment.userId }, transaction });
+                    await db.User.update({ status: 'lock3' }, { where: { id: comment.userId }, transaction });
                     await emailService.emailNotiLockAccount({
                         email: user.email,
                         username: user.username,
@@ -404,7 +386,7 @@ const verifyReportService = async (reportId) => {
                     });
                     break;
                 case 10:
-                    await db.User.update({ status2: 'lock7' }, { where: { id: comment.userId }, transaction });
+                    await db.User.update({ status: 'lock7' }, { where: { id: comment.userId }, transaction });
                     await emailService.emailNotiLockAccount({
                         email: user.email,
                         username: user.username,
@@ -412,7 +394,7 @@ const verifyReportService = async (reportId) => {
                     });
                     break;
                 case 15:
-                    await db.User.update({ status2: 'permanent' }, { where: { id: comment.userId }, transaction });
+                    await db.User.update({ status: 'permanent' }, { where: { id: comment.userId }, transaction });
                     await emailService.emailNotiLockAccount({
                         email: user.email,
                         username: user.username,
@@ -442,7 +424,7 @@ const getAllPaymentService = async ({ page = 1, limit = 10 } = {}) => {
                     {
                         model: db.User,
                         as: 'user',
-                        attributes: ['id', 'username', 'name', 'email', 'image', 'status2', 'createdAt'],
+                        attributes: ['id', 'username', 'name', 'email', 'image', 'status', 'createdAt'],
                     },
                     { model: db.SubscriptionPackage, as: 'package' },
                 ],
@@ -488,7 +470,7 @@ const getPaymentDetailService = async ({ user, paymentId } = {}) => {
                 {
                     model: db.User,
                     as: 'user',
-                    attributes: ['id', 'username', 'name', 'email', 'image', 'status2', 'createdAt'],
+                    attributes: ['id', 'username', 'name', 'email', 'image', 'status', 'createdAt'],
                 },
                 { model: db.SubscriptionPackage, as: 'package' },
             ],

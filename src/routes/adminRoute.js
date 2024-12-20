@@ -95,6 +95,7 @@ import { artistService } from '~/services/artistService';
 import { songService } from '~/services/songService';
 import { authMiddleWare } from '~/middleware/authMiddleWare';
 import { appMiddleWare } from '~/middleware/appMiddleWare';
+import { REPORT_STATUS } from '~/data/enum';
 Router.route('/test/:songId').get(async (req, res) => {
     // const artist = await artistService.getArtistService({ artistId: req.params.artistId });
     // res.render('updateArtist', { artist: artist });
@@ -106,7 +107,12 @@ Router.route('/test/:songId').get(async (req, res) => {
     res.render('updateSong', { song: song });
 });
 Router.route('/test2').get(async (req, res) => {
-    res.render('userUpdateSong');
+    console.log('haha: ', Object.keys(REPORT_STATUS));
+    console.log('haha: ', Object.values(REPORT_STATUS));
+    console.log('haha: ', REPORT_STATUS['PENDING']);
+    console.log('haha: ', REPORT_STATUS['PENDING']);
+    res.send('haha');
+    // res.render('userUpdateSong');
 });
 
 export default Router;

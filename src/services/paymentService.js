@@ -154,7 +154,7 @@ const getPaymentDetailService = async ({ user, paymentId } = {}) => {
                 {
                     model: db.User,
                     as: 'user',
-                    attributes: ['id', 'username', 'name', 'email', 'image', 'accountType', 'status2', 'createdAt'],
+                    attributes: ['id', 'username', 'name', 'email', 'image', 'accountType', 'status', 'createdAt'],
                 },
             ],
         });

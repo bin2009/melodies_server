@@ -57,14 +57,6 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.TEXT,
                 allowNull: true,
             },
-            followersCount: {
-                type: DataTypes.INTEGER,
-                allowNull: true,
-            },
-            date: {
-                type: DataTypes.DATE,
-                allowNull: true,
-            },
             hide: {
                 type: DataTypes.BOOLEAN,
                 allowNull: true,

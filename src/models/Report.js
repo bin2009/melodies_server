@@ -1,5 +1,6 @@
 'use strict';
 const { Model } = require('sequelize');
+const { REPORT_STATUS } = require('~/data/enum');
 module.exports = (sequelize, DataTypes) => {
     class Report extends Model {
         /**
@@ -42,11 +43,11 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: false,
             },
             content: {
-                type: DataTypes.STRING,
+                type: DataTypes.TEXT,
                 allowNull: false,
             },
             status: {
-                type: DataTypes.BOOLEAN,
+                type: DataTypes.ENUM(Object.keys(REPORT_STATUS)),
                 allowNull: false,
                 defaultValue: false,
             },

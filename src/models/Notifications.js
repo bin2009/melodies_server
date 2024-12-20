@@ -1,5 +1,6 @@
 'use strict';
 const { Model } = require('sequelize');
+const { NOTIFICATIONS_TYPE } = require('~/data/enum');
 module.exports = (sequelize, DataTypes) => {
     class Notifications extends Model {
         /**
@@ -25,7 +26,7 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: false,
             },
             type: {
-                type: DataTypes.STRING,
+                type: DataTypes.ENUM(Object.keys(NOTIFICATIONS_TYPE)),
                 allowNull: false,
                 defaultValue: 'SYSTEM',
             },

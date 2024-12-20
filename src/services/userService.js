@@ -76,15 +76,11 @@ const getInfoUserService = async (user) => {
         // const findUser = await db.User.findByPk(user.id);
         const findUser = await db.User.findOne({
             where: { id: user.id },
-            attributes: ['id', 'role', 'username', 'email', 'name', 'image', 'accountType', 'status2'],
+            attributes: ['id', 'role', 'username', 'email', 'name', 'image', 'accountType', 'status'],
         });
         if (!findUser) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
-        const { status2, ...other } = findUser.toJSON();
 
-        return {
-            ...other,
-            status: status2,
-        };
+        return findUser;
     } catch (error) {
         throw error;
     }
@@ -820,7 +816,7 @@ const getReportDetailService = async ({ user, reportId } = {}) => {
                 {
                     model: db.User,
                     as: 'user',
-                    attributes: ['id', 'username', 'name', 'email', 'image', 'accountType', 'status2', 'createdAt'],
+                    attributes: ['id', 'username', 'name', 'email', 'image', 'accountType', 'status', 'createdAt'],
                 },
                 {
                     model: db.Comment,
@@ -834,7 +830,7 @@ const getReportDetailService = async ({ user, reportId } = {}) => {
             songService.fetchSongs({ conditions: { id: formatter.comment.songId }, mode: 'findOne' }),
             db.User.findOne({
                 where: { id: formatter.comment.userId },
-                attributes: ['id', 'username', 'name', 'email', 'image', 'accountType', 'status2', 'createdAt'],
+                attributes: ['id', 'username', 'name', 'email', 'image', 'accountType', 'status', 'createdAt'],
             }),
         ]);
         formatter.comment.song = song;

@@ -6,6 +6,7 @@ import { Op } from 'sequelize';
 import { emailService } from '~/services/emailService';
 import ApiError from '~/utils/ApiError';
 import { StatusCodes } from 'http-status-codes';
+import { ACCOUNT_STATUS } from '~/data/enum';
 const saltRounds = 10;
 
 const generateAccessToken = (user) => {
@@ -46,9 +47,9 @@ const loginService = async (data) => {
 
         if (user && validPass) {
             // kiểm tra active
-            if (user.status2 !== 'normal') {
-                const date = user.status2 === 'lock3' ? 3 : user.status2 === 'lock7' ? 7 : 'Permanent';
-                throw new ApiError(StatusCodes.FORBIDDEN, `Your account has been locked: ${date}`);
+            if (user.status !== 'NORMAL') {
+                const message = ACCOUNT_STATUS[user.status];
+                throw new ApiError(StatusCodes.FORBIDDEN, `Your account has been locked: ${message}`);
             }
 
             // kiểm tra đã login chưa
