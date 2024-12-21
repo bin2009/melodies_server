@@ -22,18 +22,19 @@ const setupSocketIO = (io) => {
             notification[socket.user.id] = socket;
 
             socket.on('createRoom', () => {
-                if (socket.user.accountType !== 'Premium') {
+                if (socket.user.accountType !== 'PREMIUM') {
                     return socket.emit('createRoomFailed', 'Please upgrade your account to perform this function.');
                 }
                 if (socket.roomId) {
                     return socket.emit('createRoomFailed', 'You already have a room, please exit the previous room');
                 }
                 const roomId = uuidv4();
+                socket.user.host = true;
                 rooms[roomId] = {
                     host: socket.user.id,
                     // members: [{ [socket.user.id]: socket.user }],
                     members: [socket.user],
-                    songState: { isPlaying: true, currentTime: 0 },
+                    songState: { isPlaying: false, currentTime: 0 },
                     currentSong: { song: {}, isPlaying: true, currentTime: 0 },
                     proposalList: [],
                     waitingList: [],
@@ -60,6 +61,7 @@ const setupSocketIO = (io) => {
 
                 socket.join(roomId);
                 socket.roomId = roomId;
+                socket.user.host = false;
 
                 // rooms[roomId].members.push(socket.user.username);
                 // rooms[roomId].members.push({ [socket.user.id]: socket.user });
@@ -115,7 +117,9 @@ const setupSocketIO = (io) => {
                 const room = rooms[socket.roomId];
                 if (room.host === socket.user.id) {
                     socket.emit('members', rooms[socket.roomId].members);
+                    socket.emit('myId', socket.user.id);
                 } else {
+                    socket.emit('myId', socket.user.id);
                     socket.emit('members', rooms[socket.roomId].members);
                     socket.emit('roomData', {
                         roomId: socket.roomId,
@@ -132,32 +136,33 @@ const setupSocketIO = (io) => {
                 // console.log('data:', data);
                 const room = rooms[socket.roomId];
                 const a = Date.now();
-                // if (room.currentSong.isPlaying !== data.isPlaying) {
-                //     room.currentSong.isPlaying = data.isPlaying;
-                //     room.currentSong.currentTime = data.currentTime;
-                //     room.now = a;
-                //     socket.to(socket.roomId).emit('UpdateAudio', {
-                //         isPlaying: room.currentSong.isPlaying,
-                //         currentTime: room.currentSong.currentTime,
-                //     });
-                // } else {
-                //     if (a - room.now > 1000) {
-                //         room.currentSong.currentTime = data.currentTime;
-                //         room.now = a;
-                //         socket.to(socket.roomId).emit('UpdateAudio', {
-                //             isPlaying: room.currentSong.isPlaying,
-                //             currentTime: room.currentSong.currentTime,
-                //         });
-                //     }
-                // }
+                if (room.currentSong.isPlaying !== data.isPlaying) {
+                    room.currentSong.isPlaying = data.isPlaying;
+                    room.currentSong.currentTime = data.currentTime;
+                    room.now = a;
+                    socket.to(socket.roomId).emit('UpdateAudio', {
+                        isPlaying: room.currentSong.isPlaying,
+                        currentTime: room.currentSong.currentTime,
+                    });
+                    io.to(socket.roomId).emit('animation', room.currentSong.isPlaying);
+                } else {
+                    if (a - room.now > 1000) {
+                        room.currentSong.currentTime = data.currentTime;
+                        room.now = a;
+                        socket.to(socket.roomId).emit('UpdateAudio', {
+                            isPlaying: room.currentSong.isPlaying,
+                            currentTime: room.currentSong.currentTime,
+                        });
+                    }
+                }
                 // if (a - room.now > 1000) {
-                room.currentSong.isPlaying = data.isPlaying;
-                room.currentSong.currentTime = data.currentTime;
-                room.now = a;
-                socket.to(socket.roomId).emit('UpdateAudio', {
-                    isPlaying: room.currentSong.isPlaying,
-                    currentTime: room.currentSong.currentTime,
-                });
+                // room.currentSong.isPlaying = data.isPlaying;
+                // room.currentSong.currentTime = data.currentTime;
+                // room.now = a;
+                // socket.to(socket.roomId).emit('UpdateAudio', {
+                //     isPlaying: room.currentSong.isPlaying,
+                //     currentTime: room.currentSong.currentTime,
+                // });
                 // }
             });
 
@@ -238,7 +243,11 @@ const setupSocketIO = (io) => {
             });
 
             socket.on('SendMessage', (data) => {
-                io.to(socket.roomId).emit('ServerSendMessage', { user: socket.user, message: data.message });
+                io.to(socket.roomId).emit('ServerSendMessage', {
+                    user: socket.user,
+                    message: data.message,
+                    userSend: socket.user.id,
+                });
             });
 
             socket.on('nextSong', () => {
