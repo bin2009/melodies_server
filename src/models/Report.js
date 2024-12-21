@@ -32,7 +32,7 @@ module.exports = (sequelize, DataTypes) => {
                     model: 'User',
                     key: 'id',
                 },
-                allowNull: false,
+                allowNull: true,
             },
             commentId: {
                 type: DataTypes.UUID,
