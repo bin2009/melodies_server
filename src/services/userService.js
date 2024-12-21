@@ -445,20 +445,6 @@ const reportCommentService = async ({ data, user } = {}) => {
                     userId: user.id,
                     commentId: comment.id,
                     content: data.content,
-                    status: false,
-                },
-                { transaction },
-            ),
-            db.Notifications.create(
-                { userId: user.id, type: NOTIFICATIONS.REPORTED, message: comment.content, from: comment.id },
-                { transaction },
-            ),
-            db.Notifications.create(
-                {
-                    userId: comment.userId,
-                    type: NOTIFICATIONS.COMMENT_REPORTED,
-                    message: comment.content,
-                    from: comment.id,
                 },
                 { transaction },
             ),

@@ -49,7 +49,7 @@ const loginService = async (data) => {
             // kiểm tra active
             if (user.status !== 'NORMAL') {
                 const message = ACCOUNT_STATUS[user.status];
-                throw new ApiError(StatusCodes.FORBIDDEN, `Your account has been locked: ${message}`);
+                throw new ApiError(StatusCodes.FORBIDDEN, `Your account has been: ${message}`);
             }
 
             // kiểm tra đã login chưa

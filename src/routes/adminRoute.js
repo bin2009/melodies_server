@@ -83,7 +83,8 @@ Router.route('/allUser').get(authMiddleWare.verifyTokenAndAdmin, adminController
 Router.route('/allReport').get(authMiddleWare.verifyTokenAndAdmin, adminController.getAllReport);
 Router.route('/report/:reportId')
     .get(authMiddleWare.verifyTokenAndAdmin, adminController.getReport)
-    .post(authMiddleWare.verifyTokenAndAdmin, adminController.verifyReport);
+    .patch(authMiddleWare.verifyTokenAndAdmin, adminController.verifyReport);
+Router.route('/report/:reportId/reject').patch(authMiddleWare.verifyTokenAndAdmin, adminController.rejectReport);
 Router.route('/allPayment').get(authMiddleWare.verifyTokenAndAdmin, adminController.getAllPayment);
 Router.route('/payment/:paymentId').get(authMiddleWare.verifyToken, adminController.getPaymentDetail);
 

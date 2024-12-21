@@ -12,7 +12,7 @@ import { userService } from './userService';
 import { awsService } from './awsService';
 import { songService } from './songService';
 import formatTime from '~/utils/timeFormat';
-import { ACCOUNT_STATUS, NOTIFICATIONS, SUSPENSION_DURATION } from '~/data/enum';
+import { ACCOUNT_STATUS, NOTIFICATIONS, REPORT_STATUS, SUSPENSION_DURATION } from '~/data/enum';
 import { emailService } from './emailService';
 import encodeData from '~/utils/encryption';
 
@@ -294,6 +294,7 @@ const getAllReportService = async ({ page = 1, limit = 10 } = {}) => {
 
         const formatters = reports.map((r) => {
             const formatter = { ...r.toJSON() };
+            formatter.status = REPORT_STATUS[formatter.status];
             formatter.createdAt = formatTime(formatter.createdAt);
             formatter.updatedAt = formatTime(formatter.updatedAt);
             formatter.user.createdAt = formatTime(formatter.user.createdAt);
@@ -344,6 +345,21 @@ const getReportService = async (reportId) => {
     }
 };
 
+const hideCommentAndChildren = async (commentId, transaction) => {
+    // Ẩn comment hiện tại
+    await db.Comment.update({ hide: true }, { where: { id: commentId }, transaction });
+
+    // Tìm tất cả các comment con
+    const childComments = await db.Comment.findAll({
+        where: { commentParentId: commentId },
+    });
+
+    // Đệ quy ẩn các comment con
+    for (const child of childComments) {
+        await hideCommentAndChildren(child.id, transaction);
+    }
+};
+
 const verifyReportService = async (reportId) => {
     const transaction = await db.sequelize.transaction();
     try {
@@ -351,16 +367,18 @@ const verifyReportService = async (reportId) => {
         const comment = await db.Comment.findByPk(report.commentId);
 
         if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');
-        // if (report.status) throw new ApiError(StatusCodes.CONFLICT, 'The reported comment has already been verified');
+        if (report.status !== 'PENDING')
+            throw new ApiError(StatusCodes.CONFLICT, 'The reported comment has already been verified');
 
         const [reportResult, commentResult] = await Promise.all([
-            db.Report.update({ status: true }, { where: { id: reportId }, transaction }),
-            db.Comment.update({ hide: true }, { where: { id: report.commentId }, transaction }),
+            db.Report.update({ status: 'DELETE' }, { where: { id: reportId }, transaction }),
+            // db.Comment.update({ hide: true }, { where: { id: report.commentId }, transaction }),
+            hideCommentAndChildren(report.commentId, transaction),
             db.Notifications.create(
                 {
                     userId: comment.userId,
-                    type: NOTIFICATIONS.COMMENT_VIOLATION,
-                    message: comment.content,
+                    type: 'COMMENT',
+                    message: `Your comment has been deleted`,
                     from: comment.id,
                 },
                 { transaction },
@@ -368,43 +386,81 @@ const verifyReportService = async (reportId) => {
         ]);
 
         if (reportResult[0] === 1) {
-            const count = await db.Comment.count({ where: { userId: comment.userId, hide: true } });
-            const user = await db.User.findByPk(comment.userId);
+            const [count, user] = await Promise.all([
+                db.Comment.count({ where: { userId: comment.userId, hide: true } }),
+                db.User.findByPk(comment.userId),
+            ]);
             switch (count) {
                 case 3:
-                    await emailService.emailWarnAccount({
-                        email: user.email,
-                        username: user.username,
-                    });
+                    // tạo thêm noti thông báo cảnh cáo
+                    await Promise.all([
+                        db.Notifications.create({
+                            userId: user.id,
+                            type: 'SYSTEM',
+                            message:
+                                'Your comments have violated community standards multiple times. If they continue, your account will be temporarily locked.',
+                        }),
+                        emailService.emailWarnAccount({
+                            email: user.email,
+                            username: user.username,
+                        }),
+                    ]);
                     break;
                 case 7:
-                    await db.User.update({ status: 'lock3' }, { where: { id: comment.userId }, transaction });
+                    await db.User.update({ status: 'LOCK3' }, { where: { id: user.id }, transaction });
                     await emailService.emailNotiLockAccount({
                         email: user.email,
                         username: user.username,
-                        time: SUSPENSION_DURATION.LOCK3,
+                        time: ACCOUNT_STATUS.LOCK3,
                     });
                     break;
                 case 10:
-                    await db.User.update({ status: 'lock7' }, { where: { id: comment.userId }, transaction });
+                    await db.User.update({ status: 'LOCK7' }, { where: { id: user.id }, transaction });
                     await emailService.emailNotiLockAccount({
                         email: user.email,
                         username: user.username,
-                        time: SUSPENSION_DURATION.LOCK7,
+                        time: ACCOUNT_STATUS.LOCK7,
                     });
                     break;
                 case 15:
-                    await db.User.update({ status: 'permanent' }, { where: { id: comment.userId }, transaction });
+                    await db.User.update({ status: 'PERMANENT' }, { where: { id: user.id }, transaction });
                     await emailService.emailNotiLockAccount({
                         email: user.email,
                         username: user.username,
-                        time: SUSPENSION_DURATION.PERMANENT,
+                        time: ACCOUNT_STATUS.PERMANENT,
                     });
                     break;
                 default:
                     break;
             }
         }
+        await transaction.commit();
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
+};
+
+const rejectReportService = async (reportId) => {
+    const transaction = await db.sequelize.transaction();
+    try {
+        const report = await db.Report.findByPk(reportId);
+        const comment = await db.Comment.findByPk(report.commentId);
+
+        if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');
+        if (report.status !== 'PENDING')
+            throw new ApiError(StatusCodes.CONFLICT, 'The reported comment has already been verified');
+
+        await db.Report.update({ status: 'NOTDELETE' }, { where: { id: reportId }, transaction });
+        await db.Notifications.create(
+            {
+                userId: report.userId,
+                type: 'COMMENT',
+                message: 'Your report comment has been cancelled.',
+                from: comment.id,
+            },
+            { transaction },
+        );
         await transaction.commit();
     } catch (error) {
         await transaction.rollback();
@@ -1095,6 +1151,7 @@ export const adminService = {
     getAllReportService,
     getReportService,
     verifyReportService,
+    rejectReportService,
     getAllPaymentService,
     getPaymentDetailService,
     // ------------create

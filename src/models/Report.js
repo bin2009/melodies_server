@@ -49,7 +49,7 @@ module.exports = (sequelize, DataTypes) => {
             status: {
                 type: DataTypes.ENUM(Object.keys(REPORT_STATUS)),
                 allowNull: false,
-                defaultValue: false,
+                defaultValue: 'PENDING',
             },
         },
         {

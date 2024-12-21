@@ -450,6 +450,18 @@ const verifyReport = async (req, res, next) => {
     }
 };
 
+const rejectReport = async (req, res, next) => {
+    try {
+        await adminService.rejectReportService(req.params.reportId);
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Reject report success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const getAllPayment = async (req, res, next) => {
     try {
         const payments = await adminService.getAllPaymentService();
@@ -521,6 +533,7 @@ export const adminController = {
     getAllReport,
     getReport,
     verifyReport,
+    rejectReport,
     getAllPayment,
     getPaymentDetail,
     // ------------
