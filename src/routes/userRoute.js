@@ -74,6 +74,7 @@ Router.route('/user/song/:songId')
     .delete(authMiddleWare.verifyToken, appMiddleWare.checkPremium, userController.deleteUserSong);
 
 Router.route('/user/notifications').get(authMiddleWare.verifyToken, userController.getAllNotifications);
+Router.route('/user/notifications/:id').get(authMiddleWare.verifyToken, userController.getNotiDetail);
 Router.route('/user/report/:reportId').get(authMiddleWare.verifyToken, userController.getReportDetail);
 Router.route('/user/download/:songId').post(authMiddleWare.verifyToken, userController.downloadSong);
 

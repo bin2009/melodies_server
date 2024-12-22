@@ -67,46 +67,48 @@ const listenForPaymentStatus = (orderCode, payment, userId, pack) => {
                             { status: PAYMENT.EXPIRED },
                             { where: { id: payment.id }, transaction },
                         ),
+                        // db.Notifications.create(
+                        //     {
+                        //         userId: userId,
+                        //         type: NOTIFICATIONS.PAYMENT_EXPIRED,
+                        //         message: `Gói: ${pack.name} - Thời gian: ${PACKAGE_TIME[pack.time]} ngày - Giá: ${
+                        //             pack.fare
+                        //         }`,
+                        //         from: payment.id,
+                        //     },
+                        //     { transaction },
+                        // ),
+                    ]);
+                    clearInterval(interval);
+                    // socket
+                    // sendMessageToUser(userId, 'paymentStatus', {
+                    //     status: 'Paid',
+                    //     message: 'Payment successful. Your account is now Premium.',
+                    // });
+                    break;
+                case 'PAID':
+                    await db.Subscriptions.update({ statusUse: false }, { where: { userId: userId }, transaction });
+                    const [noti] = await Promise.all([
                         db.Notifications.create(
                             {
                                 userId: userId,
-                                type: NOTIFICATIONS.PAYMENT_EXPIRED,
-                                message: `Gói: ${pack.name} - Thời gian: ${PACKAGE_TIME[pack.time]} ngày - Giá: ${
-                                    pack.fare
-                                }`,
+                                // type: NOTIFICATIONS.PAYMENT_PAID,
+                                type: 'PAYMENT',
+                                message: `Đăng kí thành công gói: ${pack.name} - Thời gian: ${
+                                    PACKAGE_TIME[pack.time]
+                                } ngày - Giá: ${pack.fare} `,
                                 from: payment.id,
                             },
                             { transaction },
                         ),
-                    ]);
-                    clearInterval(interval);
-                    // socket
-                    sendMessageToUser(userId, 'paymentStatus', {
-                        status: 'Paid',
-                        message: 'Payment successful. Your account is now Premium.',
-                    });
-                    break;
-                case 'PAID':
-                    await db.Subscriptions.update({ statusUse: false }, { where: { userId: userId }, transaction });
-                    await Promise.all([
                         db.Subscriptions.update(
                             { status: PAYMENT.PAID, statusUse: true },
                             { where: { id: payment.id }, transaction },
                         ),
-                        db.User.update({ accountType: ACCOUNTTYPE.PREMIUM }, { where: { id: userId }, transaction }),
-                        db.Notifications.create(
-                            {
-                                userId: userId,
-                                type: NOTIFICATIONS.PAYMENT_PAID,
-                                message: `Gói: ${pack.name} - Thời gian: ${PACKAGE_TIME[pack.time]} ngày - Giá: ${
-                                    pack.fare
-                                }`,
-                                from: payment.id,
-                            },
-                            { transaction },
-                        ),
+                        db.User.update({ accountType: 'PREMIUM' }, { where: { id: userId }, transaction }),
                     ]);
                     clearInterval(interval);
+                    sendMessageToUser(userId, 'newNoti', noti);
                     break;
                 case 'CANCELLED':
                     await Promise.all([
@@ -114,17 +116,17 @@ const listenForPaymentStatus = (orderCode, payment, userId, pack) => {
                             { status: PAYMENT.CANCELLED },
                             { where: { id: payment.id }, transaction },
                         ),
-                        db.Notifications.create(
-                            {
-                                userId: userId,
-                                type: NOTIFICATIONS.PAYMENT_CANCELLED,
-                                message: `Gói: ${pack.name} - Thời gian: ${PACKAGE_TIME[pack.time]} ngày - Giá: ${
-                                    pack.fare
-                                }`,
-                                from: payment.id,
-                            },
-                            { transaction },
-                        ),
+                        // db.Notifications.create(
+                        //     {
+                        //         userId: userId,
+                        //         type: NOTIFICATIONS.PAYMENT_CANCELLED,
+                        //         message: `Gói: ${pack.name} - Thời gian: ${PACKAGE_TIME[pack.time]} ngày - Giá: ${
+                        //             pack.fare
+                        //         }`,
+                        //         from: payment.id,
+                        //     },
+                        //     { transaction },
+                        // ),
                     ]);
                     clearInterval(interval);
                     break;

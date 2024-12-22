@@ -12,6 +12,7 @@ import { awsService } from './awsService';
 import formatTime from '~/utils/timeFormat';
 import encodeData from '~/utils/encryption';
 import { NOTIFICATIONS, PLAYLIST_TYPE } from '~/data/enum';
+import { sendMessageToUser } from '~/sockets/socketManager';
 
 const saltRounds = 10;
 
@@ -774,6 +775,7 @@ const deleteUserSongService = async ({ user, songId } = {}) => {
 const getAllNotificationsService = async ({ user, page = 1, limit = 10 } = {}) => {
     try {
         const offset = (page - 1) * limit;
+        const count = await db.Notifications.count({ where: { userId: user.id, isRead: false } });
         const notifications = await db.Notifications.findAll({
             order: [
                 ['isRead', 'ASC'],
@@ -782,7 +784,121 @@ const getAllNotificationsService = async ({ user, page = 1, limit = 10 } = {}) =
             limit: limit,
             offset: offset,
         });
-        return notifications;
+        const formatters = notifications.map((r) => {
+            const formatter = { ...r.toJSON() };
+            formatter.createdAt = formatTime(formatter.createdAt);
+            formatter.updatedAt = formatTime(formatter.updatedAt);
+            return formatter;
+        });
+        return {
+            notificationsNumber: count,
+            notifications: formatters,
+        };
+        // return formatters;
+    } catch (error) {
+        throw error;
+    }
+};
+
+const getNotiDetailService = async (user, id) => {
+    try {
+        const noti = await db.Notifications.findByPk(id);
+        if (!noti) throw new ApiError(StatusCodes.NOT_FOUND, 'Notification not found');
+        if (noti.userId !== user.id)
+            throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to perform this function.');
+
+        if (noti.type === 'SYSTEM') {
+            // thông báo cảnh cáo
+            // lấy ra các bình luận bị ẩn gần nhất của họ
+            const comments = await db.Comment.findAll({
+                where: { userId: user.id, hide: true },
+                order: [['updatedAt', 'desc']],
+                limit: 3,
+            });
+
+            const formatters = comments.map((c) => {
+                const formatter = c.toJSON();
+                formatter.createdAt = formatTime(formatter.createdAt);
+                formatter.updatedAt = formatTime(formatter.updatedAt);
+                return formatter;
+            });
+            return {
+                type: 'SYSTEM',
+                result: formatters,
+            };
+        }
+        if (noti.type === 'COMMENT') {
+            const report = await db.Report.findOne({
+                where: { id: noti.from },
+                attributes: ['id', 'content', 'userId', 'status', 'createdAt'],
+                include: [
+                    {
+                        model: db.Comment,
+                        as: 'comment',
+                        attributes: ['id', 'content', 'hide', 'createdAt'],
+                        include: [
+                            { model: db.User, as: 'user', attributes: ['id', 'image', 'username', 'name', 'email'] },
+                        ],
+                    },
+                ],
+            });
+            const formatter = report.toJSON();
+            formatter.createdAt = formatTime(formatter.createdAt);
+            formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
+            const comment = await db.Comment.findByPk(report.commentId);
+
+            // 1. User chính là người report, reject
+            if (report.userId === user.id) {
+                return {
+                    type: 'COMMENT',
+                    result: formatter,
+                };
+            } else {
+                return {
+                    type: 'COMMENT',
+                    result: formatter.comment,
+                };
+            }
+        }
+        if (noti.type === 'PAYMENT') {
+            const payment = await db.Subscriptions.findOne({
+                where: { id: noti.from },
+                include: [
+                    {
+                        model: db.User,
+                        as: 'user',
+                        attributes: ['id', 'username', 'name', 'email', 'image', 'accountType'],
+                    },
+                    {
+                        model: db.SubscriptionPackage,
+                        as: 'package',
+                        attributes: { exclude: ['createdAt', 'updatedAt'] },
+                    },
+                ],
+            });
+
+            const formatter = payment.toJSON();
+            formatter.startDate = formatTime(formatter.startDate);
+            formatter.endDate = formatTime(formatter.endDate);
+            formatter.createdAt = formatTime(formatter.createdAt);
+            formatter.updatedAt = formatTime(formatter.updatedAt);
+            return {
+                type: 'PAYMENT',
+                result: formatter,
+            };
+        }
+        if (noti.type === 'PACKAGE') {
+            const findPackage = await db.SubscriptionPackage.findOne({
+                where: { id: noti.from },
+            });
+            const formatter = findPackage.toJSON();
+            formatter.createdAt = formatTime(formatter.createdAt);
+            formatter.updatedAt = formatTime(formatter.updatedAt);
+            return {
+                type: 'PACKAGE',
+                result: formatter,
+            };
+        }
     } catch (error) {
         throw error;
     }
@@ -853,6 +969,8 @@ const updateAccountType = async () => {
     const transaction = await db.sequelize.transaction();
     try {
         const currentDate = new Date().getTime();
+        const twoDaysLater = new Date();
+        twoDaysLater.setDate(currentDate.getDate() + 2);
         const expiredBills = await db.Subscriptions.findAll({
             where: {
                 endDate: { [Op.lt]: currentDate },
@@ -860,28 +978,66 @@ const updateAccountType = async () => {
             },
             raw: true,
         });
+        const expiringSoonBills = await db.Subscriptions.findAll({
+            where: {
+                endDate: {
+                    [Op.between]: [currentDate, twoDaysLater],
+                },
+                statusUse: true,
+            },
+            raw: true,
+        });
+        let expiredNotis = [];
+        let expiringsoonNotis = [];
         if (expiredBills.length > 0) {
             const notifications = expiredBills.map((b) => ({
                 userId: b.userId,
                 message: 'Your premium subscription has expired. Please renew to continue enjoying premium features.',
+                type: 'PACKAGE',
+                from: b.packageId,
             }));
 
-            await Promise.all([
-                db.User.update(
-                    { accountType: 'Free' },
-                    { where: { id: expiredBills.map((b) => b.userId) }, transaction },
-                ),
-                db.Subscriptions.update(
-                    { statusUse: false },
-                    { where: { id: { [Op.in]: expiredBills.map((b) => b.id) } }, transaction },
-                ),
-                db.Notifications.bulkCreate(notifications, { transaction }),
-            ]);
+            (expiredNotis = await db.Notifications.bulkCreate(notifications, { transaction })),
+                await Promise.all([
+                    db.User.update(
+                        { accountType: 'FREE' },
+                        { where: { id: expiredBills.map((b) => b.userId) }, transaction },
+                    ),
+                    db.Subscriptions.update(
+                        { statusUse: false },
+                        { where: { id: { [Op.in]: expiredBills.map((b) => b.id) } }, transaction },
+                    ),
+                ]);
             console.log(`Updated account types to Free for users: ${expiredBills.map((b) => b.userId)}`);
         } else {
             console.log('No expired accounts found.');
         }
+
+        if (expiringSoonBills.length > 0) {
+            const notifications = expiringSoonBills.map((b) => ({
+                userId: b.userId,
+                message:
+                    'Your premium package will expire in 2 days, please stay tuned for upgrade to avoid interruption.',
+                type: 'PACKAGE',
+                from: b.packageId,
+            }));
+
+            expiringsoonNotis = await db.Notifications.bulkCreate(notifications, { transaction });
+        }
         await transaction.commit();
+
+        // expiredBills.map((b) => {
+        //     sendMessageToUser(b.userId, 'newNoti', '');
+        // });
+        // expiringSoonBills.map((b) => {
+        //     sendMessageToUser(b.userId, 'newNoti', '');
+        // });
+        expiredNotis.map((n) => {
+            sendMessageToUser(n.userId, 'newNoti', n);
+        });
+        expiringsoonNotis.map((n) => {
+            sendMessageToUser(n.userId, 'newNoti', n);
+        });
     } catch (error) {
         await transaction.rollback();
         throw error;
@@ -921,6 +1077,7 @@ export const userService = {
     updateUserSongService,
     deleteUserSongService,
     getAllNotificationsService,
+    getNotiDetailService,
     getReportDetailService,
     downloadSongService,
     // ---------------cron job

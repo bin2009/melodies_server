@@ -50,10 +50,10 @@ export const ROLE = Object.freeze({
 });
 
 export const ACCOUNT_STATUS = Object.freeze({
-    NORMAL: 'normal',
-    LOCK3: 'block 3 days',
-    LOCK7: 'block 7 days',
-    PERMANENT: 'block permanent',
+    NORMAL: 'Normal',
+    LOCK3: 'Block 3 days',
+    LOCK7: 'Block 7 days',
+    PERMANENT: 'Block permanent',
 });
 
 export const NOTIFICATIONS_TYPE = Object.freeze({
