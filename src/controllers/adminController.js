@@ -29,8 +29,8 @@ const createGenre = async (req, res, next) => {
 const createArtist = async (req, res, next) => {
     try {
         const data = JSON.parse(req.body.data);
-        console.log('data create artist', data);
-        console.log('data create artist file', req.file);
+        // console.log('data create artist', data);
+        // console.log('data create artist file', req.file);
         const result = await artistService.createArtistService({ data: data, file: req.file });
         res.status(StatusCodes.OK).json({
             status: 'success',
@@ -147,8 +147,8 @@ const updateArtist = async (req, res, next) => {
         const { data } = req.body;
         const parsedData = JSON.parse(data);
 
-        console.log('update data artist: ', parsedData);
-        console.log('file: ', req.file);
+        // console.log('update data artist: ', parsedData);
+        // console.log('file: ', req.file);
         const result = await adminService.updateArtistService({
             artistId: req.params.artistId,
             data: parsedData,
@@ -157,7 +157,7 @@ const updateArtist = async (req, res, next) => {
         const artist = await artistService.getArtistService({ artistId: req.params.artistId });
         res.status(StatusCodes.OK).json({
             status: 'success',
-            message: 'Update album success',
+            message: 'Update artist success',
             artist: artist,
             ...result,
         });

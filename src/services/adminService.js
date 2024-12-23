@@ -77,8 +77,8 @@ const getTotalPlayAndCmtYearService = async () => {
 const getUserGrowthService = async () => {
     try {
         const totalUser = await db.User.count();
-        const totalUserFree = await db.User.count({ where: { accountType: 'Free' } });
-        const totalUserPremium = await db.User.count({ where: { accountType: 'Premium' } });
+        const totalUserFree = await db.User.count({ where: { accountType: 'FREE' } });
+        const totalUserPremium = await db.User.count({ where: { accountType: 'PREMIUM' } });
 
         const currentDate = new Date();
         const currentMonth = currentDate.getMonth() + 1;
@@ -151,25 +151,29 @@ const getTodayBestSongService = async () => {
             raw: true,
         });
 
-        const song = await songService.fetchSongs({ conditions: { id: topSong.songId }, mode: 'findOne' });
+        if (topSong) {
+            const song = await songService.fetchSongs({ conditions: { id: topSong.songId }, mode: 'findOne' });
 
-        const { album, artists, totalPlay, ...other } = song;
+            const { album, artists, totalPlay, ...other } = song;
 
-        const result = {
-            ...other,
-            albumId: album.albumId,
-            albumTitle: album.title,
-            album: album,
-            artists: artists.map(({ ArtistSong, ...otherArtist }) => ({
-                ...otherArtist,
-                main: ArtistSong?.main || false,
-            })),
-            playCount: totalPlay,
-        };
+            const result = {
+                ...other,
+                albumId: album.albumId,
+                albumTitle: album.title,
+                album: album,
+                artists: artists.map(({ ArtistSong, ...otherArtist }) => ({
+                    ...otherArtist,
+                    main: ArtistSong?.main || false,
+                })),
+                playCount: totalPlay,
+            };
 
-        return {
-            song: result,
-        };
+            return {
+                song: result,
+            };
+        } else {
+            return { song: {} };
+        }
     } catch (error) {
         throw error;
     }
@@ -799,65 +803,91 @@ const updateAlbumService = async ({ albumId, data, file } = {}) => {
 
 const updateArtistService = async ({ artistId, data, file } = {}) => {
     const transaction = await db.sequelize.transaction();
+    const operations = {
+        updates: {},
+        ex: [],
+        move: [],
+        upload: [],
+        delete: [],
+        rollback: [],
+    };
     try {
         // check artist
         const checkArtist = await db.Artist.findByPk(artistId);
         if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
 
-        // update artist
-        const [genresOfArtist] = await Promise.all([
-            db.ArtistGenre.findAll({ where: { artistId: artistId }, attributes: ['genreId'], raw: true }),
-            db.Artist.update(data, { where: { id: artistId }, returning: true }, { transaction }),
-        ]);
+        // check genre exist
+        const genreIds = data.genres ?? [];
+        const genres = await db.Genre.findAll({ attributes: ['genreId'], raw: true });
+        const existingGenreIds = new Set(genres.map((genre) => genre.genreId));
+        const missingGenreIds = genreIds.filter((genreId) => !existingGenreIds.has(genreId));
 
+        if (missingGenreIds.length > 0) {
+            throw new ApiError(StatusCodes.BAD_REQUEST, `Genre IDs do not exist: ${missingGenreIds.join(', ')}`);
+        }
+
+        // lấy ra genre của artist
+        const genresOfArtist = await db.ArtistGenre.findAll({
+            where: { artistId: artistId },
+            attributes: ['genreId'],
+            raw: true,
+        });
         const genreIdsOfArtist = genresOfArtist?.map((rec) => rec.genreId);
 
-        const genreIds = data.genres ?? [];
         const genresAdd = genreIds?.filter((id) => !genreIdsOfArtist.includes(id));
         const genresDel = genreIdsOfArtist?.filter((id) => !genreIds.includes(id));
 
-        // xóa genre ra khỏi artist
-        if (genresDel.length > 0)
-            await db.ArtistGenre.destroy(
-                { where: { artistId: artistId, genreId: { [Op.in]: genresDel } } },
-                { transaction },
+        if (genresDel.length > 0) {
+            operations.ex.push(() =>
+                db.ArtistGenre.destroy({ where: { artistId: artistId, genreId: { [Op.in]: genresDel } }, transaction }),
             );
-
+        }
         if (genresAdd.length > 0) {
-            const foundGenres = (
-                await db.Genre.findAll({ where: { genreId: { [Op.in]: genresAdd } }, attributes: ['genreId'] })
-            ).map((s) => s.genreId);
-
-            const invalidGenreIds = genresAdd.filter((id) => !foundGenres.includes(id));
-            if (invalidGenreIds.length > 0) {
-                throw new ApiError(StatusCodes.BAD_REQUEST, `Genre IDs do not exist: ${invalidGenreIds.join(', ')}`);
-            }
-
-            const addPromises = genresAdd.map((genreId) =>
-                db.ArtistGenre.create({ artistId: artistId, genreId: genreId }, { transaction }),
-            );
-            await Promise.all(addPromises);
+            const createData = genresAdd.map((g) => ({
+                artistId: artistId,
+                genreId: g,
+            }));
+            operations.ex.push(() => db.ArtistGenre.bulkCreate(createData, { transaction }));
         }
 
+        if (data.name) operations.updates.name = data.name;
+        if (data.bio) operations.updates.bio = data.bio;
+        console.log('operations: ', operations);
         if (file) {
-            await awsService.copyFolder(`PBL6/ARTIST/${artistId}`, `PBL6/COPY/ARTIST/${artistId}`);
-            await awsService.deleteFolder(`PBL6/ARTIST/${artistId}`);
-            const path = await awsService.uploadArtistAvatar(artistId, file);
-            await db.Artist.update({ avatar: path }, { where: { id: artistId } });
+            const oldPath = checkArtist.avatar;
+            let copyPath = null;
+            if (oldPath && oldPath.includes('i.scdn.co')) {
+                console.log('1');
+                copyPath = oldPath;
+            } else if (oldPath && !oldPath.includes('i.scdn.co')) {
+                console.log('2');
+                // copyPath = prefix + ;
+            } else {
+                console.log('3');
+            }
+            await awsService.deleteFile3('hahah');
         }
 
-        await transaction.commit();
-        await awsService.deleteFolder(`PBL6/COPY/ARTIST/${artistId}`);
-        return {
-            genresAdd: genresAdd,
-            genresDel: genresDel,
-        };
+        await Promise.all([
+            // ...operations.ex.map((fn) => fn()),
+            // db.Artist.update(operations.updates, { where: { id: artistId }, transaction }),
+        ]);
+
+        // await transaction.commit();
+        return true;
+        // await Promise.all([...operations.ex, ...operations.move].map((fn) => fn()));
+        // await Promise.all(operations.upload.map((fn) => fn()));
+        // await db.Artist.update(updates, { where: { id: artistId }, transaction });
+
+        // await awsService.deleteFolder(`COPY/PBL6/ARTIST/ARTIST_${artistId}`);
+        // return {
+        //     genresAdd: genresAdd,
+        //     genresDel: genresDel,
+        // };
     } catch (error) {
         await transaction.rollback();
-        if (file) {
-            await awsService.copyFolder(`PBL6/COPY/ARTIST/${artistId}/`, `PBL6/ARTIST/${artistId}/`);
-            await awsService.deleteFolder(`PBL6/COPY/ARTIST/${artistId}`);
-        }
+        await Promise.all(operations.delete.map((fn) => fn()));
+        await Promise.all(operations.rollback.map((fn) => fn()));
         throw error;
     }
 };
@@ -1010,6 +1040,10 @@ const deleteAlbumService = async ({ albumIds } = {}) => {
 
 const deleteArtistService = async ({ artistIds } = {}) => {
     const transaction = await db.sequelize.transaction();
+    const operations = {
+        move: [],
+        rollback: [],
+    };
     try {
         const songIds = await db.ArtistSong.findAll({
             where: { artistId: { [Op.in]: artistIds }, main: true },
@@ -1057,9 +1091,19 @@ const deleteArtistService = async ({ artistIds } = {}) => {
                 transaction,
             }),
         ]);
+
+        artistIds.map((a) => {
+            const oldPath = `PBL6/ARTIST/ARTIST_${a}`;
+            const copyPath = `COPY_ARTIST/${oldPath}`;
+            operations.move.push(() => awsService.moveFile(oldPath, copyPath));
+            operations.rollback.push(() => awsService.moveFile(copyPath, oldPath));
+        });
+        await Promise.all(operations.move.map((fn) => fn()));
         await transaction.commit();
+        await awsService.deleteFolder('COPY_ARTIST');
     } catch (error) {
         await transaction.rollback();
+        await Promise.all(operations.rollback.map((fn) => fn()));
         throw error;
     }
 };

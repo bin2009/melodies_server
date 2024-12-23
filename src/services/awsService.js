@@ -11,7 +11,8 @@ const s3 = new AWS.S3({
 
 const uploadArtistAvatar = async (artistId, file) => {
     console.log('file: ', file);
-    const fileName = `PBL6/ARTIST/${artistId}/avatar_${file.originalname}`;
+    const fileExtension = path.extname(file.originalname);
+    const fileName = `PBL6/ARTIST/ARTIST_${artistId}/avatar/avatar${fileExtension}`;
     const params = {
         Bucket: process.env.DO_SPACES_BUCKET,
         Key: fileName,
@@ -355,6 +356,75 @@ const moveFile = async (sourceKey, destinationKey) => {
     }
 };
 
+const deleteFile2 = async ({ folderPath, fileName } = {}) => {
+    try {
+        // Lấy danh sách file trong bucket hoặc folder
+        const listResponse = await s3
+            .listObjectsV2({
+                Bucket: process.env.DO_SPACES_BUCKET,
+                Prefix: folderPath, // Chỉ tìm trong folder này
+            })
+            .promise();
+
+        console.log('test file', listResponse);
+
+        // Lọc file có tên "ava" bất kể phần mở rộng
+        // const filesToDelete = listResponse.Contents.filter(
+        //     (file) => file.Key.match(/\/${fileName}\.[^/]+$/), // Match "ava" với bất kỳ đuôi file nào
+        // ).map((file) => ({ Key: file.Key }));
+
+        const regex = new RegExp(`/${fileName}\\.[^/]+$`);
+        const filesToDelete = listResponse.Contents.filter((file) => regex.test(file.Key)).map((file) => ({
+            Key: file.Key,
+        }));
+
+        console.log('test filesToDelete', filesToDelete);
+
+        if (filesToDelete.length === 0) {
+            console.log('Không tìm thấy file ava.');
+            return;
+        }
+
+        // // Xóa file
+        // await s3
+        //     .deleteObjects({
+        //         Bucket: process.env.DO_SPACES_BUCKET,
+        //         Delete: {
+        //             Objects: filesToDelete,
+        //         },
+        //     })
+        //     .promise();
+    } catch (error) {
+        throw error;
+    }
+};
+
+const deleteFile3 = async (filePath) => {
+    try {
+        const bucketName = 'audiomelodies';
+
+        const params = {
+            Bucket: bucketName,
+            Key: filePath,
+        };
+
+        try {
+            await s3.headObject(params).promise();
+        } catch (err) {
+            if (err.code === 'NotFound') {
+                console.log(`File không tồn tại: ${filePath}`);
+                return;
+            }
+            throw err;
+        }
+
+        await s3.deleteObject(params).promise();
+        console.log(`File đã được xóa: ${filePath}`);
+    } catch (error) {
+        throw error;
+    }
+};
+
 export const awsService = {
     uploadArtistAvatar,
     uploadPlaylistAvatar,
@@ -368,8 +438,10 @@ export const awsService = {
     userUploadSongImage,
     userUploadImage,
     deleteFile,
+    deleteFile2,
     deleteFolder,
     copyFile,
     copyFolder,
     moveFile,
+    deleteFile3,
 };
