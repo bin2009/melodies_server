@@ -449,24 +449,23 @@ const rejectReportService = async (reportId) => {
     const transaction = await db.sequelize.transaction();
     try {
         const report = await db.Report.findByPk(reportId);
-        const comment = await db.Comment.findByPk(report.commentId);
+        // const comment = await db.Comment.findByPk(report.commentId);
 
         if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');
         if (report.status !== 'PENDING')
             throw new ApiError(StatusCodes.CONFLICT, 'The reported comment has already been verified');
 
         await db.Report.update({ status: 'NOTDELETE' }, { where: { id: reportId }, transaction });
-        const noti = await db.Notifications.create(
-            {
-                userId: report.userId,
-                type: 'COMMENT',
-                message: 'Your report comment has been cancelled.',
-                from: report.id,
-            },
-            { transaction },
-        );
-
-        sendMessageToUser(report.userId, 'newNoti', noti);
+        // const noti = await db.Notifications.create(
+        //     {
+        //         userId: report.userId,
+        //         type: 'COMMENT',
+        //         message: 'Your report comment has been cancelled.',
+        //         from: report.id,
+        //     },
+        //     { transaction },
+        // );
+        // sendMessageToUser(report.userId, 'newNoti', noti);
         await transaction.commit();
     } catch (error) {
         await transaction.rollback();

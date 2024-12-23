@@ -888,12 +888,20 @@ const getNotiDetailService = async (user, id) => {
             };
         }
         if (noti.type === 'PACKAGE') {
-            const findPackage = await db.SubscriptionPackage.findOne({
+            const payment = await db.Subscriptions.findOne({
                 where: { id: noti.from },
+                attributes: ['startDate', 'endDate', 'createdAt', 'updatedAt'],
+                include: [{ model: db.SubscriptionPackage, as: 'package' }],
             });
-            const formatter = findPackage.toJSON();
+
+            const formatter = payment.toJSON();
+            formatter.startDate = formatTime(formatter.startDate);
+            formatter.endDate = formatTime(formatter.endDate);
             formatter.createdAt = formatTime(formatter.createdAt);
             formatter.updatedAt = formatTime(formatter.updatedAt);
+            formatter.package.createdAt = formatTime(formatter.package.createdAt);
+            formatter.package.updatedAt = formatTime(formatter.package.updatedAt);
+
             return {
                 type: 'PACKAGE',
                 result: formatter,
@@ -968,7 +976,7 @@ const downloadSongService = async ({ user, songId } = {}) => {
 const updateAccountType = async () => {
     const transaction = await db.sequelize.transaction();
     try {
-        const currentDate = new Date().getTime();
+        const currentDate = new Date();
         const twoDaysLater = new Date();
         twoDaysLater.setDate(currentDate.getDate() + 2);
         const expiredBills = await db.Subscriptions.findAll({
@@ -994,20 +1002,20 @@ const updateAccountType = async () => {
                 userId: b.userId,
                 message: 'Your premium subscription has expired. Please renew to continue enjoying premium features.',
                 type: 'PACKAGE',
-                from: b.packageId,
+                from: b.id,
             }));
 
-            (expiredNotis = await db.Notifications.bulkCreate(notifications, { transaction })),
-                await Promise.all([
-                    db.User.update(
-                        { accountType: 'FREE' },
-                        { where: { id: expiredBills.map((b) => b.userId) }, transaction },
-                    ),
-                    db.Subscriptions.update(
-                        { statusUse: false },
-                        { where: { id: { [Op.in]: expiredBills.map((b) => b.id) } }, transaction },
-                    ),
-                ]);
+            expiredNotis = await db.Notifications.bulkCreate(notifications, { transaction });
+            await Promise.all([
+                db.User.update(
+                    { accountType: 'FREE' },
+                    { where: { id: expiredBills.map((b) => b.userId) }, transaction },
+                ),
+                db.Subscriptions.update(
+                    { statusUse: false },
+                    { where: { id: { [Op.in]: expiredBills.map((b) => b.id) } }, transaction },
+                ),
+            ]);
             console.log(`Updated account types to Free for users: ${expiredBills.map((b) => b.userId)}`);
         } else {
             console.log('No expired accounts found.');
@@ -1019,7 +1027,7 @@ const updateAccountType = async () => {
                 message:
                     'Your premium package will expire in 2 days, please stay tuned for upgrade to avoid interruption.',
                 type: 'PACKAGE',
-                from: b.packageId,
+                from: b.id,
             }));
 
             expiringsoonNotis = await db.Notifications.bulkCreate(notifications, { transaction });
