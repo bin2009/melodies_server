@@ -74,10 +74,19 @@ const calculateTotalPages = (totalItems, limit) => {
 
 const getInfoUserService = async (user) => {
     try {
-        // const findUser = await db.User.findByPk(user.id);
         const findUser = await db.User.findOne({
             where: { id: user.id },
             attributes: ['id', 'role', 'username', 'email', 'name', 'image', 'accountType', 'status'],
+            include: [
+                {
+                    model: db.SubscriptionPackage,
+                    as: 'package',
+                    attributes: { exclude: ['createdAt', 'updatedAt'] },
+                    through: {
+                        attributes: ['id', 'startDate', 'endDate', 'status', 'statusUse'],
+                    },
+                },
+            ],
         });
         if (!findUser) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
 
@@ -784,17 +793,47 @@ const getAllNotificationsService = async ({ user, page = 1, limit = 10 } = {}) =
             limit: limit,
             offset: offset,
         });
-        const formatters = notifications.map((r) => {
-            const formatter = { ...r.toJSON() };
-            formatter.createdAt = formatTime(formatter.createdAt);
-            formatter.updatedAt = formatTime(formatter.updatedAt);
-            return formatter;
-        });
+        const formattedNotifications = await Promise.all(
+            notifications.map(async (noti) => {
+                const formatter = { ...noti.toJSON() };
+                formatter.createdAt = formatTime(formatter.createdAt);
+                formatter.updatedAt = formatTime(formatter.updatedAt);
+
+                if (noti.type === 'COMMENT') {
+                    const report = await db.Report.findOne({
+                        where: { id: noti.from },
+                        attributes: ['id', 'content', 'userId', 'status', 'createdAt'],
+                        include: [
+                            {
+                                model: db.Comment,
+                                as: 'comment',
+                                attributes: ['id', 'songId', 'content', 'hide', 'createdAt'],
+                                include: [
+                                    {
+                                        model: db.User,
+                                        as: 'user',
+                                        attributes: ['id', 'image', 'username', 'name', 'email'],
+                                    },
+                                ],
+                            },
+                        ],
+                    });
+
+                    if (report) {
+                        const reportFormatter = report.toJSON();
+                        reportFormatter.createdAt = formatTime(reportFormatter.createdAt);
+                        reportFormatter.comment.createdAt = formatTime(reportFormatter.comment.createdAt);
+                        formatter.report = reportFormatter;
+                    }
+                }
+
+                return formatter;
+            }),
+        );
         return {
             notificationsNumber: count,
-            notifications: formatters,
+            notifications: formattedNotifications,
         };
-        // return formatters;
     } catch (error) {
         throw error;
     }
