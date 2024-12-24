@@ -1,6 +1,7 @@
 import AWS from 'aws-sdk';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
+import sharp from 'sharp';
 
 const spacesEndpoint = new AWS.Endpoint('nyc3.digitaloceanspaces.com');
 const s3 = new AWS.S3({
@@ -8,15 +9,16 @@ const s3 = new AWS.S3({
     accessKeyId: process.env.DO_SPACES_KEY,
     secretAccessKey: process.env.DO_SPACES_SECRET,
 });
+const timestamp = Date.now();
 
 const uploadArtistAvatar = async (artistId, file) => {
-    console.log('file: ', file);
-    const fileExtension = path.extname(file.originalname);
-    const fileName = `PBL6/ARTIST/ARTIST_${artistId}/avatar/avatar${fileExtension}`;
+    const fileName = `PBL6/ARTIST/ARTIST_${artistId}/avatar_${timestamp}`;
+    const buffer = await sharp(file.buffer).resize({ width: 320, height: 320, fit: 'fill' }).toBuffer();
     const params = {
         Bucket: process.env.DO_SPACES_BUCKET,
         Key: fileName,
-        Body: file.buffer,
+        Body: buffer,
+        ContentType: file.mimetype,
         ACL: 'public-read', // Đặt quyền truy cập công khai
     };
 

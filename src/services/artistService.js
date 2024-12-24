@@ -10,6 +10,8 @@ import { genreService } from './genreService';
 import { awsService } from './awsService';
 import formatTime from '~/utils/timeFormat';
 
+const PREFIX = 'PBL6';
+
 const checkArtistExits = async (artistId) => {
     return await db.Artist.findByPk(artistId);
 };
@@ -590,49 +592,42 @@ const createArtistService = async ({ data, file } = {}) => {
     let avatarUrl = null;
     const id = uuidv4();
     try {
-        // if (!data.name) throw new ApiError(StatusCodes.BAD_REQUEST, 'Artist name is required');
+        if (!data.name) throw new ApiError(StatusCodes.BAD_REQUEST, 'Artist name is required');
 
-        // const existingGenres = await genreService.checkGenreExists({
-        //     mode: 'findAll',
-        //     conditions: { genreId: { [Op.in]: data.genres.map((g) => g.genreId) } },
-        // });
+        const existingGenres = await genreService.checkGenreExists({
+            mode: 'findAll',
+            conditions: { genreId: { [Op.in]: data.genres.map((g) => g.genreId) } },
+        });
 
-        // if (existingGenres.length !== data.genres.length)
-        //     throw new ApiError(StatusCodes.BAD_REQUEST, 'Genres not found');
+        if (existingGenres.length !== data.genres.length)
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Genres not found');
 
-        // if (file) {
-        //     avatarUrl = await awsService.uploadArtistAvatar(id, file);
-        // }
+        if (file) {
+            avatarUrl = await awsService.uploadArtistAvatar(id, file);
+        }
 
-        // const artist = await db.Artist.create(
-        //     {
-        //         id: id,
-        //         name: data.name,
-        //         avatar: avatarUrl,
-        //         bio: data.bio,
-        //     },
-        //     { transaction },
-        // );
+        const artist = await db.Artist.create(
+            {
+                id: id,
+                name: data.name,
+                avatar: avatarUrl,
+                bio: data.bio,
+            },
+            { transaction },
+        );
 
-        // const createData = data.genres.map((g) => ({
-        //     artistId: artist.id,
-        //     genreId: g.genreId,
-        // }));
-        // await db.ArtistGenre.bulkCreate(createData, { transaction });
+        const createData = data.genres.map((g) => ({
+            artistId: artist.id,
+            genreId: g.genreId,
+        }));
+        await db.ArtistGenre.bulkCreate(createData, { transaction });
 
-        // await transaction.commit();
-        // return await fetchArtist({ conditions: { id: artist.id } });
-
-        await awsService.deleteFile3('hahah');
-        return true;
-        // await awsService.deleteFile2({
-        //     folderPath: 'PBL6/ARTIST/ARTIST_0b8edd60-d136-4090-9d4f-5e5b19f3d427',
-        //     fileName: 'avatar',
-        // });
-        return true;
+        await transaction.commit();
+        return await fetchArtist({ conditions: { id: artist.id } });
     } catch (error) {
+        console.log('Error create artist');
         await transaction.rollback();
-        await awsService.deleteFolder(`PBL6/ARTIST/ARTIST_${id}`);
+        if (avatarUrl) await awsService.deleteFile3(PREFIX + avatarUrl.split(PREFIX)[1]);
         throw error;
     }
 };

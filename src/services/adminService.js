@@ -17,6 +17,7 @@ import { emailService } from './emailService';
 import encodeData from '~/utils/encryption';
 
 const saltRounds = 10;
+const PREFIX = 'PBL6';
 
 const fetchAlbumSong = async ({ conditions = {}, limit, offset, order, mode = 'findAll' } = {}) => {
     const albumIds = await db.AlbumSong[mode]({
@@ -804,12 +805,8 @@ const updateAlbumService = async ({ albumId, data, file } = {}) => {
 const updateArtistService = async ({ artistId, data, file } = {}) => {
     const transaction = await db.sequelize.transaction();
     const operations = {
+        oldPath: null,
         updates: {},
-        ex: [],
-        move: [],
-        upload: [],
-        delete: [],
-        rollback: [],
     };
     try {
         // check artist
@@ -838,56 +835,43 @@ const updateArtistService = async ({ artistId, data, file } = {}) => {
         const genresDel = genreIdsOfArtist?.filter((id) => !genreIds.includes(id));
 
         if (genresDel.length > 0) {
-            operations.ex.push(() =>
-                db.ArtistGenre.destroy({ where: { artistId: artistId, genreId: { [Op.in]: genresDel } }, transaction }),
-            );
+            await db.ArtistGenre.destroy({
+                where: { artistId: artistId, genreId: { [Op.in]: genresDel } },
+                transaction,
+            });
         }
         if (genresAdd.length > 0) {
             const createData = genresAdd.map((g) => ({
                 artistId: artistId,
                 genreId: g,
             }));
-            operations.ex.push(() => db.ArtistGenre.bulkCreate(createData, { transaction }));
+            await db.ArtistGenre.bulkCreate(createData, { transaction });
         }
 
         if (data.name) operations.updates.name = data.name;
         if (data.bio) operations.updates.bio = data.bio;
         console.log('operations: ', operations);
         if (file) {
-            const oldPath = checkArtist.avatar;
-            let copyPath = null;
-            if (oldPath && oldPath.includes('i.scdn.co')) {
-                console.log('1');
-                copyPath = oldPath;
-            } else if (oldPath && !oldPath.includes('i.scdn.co')) {
-                console.log('2');
-                // copyPath = prefix + ;
-            } else {
-                console.log('3');
-            }
-            await awsService.deleteFile3('hahah');
+            if (checkArtist.avatar) operations.oldPath = checkArtist.avatar;
+            await awsService.uploadArtistAvatar(artistId, file).then((path) => {
+                operations.updates.avatar = path;
+            });
         }
 
-        await Promise.all([
-            // ...operations.ex.map((fn) => fn()),
-            // db.Artist.update(operations.updates, { where: { id: artistId }, transaction }),
-        ]);
+        await db.Artist.update(operations.updates, { where: { id: artistId }, transaction });
+        await transaction.commit();
+        if (operations.oldPath && operations.oldPath.includes(PREFIX))
+            await awsService.deleteFile3(PREFIX + operations.oldPath.split(PREFIX)[1]);
 
-        // await transaction.commit();
-        return true;
-        // await Promise.all([...operations.ex, ...operations.move].map((fn) => fn()));
-        // await Promise.all(operations.upload.map((fn) => fn()));
-        // await db.Artist.update(updates, { where: { id: artistId }, transaction });
-
-        // await awsService.deleteFolder(`COPY/PBL6/ARTIST/ARTIST_${artistId}`);
-        // return {
-        //     genresAdd: genresAdd,
-        //     genresDel: genresDel,
-        // };
+        return {
+            genresAdd: genresAdd,
+            genresDel: genresDel,
+        };
     } catch (error) {
+        console.log('Error update artist');
         await transaction.rollback();
-        await Promise.all(operations.delete.map((fn) => fn()));
-        await Promise.all(operations.rollback.map((fn) => fn()));
+        if (operations.updates.avatar)
+            await awsService.deleteFile3(PREFIX + operations.updates.avatar.split(PREFIX)[1]);
         throw error;
     }
 };
@@ -1040,11 +1024,10 @@ const deleteAlbumService = async ({ albumIds } = {}) => {
 
 const deleteArtistService = async ({ artistIds } = {}) => {
     const transaction = await db.sequelize.transaction();
-    const operations = {
-        move: [],
-        rollback: [],
-    };
+    const operations = [];
     try {
+        const artists = await db.Artist.findAll({ where: { id: { [Op.in]: artistIds } }, raw: true });
+
         const songIds = await db.ArtistSong.findAll({
             where: { artistId: { [Op.in]: artistIds }, main: true },
             attributes: ['songId'],
@@ -1091,19 +1074,18 @@ const deleteArtistService = async ({ artistIds } = {}) => {
                 transaction,
             }),
         ]);
+        await db.Artist.update({ hide: true }, { where: { id: { [Op.in]: artistIds } }, transaction });
 
-        artistIds.map((a) => {
-            const oldPath = `PBL6/ARTIST/ARTIST_${a}`;
-            const copyPath = `COPY_ARTIST/${oldPath}`;
-            operations.move.push(() => awsService.moveFile(oldPath, copyPath));
-            operations.rollback.push(() => awsService.moveFile(copyPath, oldPath));
+        artists.map((a) => {
+            if (a.avatar && a.avatar.includes(PREFIX)) {
+                const oldPath = a.avatar;
+                operations.push(() => awsService.deleteFile3(PREFIX + oldPath.split(PREFIX)[1]));
+            }
         });
-        await Promise.all(operations.move.map((fn) => fn()));
         await transaction.commit();
-        await awsService.deleteFolder('COPY_ARTIST');
+        await Promise.all(operations.map((fn) => fn()));
     } catch (error) {
         await transaction.rollback();
-        await Promise.all(operations.rollback.map((fn) => fn()));
         throw error;
     }
 };
