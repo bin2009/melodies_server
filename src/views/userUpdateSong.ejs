@@ -38,6 +38,14 @@
             <img src="<%= song.image %>" alt="oldImageFile" style="max-width: 200px" /><br /><br />
             <% } %>
 
+            <label for="releaseDate">Release Date:</label>
+            <input
+                type="date"
+                id="releaseDate"
+                name="releaseDate"
+                value="<%= song.releaseDate.toISOString().split('T')[0] %>"
+            /><br /><br />
+
             <label for="imageFile">Image File:</label>
             <input type="file" id="imageFile" name="imageFile" /><br /><br />
 
@@ -51,6 +59,7 @@
                 event.preventDefault();
 
                 const title = document.getElementById('title').value;
+                const releaseDate = document.getElementById('releaseDate').value;
                 const audioFile = document.getElementById('audioFile').files[0];
                 const lyricFile = document.getElementById('lyricFile').files[0];
                 const imageFile = document.getElementById('imageFile').files[0];
@@ -63,12 +72,14 @@
 
                 const formData = new FormData();
                 formData.append('title', JSON.stringify(title));
+                formData.append('releaseDate', JSON.stringify(releaseDate));
                 formData.append('audioFile', audioFile);
                 formData.append('lyricFile', lyricFile);
                 formData.append('imageFile', imageFile);
 
                 const accessToken =
-                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQyMDA3Nzc2LTY4NDQtNDljOS05YzJiLTBjMTBlNWFkOTQ4MCIsInJvbGUiOiJVc2VyIiwidXNlcm5hbWUiOiJ1c2VybmFtZTEiLCJhY2NvdW50VHlwZSI6IlByZW1pdW0iLCJpYXQiOjE3MzQzMjgyOTksImV4cCI6MTczNDQxNDY5OX0.C4S2rlpEeXBrtwHvTBwJRXjpS1b1LxJFhrQb5o1O5no';
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQyMDA3Nzc2LTY4NDQtNDljOS05YzJiLTBjMTBlNWFkOTQ4MCIsInJvbGUiOiJVc2VyIiwidXNlcm5hbWUiOiJ1c2VybmFtZTEiLCJhY2NvdW50VHlwZSI6IlBSRU1JVU0iLCJpYXQiOjE3MzUxMjE3NDgsImV4cCI6MTczNTIwODE0OH0.lJXcZved7mSQUFiQqtRUd77gmVXodh7RtbAktpXwauw';
+
                 try {
                     const response = await fetch(`/api/user/song/<%=song.id%>`, {
                         method: 'PATCH',

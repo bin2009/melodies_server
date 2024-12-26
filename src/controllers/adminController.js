@@ -29,13 +29,10 @@ const createGenre = async (req, res, next) => {
 const createArtist = async (req, res, next) => {
     try {
         const data = JSON.parse(req.body.data);
-        // console.log('data create artist', data);
-        // console.log('data create artist file', req.file);
-        const result = await artistService.createArtistService({ data: data, file: req.file });
+        await artistService.createArtistService({ data: data, file: req.files });
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Create artist success',
-            ...result,
         });
     } catch (error) {
         next(error);
@@ -46,23 +43,15 @@ const createSong = async (req, res, next) => {
     try {
         const { data } = req.body;
         const parsedData = JSON.parse(data);
-        const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
-        const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
-
-        // if (parsedData.type === 'single' && parsedData.songIds.length > 1) {
-        //     throw new ApiError(StatusCodes.BAD_REQUEST, 'Type single just has only one song');
-        // }
 
         await adminService.createSongService({
             data: parsedData,
-            file: audioFile,
-            lyric: lyricFile,
-            duration: parseInt(req.duration * 1000),
+            files: req.files,
         });
+
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Create song success',
-            // ...result,
         });
     } catch (error) {
         next(error);
@@ -74,15 +63,11 @@ const createAlbum = async (req, res, next) => {
         const { data } = req.body;
         const parsedData = JSON.parse(data);
 
-        console.log('file: ', req.file);
-        console.log(parsedData);
-
-        const result = await adminService.createAlbum({ data: parsedData, file: req.file });
+        await adminService.createAlbum({ data: parsedData, file: req.files });
 
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Create album success',
-            // ...result,
         });
     } catch (error) {
         next(error);
@@ -123,19 +108,16 @@ const updateAlbum = async (req, res, next) => {
     try {
         const { data } = req.body;
         const parsedData = JSON.parse(data);
-        console.log('Update data album: ', parsedData);
-        console.log('file: ', req.file);
-        const result = await adminService.updateAlbumService({
+
+        await adminService.updateAlbumService({
             albumId: req.params.albumId,
             data: parsedData,
-            file: req.file,
+            file: req.files,
         });
-        const album = await albumService.getAlbumService({ albumId: req.params.albumId, mode: 'findOne' });
+
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Update album success',
-            album: album,
-            ...result,
         });
     } catch (error) {
         next(error);
@@ -146,20 +128,14 @@ const updateArtist = async (req, res, next) => {
     try {
         const { data } = req.body;
         const parsedData = JSON.parse(data);
-
-        // console.log('update data artist: ', parsedData);
-        // console.log('file: ', req.file);
-        const result = await adminService.updateArtistService({
+        await adminService.updateArtistService({
             artistId: req.params.artistId,
             data: parsedData,
-            file: req.file,
+            file: req.files,
         });
-        const artist = await artistService.getArtistService({ artistId: req.params.artistId });
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Update artist success',
-            artist: artist,
-            ...result,
         });
     } catch (error) {
         next(error);
@@ -170,17 +146,11 @@ const updateSong = async (req, res, next) => {
     try {
         const { data } = req.body;
         const parsedData = JSON.parse(data);
-        const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
-        const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
-        // console.log('update: ', parsedData);
-        console.log('lyricFile:', lyricFile);
 
         const result = await adminService.updateSongService({
             songId: req.params.songId,
             data: parsedData,
-            duration: parseInt(req.duration * 1000),
-            file: audioFile,
-            lyric: lyricFile,
+            files: req.files,
         });
         const song = await songService.fetchSongs({ conditions: { id: req.params.songId } });
         res.status(StatusCodes.OK).json({

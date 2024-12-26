@@ -29,11 +29,17 @@ const fetchAllPlaylist = async ({ conditions = {}, limit = undefined, offset = u
             const formatted = { ...p };
             formatted.createdAt = formatTime(formatted.createdAt);
             formatted.updatedAt = formatTime(formatted.updatedAt);
+            if (formatted.playlistImage && formatted.playlistImage.includes('PBL6')) {
+                formatted.playlistImage = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.playlistImage}`;
+            }
             return formatted;
         });
         return formatteds;
     } else if (mode === 'findOne') {
         const formatted = playlists;
+        if (formatted.playlistImage && formatted.playlistImage.includes('PBL6')) {
+            formatted.playlistImage = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.playlistImage}`;
+        }
         formatted.createdAt = formatTime(formatted.createdAt);
         formatted.updatedAt = formatTime(formatted.updatedAt);
         return formatted;

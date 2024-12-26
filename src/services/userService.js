@@ -1,7 +1,6 @@
 import db from '~/models';
 import bcrypt from 'bcryptjs';
 import ApiError from '~/utils/ApiError';
-import { slugify } from '~/utils/formatters';
 import { playlistService } from './playlistService';
 import { Op } from 'sequelize';
 import { songService } from './songService';
@@ -11,21 +10,12 @@ import { artistService } from './artistService';
 import { awsService } from './awsService';
 import formatTime from '~/utils/timeFormat';
 import encodeData from '~/utils/encryption';
-import { NOTIFICATIONS, PLAYLIST_TYPE } from '~/data/enum';
+import { PLAYLIST_TYPE } from '~/data/enum';
+import { parseStream } from 'music-metadata';
+import https from 'https';
+import { appMiddleWare } from '~/middleware/appMiddleWare';
 
 const saltRounds = 10;
-
-const createNew = async (data) => {
-    try {
-        const data2 = {
-            ...data,
-            slug: slugify(data.username),
-        };
-        return data2;
-    } catch (error) {
-        throw error;
-    }
-};
 
 const fetchUser = async ({ conditions = {}, limit, offset, order = [['createdAt', 'DESC']], group = [] } = {}) => {
     const users = await db.User.findAll({
@@ -146,31 +136,18 @@ const getPlaylistDetailService = async ({ playlistId, user } = {}) => {
         const songs = await songService.fetchSongs({ conditions: { id: { [Op.in]: songIds.map((s) => s.songId) } } });
 
         const totalTime = songs.reduce((acc, song) => acc + parseInt(song.duration), 0);
-        // const songInfo = songs.map((s) => {
-        //     const { artists, ...other } = s.toJSON();
-        //     return {
-        //         ...other,
-        //         artists:
-        //             artists.map(({ ArtistSong, ...otherArtist }) => ({
-        //                 ...otherArtist,
-        //                 main: ArtistSong?.main || false,
-        //             })) ?? [],
-        //     };
-        // });
 
         const result = {
             playlistId: playlist.id,
             name: playlist.title ?? null,
+            privacy: playlist.privacy,
             createdAt: playlist.createdAt,
             userId: user.id,
-            // username: user.username ?? null,
             username: findUser.username ?? null,
-            // image: songs[0]?.album ?? null,
-            image: playlist.playlistImage,
+            image: playlist.playlistImage ?? null,
             description: playlist.description ?? null,
-            totalTime: totalTime,
+            totalTime: totalTime ?? 0,
             totalSong: playlist.totalSong ?? 0,
-            // songsOfPlaylist: songInfo ?? null,
         };
 
         return {
@@ -264,48 +241,91 @@ const addSongPlaylistService = async ({ data, user } = {}) => {
 };
 
 const updatePlaylistService = async ({ playlistId, updateData, user, file } = {}) => {
+    const transaction = await db.sequelize.transaction();
     try {
-        // console.log('user: ', user);
-        const checkOwner = await playlistService.isPlaylistOwnedByUser({
-            playlistId: playlistId,
-            userId: user.id,
-        });
-        if (!checkOwner)
+        const updates = {};
+
+        const playlist = await db.Playlist.findByPk(playlistId);
+        if (!playlist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
+
+        if (playlist.userId !== user.id)
             throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to access this playlist.');
 
-        let playlistUrl = null;
-        if (file) {
-            playlistUrl = await awsService.uploadPlaylistAvatar(user.id, playlistId, file);
-            updateData.playlistImage = playlistUrl;
+        if (file.playlistAvatar && file.playlistAvatar.length > 0) {
+            updates.playlistImage = file.playlistAvatar[0].key;
         }
-        const playlist = await playlistService.updatePlaylistService({ playlistId: playlistId, data: updateData });
-        return playlist;
+
+        if (updateData.title) {
+            updates.title = updateData.title;
+        }
+
+        if (updateData.description) {
+            updates.description = updateData.description;
+        }
+
+        const updatePlaylist = await db.Playlist.update(updates, { where: { id: playlistId }, transaction });
+        const { id, ...other } = updatePlaylist;
+
+        await transaction.commit();
+
+        if (
+            file.playlistAvatar &&
+            file.playlistAvatar.length > 0 &&
+            playlist.playlistImage &&
+            playlist.playlistImage.includes('PBL6')
+        ) {
+            setImmediate(() => awsService.deleteFile3(playlist.playlistImage));
+        }
+
+        return {
+            playlistId: id,
+            ...other,
+        };
     } catch (error) {
+        await transaction.rollback();
         throw error;
     }
 };
 
 const deleteSongService = async ({ data, user } = {}) => {
+    const transaction = await db.sequelize.transaction();
     try {
-        const checkOwner = await playlistService.isPlaylistOwnedByUser({
-            playlistId: data.playlistId,
-            userId: user.id,
-        });
-        if (!checkOwner)
+        const findPlaylist = await db.Playlist.findByPk(data.playlistId);
+        if (!findPlaylist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
+
+        const findSong = await db.Song.findByPk(data.songId);
+        if (!findSong) throw new ApiError(StatusCodes.NOT_FOUND, 'Song not found');
+
+        if (findPlaylist.userId !== user.id)
             throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to access this playlist.');
 
-        const check = await playlistService.checkSongExistsInPlaylist({
-            playlistId: data.playlistId,
-            songId: data.songId,
+        const checkSongExistsInPlaylist = await db.PlaylistSong.findOne({
+            where: { playlistId: data.playlistId, songId: data.songId },
         });
-        if (!check) throw new ApiError(StatusCodes.NOT_FOUND, 'The song does not exist in the playlist.');
+        if (!checkSongExistsInPlaylist)
+            throw new ApiError(StatusCodes.NOT_FOUND, 'The song does not exist in the playlist.');
 
-        await playlistService.deleteSongFromPlaylistService({
-            playlistId: data.playlistId,
-            songId: data.songId,
-            userId: user.id,
-        });
+        if (findSong.privacy && findSong.uploadUserId === user.id && findPlaylist.title === PLAYLIST_TYPE.MYMUSIC) {
+            await db.PlaylistSong.destroy({ where: { playlistId: data.playlistId, songId: data.songId }, transaction });
+            await db.Song.destroy({ where: { id: data.songId }, transaction });
+
+            await transaction.commit();
+
+            if (findSong.filePathAudio && findSong.filePathAudio.includes('PBL6'))
+                setImmediate(() => awsService.deleteFile3(findSong.filePathAudio));
+            if (findSong.image && findSong.image.includes('PBL6'))
+                setImmediate(() => awsService.deleteFile3(findSong.image));
+            if (findSong.lyric && findSong.lyric.includes('PBL6'))
+                setImmediate(() => awsService.deleteFile3(findSong.lyric));
+        } else {
+            await db.PlaylistSong.destroy({
+                where: { playlistId: data.playlistId, songId: data.songId },
+                transaction,
+            });
+            await transaction.commit();
+        }
     } catch (error) {
+        await transaction.rollback();
         throw error;
     }
 };
@@ -313,16 +333,26 @@ const deleteSongService = async ({ data, user } = {}) => {
 const deletePlaylistService = async ({ playlistId, user } = {}) => {
     const transaction = await db.sequelize.transaction();
     try {
-        const checkOwner = await playlistService.isPlaylistOwnedByUser({
-            playlistId: playlistId,
-            userId: user.id,
-        });
-        if (!checkOwner)
-            throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to access this playlist.');
-        await db.PlaylistSong.destroy({ where: { playlistId: playlistId } }, { transaction });
+        const findPlaylist = await db.Playlist.findByPk(playlistId);
+        if (!findPlaylist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
 
-        await playlistService.deletePlaylistService({ playlistId: playlistId }, { transaction });
+        if (findPlaylist.userId !== user.id)
+            throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to access this playlist.');
+
+        if (
+            findPlaylist.privacy &&
+            (findPlaylist.title === PLAYLIST_TYPE.MYMUSIC || findPlaylist.title === PLAYLIST_TYPE.FAVOURITE)
+        )
+            throw new ApiError(StatusCodes.FORBIDDEN, 'You cannot delete this playlist');
+
+        await db.PlaylistSong.destroy({ where: { playlistId: playlistId } }, { transaction });
+        await db.Playlist.destroy({ where: { id: playlistId } }, { transaction });
+
         await transaction.commit();
+
+        if (findPlaylist.playlistImage && findPlaylist.playlistImage.includes('PBL6')) {
+            setImmediate(() => awsService.deleteFile3(findPlaylist.playlistImage));
+        }
     } catch (error) {
         await transaction.rollback();
         throw error;
@@ -330,28 +360,53 @@ const deletePlaylistService = async ({ playlistId, user } = {}) => {
 };
 
 const updateUserService = async ({ user, data, file } = {}) => {
+    const transaction = await db.sequelize.transaction();
     try {
+        const updates = {};
+
         const findUser = await db.User.findByPk(user.id);
         if (!findUser) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
 
-        const validPass = await bcrypt.compare(data.oldPassword, findUser.password);
-        if (!validPass) throw new ApiError(StatusCodes.UNAUTHORIZED, 'Old password is incorrect.');
-
-        let imageFile;
-        if (file) {
-            imageFile = await awsService.userUploadImage(user.id, file);
+        if (data.username) {
+            const checkUsername = await db.User.findOne({ where: { username: data.username } });
+            if (checkUsername && checkUsername.id !== user.id)
+                throw new ApiError(StatusCodes.CONFLICT, 'Username already exists');
         }
 
-        const updateData = {};
-        if (data.name) updateData.name = data.name;
-        if (data.password) {
-            const hashPass = await bcrypt.hash(data.password, saltRounds);
-            updateData.password = hashPass;
+        if (data.name) {
+            updates.name = data.name;
         }
-        if (imageFile && imageFile !== null) {
-            updateData.image = imageFile;
+
+        if (file.image && file.image.length > 0) {
+            updates.image = file.image[0].key;
         }
-        await db.User.update(updateData, { where: { id: user.id } });
+
+        await db.User.update(updates, { where: { id: user.id }, transaction });
+        await transaction.commit();
+
+        if (file.image && file.image.length > 0 && findUser.image && findUser.image.includes('PBL6')) {
+            setImmediate(() => awsService.deleteFile3(findUser.image));
+        }
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
+};
+
+const changePasswordService = async ({ user, data } = {}) => {
+    try {
+        if (!data.oldPassword) throw new ApiError(StatusCodes.BAD_REQUEST, 'Old password is required');
+
+        if (!data.newPassword) throw new ApiError(StatusCodes.BAD_REQUEST, 'New password is required');
+
+        const findUser = await db.User.findByPk(user.id);
+        if (!findUser) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+
+        const checkPassword = await bcrypt.compare(data.oldPassword, findUser.password);
+        if (!checkPassword) throw new ApiError(StatusCodes.UNAUTHORIZED, 'Old password is incorrect');
+
+        const hashPass = await bcrypt.hash(data.newPassword, saltRounds);
+        await db.User.update({ password: hashPass }, { where: { id: user.id } });
     } catch (error) {
         throw error;
     }
@@ -499,61 +554,58 @@ const registerService = async (data) => {
     }
 };
 
-const userUploadSongService = async ({ user, title, file, duration, lyric, image } = {}) => {
-    const transaction = await db.sequelize.transaction();
-    let songId;
-    try {
-        const song = await db.Song.create(
-            {
-                userId: user.id,
-                title: title,
-                filePathAudio: 'No file',
-                privacy: true,
-                uploadUserId: user.id,
-            },
-            { transaction },
-        );
-        songId = song.id;
-        const updates = {};
-        const uploadPromises = [];
+// -----------------pernonal song
 
-        if (file) {
-            uploadPromises.push(() =>
-                awsService.userUploadSong(user.id, songId, file).then((filePathAudio) => {
-                    updates.filePathAudio = filePathAudio;
-                }),
-            );
-            updates.duration = duration;
+const userUploadSongService = async ({ user, title, releaseDate, files } = {}) => {
+    const transaction = await db.sequelize.transaction();
+    try {
+        const dataCreateSong = {
+            id: uuidv4(),
+            userId: user.id,
+            title: title,
+            duration: 0,
+            privacy: true,
+            uploadUserId: user.id,
+        };
+
+        if (releaseDate) dataCreateSong.releaseDate = releaseDate;
+
+        if (files.audioFile && files.audioFile.length > 0) {
+            dataCreateSong.filePathAudio = files.audioFile[0].key;
+            const duration = await appMiddleWare.getAudioDuration(files.audioFile[0].key);
+            dataCreateSong.duration = duration ? parseInt(duration * 1000) : 0;
         }
-        if (lyric) {
-            uploadPromises.push(() =>
-                awsService.userUploadSongLyric(user.id, songId, lyric).then((filePathLyric) => {
-                    updates.lyric = filePathLyric;
-                }),
-            );
-        }
-        if (image) {
-            uploadPromises.push(() =>
-                awsService.userUploadSongImage(user.id, songId, image).then((filePathImage) => {
-                    updates.image = filePathImage;
-                }),
-            );
-        }
-        await Promise.all(uploadPromises.map((fn) => fn()));
-        await db.Song.update(updates, { where: { id: songId }, transaction });
-        //  lấy ra playlist của user đó -> thêm nhạc vào
+
+        if (files.imageFile && files.imageFile.length > 0) dataCreateSong.image = files.imageFile[0].key;
+
+        if (files.lyricFile && files.lyricFile.length > 0) dataCreateSong.lyric = files.lyricFile[0].key;
+
         const playlist = await db.Playlist.findOne({ where: { userId: user.id, title: PLAYLIST_TYPE.MYMUSIC } });
-        await db.PlaylistSong.create(
-            {
-                playlistId: playlist.id,
-                songId: songId,
-            },
-            { transaction },
-        );
+
+        await Promise.all([
+            db.Song.create(dataCreateSong, { transaction }),
+            db.PlaylistSong.create(
+                {
+                    playlistId: playlist.id,
+                    songId: dataCreateSong.id,
+                },
+                { transaction },
+            ),
+        ]);
+
         await transaction.commit();
     } catch (error) {
         await transaction.rollback();
-        await awsService.deleteFolder(`PBL6/USER/USER_${user.id}/SONG_${songId}`);
+
+        if (files.audioFile && files.audioFile.length > 0)
+            setImmediate(() => awsService.deleteFile3(files.audioFile[0].key));
+
+        if (files.imageFile && files.imageFile.length > 0)
+            setImmediate(() => awsService.deleteFile3(files.imageFile[0].key));
+
+        if (files.lyricFile && files.lyricFile.length > 0)
+            setImmediate(() => awsService.deleteFile3(files.lyricFile[0].key));
+
         throw error;
     }
 };
@@ -566,6 +618,7 @@ const getUserSongService = async (user, songId) => {
             throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access to the song');
 
         const formatter = song.toJSON();
+        formatter.releaseDate = formatTime(formatter.releaseDate);
         formatter.createdAt = formatTime(formatter.createdAt);
         formatter.updatedAt = formatTime(formatter.updatedAt);
         if (formatter.filePathAudio) formatter.filePathAudio = encodeData(formatter.filePathAudio);
@@ -578,176 +631,64 @@ const getUserSongService = async (user, songId) => {
     }
 };
 
-// const updateUserSongService = async ({ user, songId, title, file, duration, lyric, image }) => {
-//     const transaction = await db.sequelize.transaction();
-//     const prefix = 'PBL6_MELODIES';
-//     const updates = {};
-//     // const copyPromises = [];
-//     const updatePromises = [];
-//     // -----
-//     const deleteOldPromises = [];
-//     const deletePromises = [];
-//     const backPromises = [];
-//     const movePromises = [];
-//     try {
-//         const song = await db.PersonalSong.findByPk(songId);
-//         if (!song) throw new ApiError(StatusCodes.NOT_FOUND, 'Song not found');
-//         if (song.userId !== user.id) throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access to the song');
-
-//         if (file) {
-//             if (song.filePathAudio) {
-//                 const oldFilePathAudio = prefix + song.filePathAudio.split(prefix)[1];
-//                 console.log('old: ', oldFilePathAudio);
-//                 movePromises.push(() => awsService.moveFile(oldFilePathAudio, `COPY/${oldFilePathAudio}`));
-
-//                 updatePromises.push(() =>
-//                     awsService.userUploadSong(user.id, song.id, file).then((filePathAudio) => {
-//                         updates.filePathAudio = filePathAudio;
-//                     }),
-//                 );
-//                 updates.duration = duration;
-//                 console.log('update: ', updates);
-//                 backPromises.push(() => awsService.moveFile(`COPY/${oldFilePathAudio}`, oldFilePathAudio));
-//                 deletePromises.push(() => awsService.deleteFile(prefix + updates.filePathAudio.split(prefix)[1]));
-//             } else {
-//                 // updatePromises.push(
-//                 //     awsService.userUploadSong(user.id, song.id, file).then((filePathAudio) => {
-//                 //         updates.filePathAudio = filePathAudio;
-//                 //     }),
-//                 // );
-//                 // updates.duration = duration;
-//                 // deletePromises.push(awsService.deleteFile(updates.filePathAudio));
-//             }
-//         }
-//         if (title) {
-//             updates.title = title;
-//         }
-//         await Promise.all(movePromises.map((promiseFunc) => promiseFunc()));
-//         await Promise.all(updatePromises.map((promiseFunc) => promiseFunc()));
-//         await awsService.deleteFolder(`COPY/PBL6_MELODIES/USER_${user.id}/SONG_${songId}`);
-//         await db.PersonalSong.update(updates, { where: { id: songId }, transaction });
-//         await transaction.commit();
-//         return true;
-
-//         // const newSong = await db.PersonalSong.findByPk(songId);
-//         // const formatter = newSong.toJSON();
-//         // formatter.createdAt = formatTime(formatter.createdAt);
-//         // formatter.updatedAt = formatTime(formatter.updatedAt);
-//         // formatter.filePathAudio = encodeData(formatter.filePathAudio);
-//         // formatter.lyric = encodeData(formatter.lyric);
-//         // formatter.image = encodeData(formatter.image);
-//         // return formatter;
-//     } catch (error) {
-//         console.log('chạy lỗi', updates);
-//         await transaction.rollback();
-//         // await Promise.all([...deletePromises, ...backPromises]);
-//         await Promise.all(deletePromises.map((promiseFunc) => promiseFunc()));
-//         await Promise.all(backPromises.map((promiseFunc) => promiseFunc()));
-//         throw error;
-//     }
-// };
-
-const updateUserSongService = async ({ user, songId, title, file, duration, lyric, image }) => {
+const updateUserSongService = async ({ user, songId, title, releaseDate, files }) => {
     const transaction = await db.sequelize.transaction();
-    const prefix = 'PBL6';
-    const updates = {};
-    const operations = {
-        move: [],
-        upload: [],
-        delete: [],
-        rollback: [],
-    };
-
     try {
+        const updates = {};
         const song = await db.Song.findByPk(songId);
         if (!song) throw new ApiError(StatusCodes.NOT_FOUND, 'Song not found');
         if (song.uploadUserId !== user.id)
             throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access to the song');
 
-        if (file) {
-            const oldFilePathAudio = song.filePathAudio ? prefix + song.filePathAudio.split(prefix)[1] : null;
-
-            if (oldFilePathAudio) {
-                const copyPath = `COPY/${oldFilePathAudio}`;
-                operations.move.push(() => awsService.moveFile(oldFilePathAudio, copyPath));
-                operations.rollback.push(() => awsService.moveFile(copyPath, oldFilePathAudio));
-            }
-
-            operations.upload.push(() =>
-                awsService.userUploadSong(user.id, song.id, file).then((filePathAudio) => {
-                    updates.filePathAudio = filePathAudio;
-                }),
-            );
-
-            updates.duration = duration;
-
-            operations.delete.push(() =>
-                awsService.deleteFolder(`${prefix}/USER/USER_${user.id}/SONG_${songId}/audio`),
-            );
-        }
-
-        if (lyric) {
-            const oldFilePathLyric = song.lyric ? prefix + song.lyric.split(prefix)[1] : null;
-
-            if (oldFilePathLyric) {
-                const copyPath = `COPY/${oldFilePathLyric}`;
-                operations.move.push(() => awsService.moveFile(oldFilePathLyric, copyPath));
-                operations.rollback.push(() => awsService.moveFile(copyPath, oldFilePathLyric));
-            }
-
-            operations.upload.push(() =>
-                awsService.userUploadSongLyric(user.id, song.id, lyric).then((filePathLyric) => {
-                    updates.lyric = filePathLyric;
-                }),
-            );
-
-            operations.delete.push(() =>
-                awsService.deleteFolder(`${prefix}/USER/USER_${user.id}/SONG_${songId}/lyric`),
-            );
-        }
-
-        if (image) {
-            const oldFilePathImage = song.image ? prefix + song.image.split(prefix)[1] : null;
-
-            if (oldFilePathImage) {
-                const copyPath = `COPY/${oldFilePathImage}`;
-                operations.move.push(() => awsService.moveFile(oldFilePathImage, copyPath));
-                operations.rollback.push(() => awsService.moveFile(copyPath, oldFilePathImage));
-            }
-
-            operations.upload.push(() =>
-                awsService.userUploadSongImage(user.id, song.id, image).then((filePathImage) => {
-                    updates.image = filePathImage;
-                }),
-            );
-
-            operations.delete.push(() =>
-                awsService.deleteFolder(`${prefix}/USER/USER_${user.id}/SONG_${songId}/image`),
-            );
-        }
-
         if (title) updates.title = title;
 
-        await Promise.all(operations.move.map((fn) => fn()));
-        await Promise.all(operations.upload.map((fn) => fn()));
+        if (releaseDate) updates.releaseDate = releaseDate;
+
+        if (files.audioFile && files.audioFile.length > 0) updates.filePathAudio = files.audioFile[0].key;
+
+        if (files.imageFile && files.imageFile.length > 0) updates.image = files.imageFile[0].key;
+
+        if (files.lyricFile && files.lyricFile.length > 0) updates.lyric = files.lyricFile[0].key;
 
         await db.Song.update(updates, { where: { id: song.id }, transaction });
 
-        await awsService.deleteFolder(`COPY/${prefix}/USER/USER_${user.id}/SONG_${songId}`);
         await transaction.commit();
-        const newSong = await db.Song.findByPk(songId);
+
+        const newSong = await db.Song.findOne({
+            where: { id: songId },
+            attributes: ['id', 'title', 'filePathAudio', 'lyric', 'image', 'releaseDate', 'createdAt', 'updatedAt'],
+        });
+
         const formatter = newSong.toJSON();
         if (formatter.filePathAudio) formatter.filePathAudio = encodeData(formatter.filePathAudio);
-        if (formatter.lyric) formatter.lyric = encodeData(formatter.lyric);
+        if (formatter.lyric) {
+            console.log('có file lyric');
+            formatter.lyric = encodeData(formatter.lyric);
+        }
         if (formatter.image) formatter.image = encodeData(formatter.image);
+        formatter.releaseDate = formatTime(formatter.releaseDate);
         formatter.createdAt = formatTime(formatter.createdAt);
         formatter.updatedAt = formatTime(formatter.updatedAt);
+
+        if (files.audioFile && files.audioFile.length > 0 && song.filePathAudio)
+            setImmediate(() => awsService.deleteFile3(song.filePathAudio));
+        if (files.imageFile && files.imageFile.length > 0 && song.image)
+            setImmediate(() => awsService.deleteFile3(song.image));
+        if (files.lyricFile && files.lyricFile.length > 0 && song.lyric)
+            setImmediate(() => awsService.deleteFile3(song.lyric));
+
         return formatter;
     } catch (error) {
         await transaction.rollback();
 
-        await Promise.all(operations.delete.map((fn) => fn()));
-        await Promise.all(operations.rollback.map((fn) => fn()));
+        if (files.audioFile && files.audioFile.length > 0)
+            setImmediate(() => awsService.deleteFile3(files.audioFile[0].key));
+
+        if (files.imageFile && files.imageFile.length > 0)
+            setImmediate(() => awsService.deleteFile3(files.imageFile[0].key));
+
+        if (files.lyricFile && files.lyricFile.length > 0)
+            setImmediate(() => awsService.deleteFile3(files.lyricFile[0].key));
 
         throw error;
     }
@@ -765,11 +706,16 @@ const deleteUserSongService = async ({ user, songId } = {}) => {
         await db.PlaylistSong.destroy({ where: { playlistId: playlist.id, songId: song.id }, transaction });
         await db.Song.destroy({ where: { id: song.id }, transaction });
         await transaction.commit();
+        if (song.filePathAudio) setImmediate(() => awsService.deleteFile3(song.filePathAudio));
+        if (song.image) setImmediate(() => awsService.deleteFile3(song.image));
+        if (song.lyric) setImmediate(() => awsService.deleteFile3(song.lyric));
     } catch (error) {
         await transaction.rollback();
         throw error;
     }
 };
+
+// -----------------notification
 
 const getAllNotificationsService = async ({ user, page = 1, limit = 10 } = {}) => {
     try {
@@ -892,7 +838,6 @@ export const userService = {
     // ---------------------
     fetchUser,
     fetchUserCount,
-    createNew,
     getInfoUserService,
     getPlaylistService,
     getPlaylistDetailService,
@@ -903,6 +848,7 @@ export const userService = {
     deleteSongService,
     deletePlaylistService,
     updateUserService,
+    changePasswordService,
     // ---------------actions
     playTimeService,
     likedSongService,

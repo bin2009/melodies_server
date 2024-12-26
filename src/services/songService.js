@@ -30,6 +30,7 @@ const fetchSongs = async ({
                     'lyric',
                     'filePathAudio',
                     'createdAt',
+                    'image',
                     ...additionalAttributes,
                 ],
                 include: [
@@ -112,8 +113,10 @@ const fetchSongs = async ({
                 formattedSong.createdAt = formatTime(formattedSong.createdAt);
                 formattedSong.releaseDate = formatTime(formattedSong.releaseDate);
                 formattedSong.filePathAudio = encodeData(formattedSong.filePathAudio);
-                if (role === 'Admin') {
-                    formattedSong.lyric = formattedSong.lyric;
+                if (formattedSong.image)
+                    formattedSong.image = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formattedSong.image}`;
+                if (role && role === 'Admin') {
+                    formattedSong.lyric = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formattedSong.lyric}`;
                 } else {
                     formattedSong.lyric = formattedSong.lyric ? encodeData(formattedSong.lyric) : null;
                 }
@@ -133,8 +136,10 @@ const fetchSongs = async ({
             formattedSong.createdAt = formatTime(formattedSong.createdAt);
             formattedSong.releaseDate = formatTime(formattedSong.releaseDate);
             formattedSong.filePathAudio = encodeData(formattedSong.filePathAudio);
+            if (formattedSong.image)
+                formattedSong.image = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formattedSong.image}`;
             if (role && role === 'Admin') {
-                formattedSong.lyric = formattedSong.lyric;
+                formattedSong.lyric = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formattedSong.lyric}`;
             } else {
                 formattedSong.lyric = formattedSong.lyric ? encodeData(formattedSong.lyric) : null;
             }

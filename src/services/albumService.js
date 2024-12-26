@@ -38,6 +38,15 @@ const fetchAlbum = async ({ conditions = {}, order = [['createdAt', 'DESC']], mo
     if (mode === 'findAll') {
         const formatteds = albums.map((a) => {
             const formatted = { ...a.toJSON() };
+            if (formatted.albumImages.length > 0) {
+                formatted.albumImages.forEach((image) => {
+                    image.image =
+                        image.image && image.image.includes('PBL6')
+                            ? `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${image.image}`
+                            : image.image;
+                });
+            }
+
             formatted.createdAt = formatTime(formatted.createdAt);
             formatted.updatedAt = formatTime(formatted.updatedAt);
             formatted.releaseDate = formatTime(formatted.releaseDate);
@@ -46,6 +55,14 @@ const fetchAlbum = async ({ conditions = {}, order = [['createdAt', 'DESC']], mo
         return formatteds;
     } else if (mode === 'findOne') {
         const formatted = albums.toJSON();
+        if (formatted.albumImages.length > 0) {
+            formatted.albumImages.forEach((image) => {
+                image.image =
+                    image.image && image.image.includes('PBL6')
+                        ? `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${image.image}`
+                        : image.image;
+            });
+        }
         formatted.createdAt = formatTime(formatted.createdAt);
         formatted.updatedAt = formatTime(formatted.updatedAt);
         formatted.releaseDate = formatTime(formatted.releaseDate);
@@ -179,7 +196,10 @@ const getAlbumService = async ({ albumId, mode = 'findAll' } = {}) => {
                 conditions: { songId: songsIds[0]?.songId, main: true },
             }),
         ]);
+
+        // return true;
         const totalDuration = songs.reduce((total, song) => total + parseInt(song.duration), 0);
+
         const mainArtist = await artistService.fetchArtist({
             conditions: { id: mainArtistId.artistId },
             mode: 'findOne',

@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import sharp from 'sharp';
 
-const spacesEndpoint = new AWS.Endpoint('nyc3.digitaloceanspaces.com');
+const spacesEndpoint = new AWS.Endpoint(process.env.DO_SPACES_ENDPOINT);
 const s3 = new AWS.S3({
     endpoint: spacesEndpoint,
     accessKeyId: process.env.DO_SPACES_KEY,
@@ -403,7 +403,7 @@ const deleteFile2 = async ({ folderPath, fileName } = {}) => {
 
 const deleteFile3 = async (filePath) => {
     try {
-        const bucketName = 'audiomelodies';
+        const bucketName = process.env.DO_SPACES_BUCKET;
 
         const params = {
             Bucket: bucketName,

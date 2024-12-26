@@ -15,9 +15,9 @@ import formatTime from '~/utils/timeFormat';
 import { ACCOUNT_STATUS, NOTIFICATIONS, REPORT_STATUS, SUSPENSION_DURATION } from '~/data/enum';
 import { emailService } from './emailService';
 import encodeData from '~/utils/encryption';
+import { appMiddleWare } from '~/middleware/appMiddleWare';
 
 const saltRounds = 10;
-const PREFIX = 'PBL6';
 
 const fetchAlbumSong = async ({ conditions = {}, limit, offset, order, mode = 'findAll' } = {}) => {
     const albumIds = await db.AlbumSong[mode]({
@@ -555,15 +555,15 @@ const getPaymentDetailService = async ({ user, paymentId } = {}) => {
 
 // ---------------------------
 
-const createSongService = async ({ data, file, lyric, duration } = {}) => {
+const createSongService = async ({ data, files } = {}) => {
     const transaction = await db.sequelize.transaction();
     const songId = uuidv4();
-    let filePathAudio = null;
-    let filePathLyric = null;
-    const updates = {};
-    const uploadPromises = [];
 
     try {
+        const dataCreateSong = {
+            id: songId,
+        };
+
         // check artist
         const checkMainArtist = await artistService.checkArtistExits(data.mainArtistId);
         if (!checkMainArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
@@ -576,32 +576,34 @@ const createSongService = async ({ data, file, lyric, duration } = {}) => {
             });
         }
 
-        if (!file) throw new ApiError(StatusCodes.BAD_REQUEST, 'File required');
-        if (file) {
-            uploadPromises.push(() =>
-                awsService.uploadSong(songId, file).then((filePathAudio) => {
-                    updates.filePathAudio = filePathAudio;
-                }),
-            );
-            updates.duration = duration;
-        }
-        if (lyric) {
-            uploadPromises.push(() =>
-                awsService.uploadSongLyric(songId, lyric).then((filePathLyric) => {
-                    updates.lyric = filePathLyric;
-                }),
-            );
+        if (files.audioFile.length == 0) throw new ApiError(StatusCodes.BAD_REQUEST, 'File required');
+
+        if (files.audioFile && files.audioFile.length > 0) {
+            dataCreateSong.filePathAudio = files.audioFile[0].key;
+            console.log('key: ', files.audioFile[0].key);
+
+            const duration = await appMiddleWare.getAudioDuration(files.audioFile[0].key);
+            dataCreateSong.duration = duration ? parseInt(duration * 1000) : 0;
         }
 
+        if (files.lyricFile && files.lyricFile.length > 0) dataCreateSong.lyric = files.lyricFile[0].key;
+
+        if (data.title) dataCreateSong.title = data.title;
+
+        if (data.releaseDate) dataCreateSong.releaseDate = data.releaseDate;
+
+        let dataCreateSubArtist;
+        if (data.subArtistIds)
+            dataCreateSubArtist = data.subArtistIds.map((sub) => {
+                return {
+                    songId: songId,
+                    artistId: sub.artistId,
+                    main: false,
+                };
+            });
+
+        await db.Song.create(dataCreateSong, { transaction });
         await Promise.all([
-            db.Song.create(
-                {
-                    id: songId,
-                    title: data.title,
-                    filePathAudio: 'No file',
-                },
-                { transaction },
-            ),
             db.ArtistSong.create(
                 {
                     songId: songId,
@@ -610,84 +612,63 @@ const createSongService = async ({ data, file, lyric, duration } = {}) => {
                 },
                 { transaction },
             ),
-            data.subArtistIds.map((sub) => {
-                return db.ArtistSong.create(
-                    {
-                        songId: songId,
-                        artistId: sub.artistId,
-                        main: false,
-                    },
-                    { transaction },
-                );
-            }),
+            db.ArtistSong.bulkCreate(dataCreateSubArtist, { transaction }),
         ]);
-        await Promise.all(uploadPromises.map((fn) => fn()));
-        await db.Song.update(updates, { where: { id: songId }, transaction });
+
         await transaction.commit();
     } catch (error) {
-        await Promise.all([transaction.rollback(), awsService.deleteFolder(`PBL6/SONG/SONG_${songId}`)]);
+        await transaction.rollback();
+
+        if (files.audioFile && files.audioFile.length > 0)
+            setImmediate(() => awsService.deleteFile3(files.audioFile[0].key));
+
+        if (files.lyricFile && files.lyricFile.length > 0)
+            setImmediate(() => awsService.deleteFile3(files.lyricFile[0].key));
+
         throw error;
     }
 };
 
 const createAlbum = async ({ data, file } = {}) => {
     const transaction = await db.sequelize.transaction();
-    let albumCoverURL = null;
-    let size = null;
     try {
         const albumId = uuidv4();
+        const dataCreateAlbum = {
+            albumId: albumId,
+        };
+        if (data.title) dataCreateAlbum.title = data.title;
+        if (data.type) dataCreateAlbum.albumType = data.type;
+        if (data.releaseDate) dataCreateAlbum.releaseDate = data.releaseDate;
 
-        // upload ảnh
-        if (file) {
-            albumCoverURL = await awsService.uploadAlbumCover(data.mainArtistId, albumId, file);
-            size = (await sharp(file.buffer).metadata()).width;
-        }
+        const albumCover = file.albumCover && file.albumCover.length > 0 ? file.albumCover[0].key : null;
 
-        // tạo album,
-        await db.Album.create(
-            {
-                albumId: albumId,
-                title: data.title,
-                albumType: data.type,
-                releaseDate: data.releaseDate,
-            },
-            { transaction },
-        );
+        await db.Album.create(dataCreateAlbum, { transaction });
 
-        // tạo album image
         await db.AlbumImage.create(
             {
-                albumImageId: uuidv4(),
                 albumId: albumId,
-                image: albumCoverURL,
-                size: size,
+                image: albumCover,
+                size: 10,
             },
             { transaction },
         );
 
-        // tạo album song
-        await Promise.all(
-            data.songIds.map(async (s) => {
-                await db.AlbumSong.create(
-                    {
-                        id: uuidv4(),
-                        songId: s.songId,
-                        albumId: albumId,
-                    },
-                    { transaction },
-                );
-            }),
-        );
+        let dataSong;
+        if (data.songIds) {
+            dataSong = data.songIds.map((s) => {
+                return { songId: s.songId, albumId: albumId };
+            });
+        }
+
+        await db.AlbumSong.bulkCreate(dataSong, { transaction });
 
         await transaction.commit();
-        return {
-            size: size,
-        };
     } catch (error) {
         await transaction.rollback();
-        if (albumCoverURL) {
-            await awsService.deleteFile(albumCoverURL);
-        }
+
+        if (file.albumCover && file.albumCover.length > 0)
+            setImmediate(() => awsService.deleteFile3(file.albumCover[0].key));
+
         throw error;
     }
 };
@@ -712,28 +693,26 @@ const createAdminService = async ({ data } = {}) => {
 const updateAlbumService = async ({ albumId, data, file } = {}) => {
     const transaction = await db.sequelize.transaction();
     try {
+        const updatesAlbum = {};
+        const updatesAlbumImage = {};
+
         // check album
-        const checkAlbum = await db.Album.findByPk(albumId);
+        const checkAlbum = await db.Album.findOne({
+            where: { albumId: albumId },
+            include: [{ model: db.AlbumImage, as: 'albumImages' }],
+        });
         if (!checkAlbum) throw new ApiError(StatusCodes.NOT_FOUND, 'Album not found');
 
-        // update album
-        const [[affectedCount, updatedRows], songsOfAlbum] = await Promise.all([
-            db.Album.update(data, { where: { albumId: albumId }, returning: true }, { transaction }),
-            db.AlbumSong.findAll({ where: { albumId: albumId }, attributes: ['songId'] }),
-        ]);
-
-        const songIdsOfAlbum = songsOfAlbum?.map((rec) => rec.songId);
-        console.log('Songs of album: ', songIdsOfAlbum);
+        const songsOfAlbum = await db.AlbumSong.findAll({ where: { albumId: albumId }, attributes: ['songId'] });
 
         const songIds = data.songIds ?? [];
+        const songIdsOfAlbum = songsOfAlbum?.map((rec) => rec.songId);
         const songsAdd = songIds?.filter((id) => !songIdsOfAlbum.includes(id));
         const songsDel = songIdsOfAlbum?.filter((id) => !songIds.includes(id));
 
-        // xóa bài hát ra khỏi album
         if (songsDel.length > 0)
-            await db.AlbumSong.destroy({ where: { albumId: albumId, songId: { [Op.in]: songsDel } } }, { transaction });
+            await db.AlbumSong.destroy({ where: { albumId: albumId, songId: { [Op.in]: songsDel } }, transaction });
 
-        // thêm mới bài hát -> check song exits -> check cùng nghê sĩ chính
         if (songsAdd.length > 0) {
             const foundSongs = (
                 await db.Song.findAll({ where: { id: { [Op.in]: songsAdd } }, attributes: ['id'] })
@@ -744,71 +723,51 @@ const updateAlbumService = async ({ albumId, data, file } = {}) => {
                 throw new ApiError(StatusCodes.BAD_REQUEST, `Song IDs do not exist: ${invalidSongIds.join(', ')}`);
             }
 
-            const checkArtist = await db.ArtistSong.findAll({
-                where: { songId: { [Op.in]: songsAdd }, main: true },
-                attributes: ['artistId'],
+            const createData = songsAdd.map((s) => {
+                return { songId: s, albumId: albumId };
             });
-            const checkArtistSet = new Set(checkArtist.map((s) => s.artistId));
-            console.log('checkArtistSet: ', checkArtistSet);
-            if (checkArtistSet.size > 1)
-                throw new ApiError(StatusCodes.BAD_REQUEST, 'Album containing only songs by 1 main artist');
-
-            if (songIdsOfAlbum.length !== 0) {
-                const mainArtist = await db.Artist.findOne({
-                    include: [
-                        {
-                            model: db.ArtistSong,
-                            as: 'artistSong',
-                            where: { songId: songIdsOfAlbum[0], main: true },
-                            attributes: [],
-                        },
-                    ],
-                    attributes: ['id'],
-                    raw: true,
-                });
-                const check = checkArtistSet.has(mainArtist.id);
-                if (!check) throw new ApiError(StatusCodes.BAD_REQUEST, 'Album containing only songs by 1 main artist');
-            }
-
-            const addPromises = songsAdd.map((songId) =>
-                db.AlbumSong.create({ albumId: albumId, songId: songId }, { transaction }),
-            );
-            await Promise.all(addPromises);
+            await db.AlbumSong.bulkCreate(createData, { transaction });
         }
 
-        if (file) {
-            await awsService.copyFolder(`PBL6/ALBUM/${albumId}`, `PBL6/COPY/${albumId}`);
-            await awsService.deleteFolder(`PBL6/ALBUM/${albumId}`);
-            const [path, size] = await Promise.all([
-                awsService.uploadAlbumCover('', albumId, file),
-                (await sharp(file.buffer).metadata()).width,
-            ]);
-            await db.AlbumImage.update({ image: path, size: size }, { where: { albumId: albumId } });
+        if (data.title) updatesAlbum.title = data.title;
+        if (data.albumType) updatesAlbum.albumType = data.albumType;
+        if (data.releaseDate) updatesAlbum.releaseDate = data.releaseDate;
+
+        if (file.albumCover && file.albumCover.length > 0) {
+            updatesAlbumImage.image = file.albumCover[0].key;
+            updatesAlbumImage.size = 10;
         }
+
+        await Promise.all([
+            db.Album.update(updatesAlbum, { where: { albumId: albumId }, transaction }),
+            db.AlbumImage.update(updatesAlbumImage, { where: { albumId: albumId }, transaction }),
+        ]);
+
         await transaction.commit();
-        await awsService.deleteFolder(`PBL6/COPY/${albumId}`);
 
-        return {
-            songsAdd: songsAdd,
-            songsDel: songsDel,
-        };
+        if (file.albumCover && file.albumCover.length > 0 && checkAlbum.albumImages) {
+            checkAlbum.albumImages.forEach((image) => {
+                if (image.image && image.image.includes('PBL6')) {
+                    console.log('delete image: ', image.image);
+                    setImmediate(() => awsService.deleteFile3(image.image));
+                }
+            });
+        }
     } catch (error) {
         await transaction.rollback();
-        if (file) {
-            await awsService.copyFolder(`PBL6/COPY/${albumId}`, `PBL6/ALBUM/${albumId}`);
-            await awsService.deleteFolder(`PBL6/COPY/${albumId}`);
-        }
+
+        if (file.albumCover && file.albumCover.length > 0)
+            setImmediate(() => awsService.deleteFile3(file.albumCover[0].key));
+
         throw error;
     }
 };
 
 const updateArtistService = async ({ artistId, data, file } = {}) => {
     const transaction = await db.sequelize.transaction();
-    const operations = {
-        oldPath: null,
-        updates: {},
-    };
     try {
+        const updates = {};
+
         // check artist
         const checkArtist = await db.Artist.findByPk(artistId);
         if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
@@ -848,98 +807,55 @@ const updateArtistService = async ({ artistId, data, file } = {}) => {
             await db.ArtistGenre.bulkCreate(createData, { transaction });
         }
 
-        if (data.name) operations.updates.name = data.name;
-        if (data.bio) operations.updates.bio = data.bio;
-        console.log('operations: ', operations);
-        if (file) {
-            if (checkArtist.avatar) operations.oldPath = checkArtist.avatar;
-            await awsService.uploadArtistAvatar(artistId, file).then((path) => {
-                operations.updates.avatar = path;
-            });
-        }
+        if (file && file.avatar.length > 0) updates.avatar = file.avatar[0].key;
 
-        await db.Artist.update(operations.updates, { where: { id: artistId }, transaction });
+        if (data.name) updates.name = data.name;
+
+        if (data.bio) updates.bio = data.bio;
+
+        await db.Artist.update(updates, { where: { id: artistId }, transaction });
         await transaction.commit();
-        if (operations.oldPath && operations.oldPath.includes(PREFIX))
-            await awsService.deleteFile3(PREFIX + operations.oldPath.split(PREFIX)[1]);
 
-        return {
-            genresAdd: genresAdd,
-            genresDel: genresDel,
-        };
+        if (file.avatar && file.avatar.length > 0 && checkArtist.avatar)
+            setImmediate(() => awsService.deleteFile3(checkArtist.avatar));
     } catch (error) {
-        console.log('Error update artist');
         await transaction.rollback();
-        if (operations.updates.avatar)
-            await awsService.deleteFile3(PREFIX + operations.updates.avatar.split(PREFIX)[1]);
+
+        if (file && file.avatar.length > 0) SetImmediate(() => awsService.deleteFile3(file.avatar[0].key));
+
         throw error;
     }
 };
 
-const updateSongService = async ({ songId, data, duration, file, lyric } = {}) => {
+const updateSongService = async ({ songId, data, files } = {}) => {
     const transaction = await db.sequelize.transaction();
-    const updates = {};
-    const operations = {
-        move: [],
-        upload: [],
-        delete: [],
-        rollback: [],
-    };
-    const prefix = 'PBL6';
-
     try {
-        const exPromises = [];
+        const updates = {};
+
         const subArtistIds = data.subArtist ?? [];
         if (subArtistIds.includes(data.mainArtist)) throw new ApiError(StatusCodes.CONFLICT, 'Only 1 main artist');
 
         const song = await db.Song.findOne({ where: { id: songId, privacy: false } });
         if (!song) throw new ApiError(StatusCodes.NOT_FOUND, 'Song not found');
+
         if (data.title) updates.title = data.title;
+
         if (data.releaseDate) updates.releaseDate = data.releaseDate;
+
         if (data.mainArtist)
-            exPromises.push(() =>
-                db.ArtistSong.update(
-                    { artistId: data.mainArtist },
-                    { where: { songId: songId, main: true }, transaction },
-                ),
-            );
-        if (file) {
-            const oldFilePathAudio = song.filePathAudio ? prefix + song.filePathAudio.split(prefix)[1] : null;
-
-            if (oldFilePathAudio) {
-                const copyPath = `COPY/${oldFilePathAudio}`;
-                operations.move.push(() => awsService.moveFile(oldFilePathAudio, copyPath));
-                operations.rollback.push(() => awsService.moveFile(copyPath, oldFilePathAudio));
-            }
-
-            operations.upload.push(() =>
-                awsService.uploadSong(song.id, file).then((filePathAudio) => {
-                    updates.filePathAudio = filePathAudio;
-                }),
+            await db.ArtistSong.update(
+                { artistId: data.mainArtist },
+                { where: { songId: songId, main: true }, transaction },
             );
 
-            updates.duration = duration;
+        if (files.audioFile && files.audioFile.length > 0) {
+            updates.filePathAudio = files.audioFile[0].key;
 
-            operations.delete.push(() => awsService.deleteFolder(`${prefix}/SONG/SONG_${songId}/audio`));
+            const duration = await appMiddleWare.getAudioDuration(files.audioFile[0].key);
+            updates.duration = duration ? parseInt(duration * 1000) : 0;
         }
 
-        if (lyric) {
-            const oldFilePathLyric = song.lyric ? prefix + song.lyric.split(prefix)[1] : null;
-
-            if (oldFilePathLyric) {
-                const copyPath = `COPY/${oldFilePathLyric}`;
-                operations.move.push(() => awsService.moveFile(oldFilePathLyric, copyPath));
-                operations.rollback.push(() => awsService.moveFile(copyPath, oldFilePathLyric));
-            }
-
-            operations.upload.push(() =>
-                awsService.uploadSongLyric(song.id, lyric).then((filePathLyric) => {
-                    updates.lyric = filePathLyric;
-                }),
-            );
-
-            operations.delete.push(() => awsService.deleteFolder(`${prefix}/SONG/SONG_${songId}/lyric`));
-        }
+        if (files.lyricFile && files.lyricFile.length > 0) updates.lyric = files.lyricFile[0].key;
 
         const subArtistIdsOfSong = await db.ArtistSong.findAll({ where: { songId: songId, main: false } });
 
@@ -954,13 +870,6 @@ const updateSongService = async ({ songId, data, duration, file, lyric } = {}) =
             );
         }
 
-        // exPromises.push(() =>
-        //     db.ArtistSong.destroy(
-        //         { where: { songId: songId, artistId: { [Op.in]: subArtistDel } } },
-        //         { transaction },
-        //     ),
-        // );
-
         if (subArtistAdd.length > 0) {
             const addPromises = subArtistAdd.map((artistId) =>
                 db.ArtistSong.create({ artistId: artistId, songId: songId, main: false }, { transaction }),
@@ -968,13 +877,14 @@ const updateSongService = async ({ songId, data, duration, file, lyric } = {}) =
             await Promise.all(addPromises);
         }
 
-        await Promise.all(operations.move.map((fn) => fn()));
-        await Promise.all(operations.upload.map((fn) => fn()));
-        exPromises.push(() => db.Song.update(updates, { where: { id: songId }, transaction }));
-        await Promise.all(exPromises.map((fn) => fn()));
+        await db.Song.update(updates, { where: { id: songId }, transaction });
 
         await transaction.commit();
-        await awsService.deleteFolder(`COPY/${prefix}/SONG/SONG_${songId}`);
+
+        if (files.audioFile && files.audioFile.length > 0 && song.filePathAudio)
+            setImmediate(() => awsService.deleteFile3(song.filePathAudio));
+        if (files.lyricFile && files.lyricFile.length > 0 && song.lyric)
+            setImmediate(() => awsService.deleteFile3(song.lyric));
 
         return {
             mainArtist: data.mainArtist,
@@ -983,8 +893,13 @@ const updateSongService = async ({ songId, data, duration, file, lyric } = {}) =
         };
     } catch (error) {
         await transaction.rollback();
-        await Promise.all(operations.delete.map((fn) => fn()));
-        await Promise.all(operations.rollback.map((fn) => fn()));
+
+        if (files.audioFile && files.audioFile.length > 0)
+            setImmediate(() => awsService.deleteFile3(files.audioFile[0].key));
+
+        if (files.lyricFile && files.lyricFile.length > 0)
+            setImmediate(() => awsService.deleteFile3(files.lyricFile[0].key));
+
         throw error;
     }
 };
@@ -1007,15 +922,27 @@ const updateGenreService = async ({ genreId, data } = {}) => {
 const deleteAlbumService = async ({ albumIds } = {}) => {
     const transaction = await db.sequelize.transaction();
     try {
-        await Promise.all(albumIds.map((albumId) => awsService.deleteFolder(`PBL6/ALBUM/${albumId}`)));
+        const albums = await db.Album.findAll({
+            where: { albumId: { [Op.in]: albumIds } },
+            include: [{ model: db.AlbumImage, as: 'albumImages' }],
+        });
 
         await Promise.all([
-            db.AlbumSong.destroy({ where: { albumId: { [Op.in]: albumIds } } }, { transaction }),
-            db.AlbumImage.destroy({ where: { albumId: { [Op.in]: albumIds } } }, { transaction }),
+            db.AlbumSong.destroy({ where: { albumId: { [Op.in]: albumIds } }, transaction }),
+            db.AlbumImage.destroy({ where: { albumId: { [Op.in]: albumIds } }, transaction }),
         ]);
-        await db.Album.destroy({ where: { albumId: { [Op.in]: albumIds } } }, { transaction });
+        await db.Album.destroy({ where: { albumId: { [Op.in]: albumIds } }, transaction });
 
         await transaction.commit();
+
+        albums.map((allbum) => {
+            if (allbum.albumImages) {
+                allbum.albumImages.forEach((image) => {
+                    if (image.image && image.image.includes('PBL6'))
+                        setImmediate(() => awsService.deleteFile3(image.image));
+                });
+            }
+        });
     } catch (error) {
         await transaction.rollback();
         throw error;
@@ -1024,7 +951,6 @@ const deleteAlbumService = async ({ albumIds } = {}) => {
 
 const deleteArtistService = async ({ artistIds } = {}) => {
     const transaction = await db.sequelize.transaction();
-    const operations = [];
     try {
         const artists = await db.Artist.findAll({ where: { id: { [Op.in]: artistIds } }, raw: true });
 
@@ -1076,14 +1002,16 @@ const deleteArtistService = async ({ artistIds } = {}) => {
         ]);
         await db.Artist.update({ hide: true }, { where: { id: { [Op.in]: artistIds } }, transaction });
 
-        artists.map((a) => {
-            if (a.avatar && a.avatar.includes(PREFIX)) {
-                const oldPath = a.avatar;
-                operations.push(() => awsService.deleteFile3(PREFIX + oldPath.split(PREFIX)[1]));
-            }
-        });
         await transaction.commit();
-        await Promise.all(operations.map((fn) => fn()));
+
+        artists.map((a) => {
+            if (a.avatar && a.avatar.includes('PBL6')) setImmediate(() => awsService.deleteFile3(a.avatar));
+        });
+
+        songIds.map((s) => {
+            if (s.filePathAudio && s.filePathAudio.includes('PBL6'))
+                setImmediate(() => awsService.deleteFile3(s.filePathAudio));
+        });
     } catch (error) {
         await transaction.rollback();
         throw error;
@@ -1092,11 +1020,6 @@ const deleteArtistService = async ({ artistIds } = {}) => {
 
 const deleteSongService = async ({ songIds } = {}) => {
     const transaction = await db.sequelize.transaction();
-    const prefix = 'PBL6';
-    const operations = {
-        move: [],
-        rollback: [],
-    };
     try {
         const [songs] = await Promise.all([
             db.Song.findAll({ where: { id: { [Op.in]: songIds } } }),
@@ -1108,27 +1031,19 @@ const deleteSongService = async ({ songIds } = {}) => {
             db.AlbumSong.destroy({ where: { songId: { [Op.in]: songIds } }, transaction }),
             db.Download.destroy({ where: { songId: { [Op.in]: songIds } }, transaction }),
         ]);
+
         await db.Song.destroy({ where: { id: { [Op.in]: songIds } }, transaction });
-        songs.map((song) => {
-            const oldPathAudio = song.filePathAudio ? prefix + song.filePathAudio.split(prefix)[1] : null;
-            const oldPathLyric = song.lyric ? prefix + song.lyric.split(prefix)[1] : null;
-            console.log('ha: ', oldPathAudio, ' //// ', oldPathLyric);
-            if (oldPathAudio) {
-                operations.move.push(() => awsService.moveFile(oldPathAudio, `COPY_DELETE/${oldPathAudio}`));
-                operations.rollback.push(() => awsService.moveFile(`COPY_DELETE/${oldPathAudio}`, oldPathAudio));
-            }
-            if (oldPathLyric) {
-                operations.move.push(() => awsService.moveFile(oldPathLyric, `COPY_DELETE/${oldPathLyric}`));
-                operations.rollback.push(() => awsService.moveFile(`COPY_DELETE/${oldPathLyric}`, oldPathLyric));
-            }
-        });
-        await Promise.all(operations.move.map((fn) => fn()));
+
         await transaction.commit();
-        await awsService.deleteFolder('COPY_DELETE');
+
+        songs.map((s) => {
+            if (s.filePathAudio && s.filePathAudio.includes('PBL6'))
+                setImmediate(() => awsService.deleteFile3(s.filePathAudio));
+
+            if (s.lyric && s.lyric.includes('PBL6')) setImmediate(() => awsService.deleteFile3(s.lyric));
+        });
     } catch (error) {
-        console.log('loi');
         await transaction.rollback();
-        await Promise.all(operations.rollback.map((fn) => fn()));
         throw error;
     }
 };

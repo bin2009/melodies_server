@@ -28,7 +28,13 @@ const fetchArtistName = async ({ conditions } = {}) => {
         order: [['createdAt', 'DESC']],
         raw: true,
     });
-    return artists;
+    const formatteds = artists.map((p) => {
+        const formatted = { ...p };
+        if (formatted.avatar && formatted.avatar.includes('PBL6'))
+            formatted.avatar = `https:${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.avatar}`;
+        return formatted;
+    });
+    return formatteds;
 };
 
 const fetchFollowCount = async ({
@@ -100,12 +106,16 @@ const fetchArtist = async ({
         const formatteds = artists.map((p) => {
             const formatted = { ...p.toJSON() };
             formatted.createdAt = formatTime(formatted.createdAt);
+            if (formatted.avatar && formatted.avatar.includes('PBL6'))
+                formatted.avatar = `https:${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.avatar}`;
             return formatted;
         });
         return formatteds;
     } else if (mode === 'findOne') {
         const formatted = artists.toJSON();
         formatted.createdAt = formatTime(formatted.createdAt);
+        if (formatted.avatar && formatted.avatar.includes('PBL6'))
+            formatted.avatar = `https:${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.avatar}`;
         return formatted;
     }
 };
@@ -353,10 +363,16 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
             }
 
             const result = artists.map((a) => {
-                const { createdAt, ...other } = a.toJSON();
-
+                const { avatar, createdAt, ...other } = a.toJSON();
+                let formattedAvatar;
+                if (avatar && avatar.includes('PBL6')) {
+                    formattedAvatar = `https:${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${avatar}`;
+                } else {
+                    formattedAvatar = avatar;
+                }
                 return {
                     ...other,
+                    avatar: formattedAvatar,
                     createdAt: formatTime(createdAt),
                     totalSong: songsPerArtistMap[a.id] ?? 0,
                     totalAlbum: albumSongsCountPerArtist[a.id] ?? 0,
@@ -589,8 +605,6 @@ const getArtistSameGenreService = async ({ artistId, page = 1, limit = 10 } = {}
 
 const createArtistService = async ({ data, file } = {}) => {
     const transaction = await db.sequelize.transaction();
-    let avatarUrl = null;
-    const id = uuidv4();
     try {
         if (!data.name) throw new ApiError(StatusCodes.BAD_REQUEST, 'Artist name is required');
 
@@ -602,48 +616,36 @@ const createArtistService = async ({ data, file } = {}) => {
         if (existingGenres.length !== data.genres.length)
             throw new ApiError(StatusCodes.BAD_REQUEST, 'Genres not found');
 
-        if (file) {
-            avatarUrl = await awsService.uploadArtistAvatar(id, file);
-        }
+        const dataCreateArtist = {
+            id: uuidv4(),
+            name: data.name,
+        };
 
-        const artist = await db.Artist.create(
-            {
-                id: id,
-                name: data.name,
-                avatar: avatarUrl,
-                bio: data.bio,
-            },
-            { transaction },
-        );
+        if (data.bio) dataCreateArtist.bio = data.bio;
+
+        if (file && file.avatar.length > 0) dataCreateArtist.avatar = file.avatar[0].key;
 
         const createData = data.genres.map((g) => ({
-            artistId: artist.id,
+            artistId: dataCreateArtist.id,
             genreId: g.genreId,
         }));
+
+        await db.Artist.create(dataCreateArtist, { transaction });
         await db.ArtistGenre.bulkCreate(createData, { transaction });
 
         await transaction.commit();
-        return await fetchArtist({ conditions: { id: artist.id } });
     } catch (error) {
-        console.log('Error create artist');
         await transaction.rollback();
-        if (avatarUrl) await awsService.deleteFile3(PREFIX + avatarUrl.split(PREFIX)[1]);
+        if (file && file.avatar.length > 0) await awsService.deleteFile3(file.avatar[0].key);
         throw error;
     }
 };
 
 const getSongOfArtistService = async ({ artistId } = {}) => {
     try {
+        const songsOfArtist = await db.ArtistSong.findAll({ where: { artistId: artistId, main: true } });
         const songs = await db.Song.findAll({
-            include: [
-                {
-                    model: db.Artist,
-                    as: 'artists',
-                    where: { id: artistId },
-                    attributes: [],
-                    through: { attributes: [] },
-                },
-            ],
+            where: { id: { [Op.in]: songsOfArtist.map((s) => s.songId) } },
             attributes: ['id', 'title'],
         });
         return songs;

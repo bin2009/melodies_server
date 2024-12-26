@@ -105,10 +105,16 @@
                     console.log(`loc-${key}: ${value}`);
                 });
 
+                const token =
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQ5NWEzZDQ2LTk3N2QtNDNkNS1iNDU1LTAxOTAyMWU2M2U2NCIsInJvbGUiOiJBZG1pbiIsInVzZXJuYW1lIjoiYWRtaW4xIiwiYWNjb3VudFR5cGUiOiJGUkVFIiwiaWF0IjoxNzM1MTQ2NDU2LCJleHAiOjE3MzUyMzI4NTZ9.XOLYNEQGCC8DnChhiU-CqONjVBBZFITo8lb0dKjwWqQ';
+
                 try {
                     const response = await fetch('http://localhost:20099/api/admin/create/artist', {
                         method: 'POST',
                         body: formData,
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
                     });
 
                     const result = await response.json();

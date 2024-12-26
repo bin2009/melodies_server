@@ -123,30 +123,21 @@ const addSongPlaylist = async (req, res, next) => {
 
 const updatePlaylist = async (req, res, next) => {
     try {
-        console.log('update playlsit', req.body);
-        console.log('update playlsit', req.file);
         const { playlistId, data } = req.body;
 
         if (!playlistId) throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: playlist id');
-        // check playlist
-        const checkPlaylist = await playlistService.checkPlaylistExists(playlistId);
-        if (!checkPlaylist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
 
         const playlist = await userService.updatePlaylistService({
             playlistId: playlistId,
             updateData: JSON.parse(data),
             user: req.user,
-            file: req.file,
+            file: req.files,
         });
-        // const playlist = await userService.getPlaylistDetailService({
-        //     playlistId: playlistId,
-        //     user: req.user,
-        // });
+
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Update playlist success',
             playlist: playlist,
-            // url: url,
         });
     } catch (error) {
         next(error);
@@ -157,18 +148,13 @@ const deleteSong = async (req, res, next) => {
     try {
         if (!req.body.playlistId || !req.body.songId)
             throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: playlist id or song id');
-        // check playlist
-        const checkPlaylist = await playlistService.checkPlaylistExists(req.body.playlistId);
-        if (!checkPlaylist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
-        // check song
-        const checkSong = await songService.checkSongExists(req.body.songId);
-        if (!checkSong) throw new ApiError(StatusCodes.NOT_FOUND, 'Song not found');
 
         await userService.deleteSongService({ data: req.body, user: req.user });
         const playlist = await userService.getPlaylistDetailService({
             playlistId: req.body.playlistId,
             user: req.user,
         });
+
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Delete song from playlist success',
@@ -182,12 +168,11 @@ const deleteSong = async (req, res, next) => {
 const deletePlaylist = async (req, res, next) => {
     try {
         if (!req.params.playlistId) throw new ApiError(StatusCodes.BAD_REQUEST, 'Missing data: playlist id');
-        // check playlist
-        const checkPlaylist = await playlistService.checkPlaylistExists(req.params.playlistId);
-        if (!checkPlaylist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
 
         await userService.deletePlaylistService({ playlistId: req.params.playlistId, user: req.user });
+
         const playlists = await userService.getPlaylistService({ user: req.user });
+
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Delete playlist success',
@@ -200,10 +185,22 @@ const deletePlaylist = async (req, res, next) => {
 
 const updateUser = async (req, res, next) => {
     try {
-        await userService.updateUserService({ user: req.user, data: req.body, file: req.file });
+        await userService.updateUserService({ user: req.user, data: req.body, file: req.files });
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Update user success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const changePassword = async (req, res, next) => {
+    try {
+        await userService.changePasswordService({ user: req.user, data: req.body });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Change password success',
         });
     } catch (error) {
         next(error);
@@ -295,17 +292,11 @@ const register = async (req, res, next) => {
 
 const userUploadSong = async (req, res, next) => {
     try {
-        const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
-        const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
-        const imageFile = req.files.imageFile ? req.files.imageFile[0] : null;
-
         await userService.userUploadSongService({
             user: req.user,
             title: JSON.parse(req.body.title),
-            file: audioFile,
-            duration: parseInt(req.duration * 1000),
-            lyric: lyricFile,
-            image: imageFile,
+            releaseDate: JSON.parse(req.body.releaseDate),
+            files: req.files,
         });
         res.status(StatusCodes.OK).json({
             status: 'success',
@@ -331,18 +322,12 @@ const getUserSong = async (req, res, next) => {
 
 const updateUserSong = async (req, res, next) => {
     try {
-        const lyricFile = req.files.lyricFile ? req.files.lyricFile[0] : null;
-        const audioFile = req.files.audioFile ? req.files.audioFile[0] : null;
-        const imageFile = req.files.imageFile ? req.files.imageFile[0] : null;
-
         const song = await userService.updateUserSongService({
             user: req.user,
             songId: req.params.songId,
             title: JSON.parse(req.body.title),
-            file: audioFile,
-            duration: parseInt(req.duration * 1000),
-            lyric: lyricFile,
-            image: imageFile,
+            releaseDate: JSON.parse(req.body.releaseDate),
+            files: req.files,
         });
         res.status(StatusCodes.OK).json({
             status: 'success',
@@ -415,6 +400,7 @@ export const userController = {
     deleteSong,
     deletePlaylist,
     updateUser,
+    changePassword,
     // ---------actions
     playTime,
     likedSong,

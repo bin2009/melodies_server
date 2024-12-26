@@ -1,6 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { duration } from 'moment-timezone';
-import { parseBuffer } from 'music-metadata';
+import { parseBuffer, parseStream } from 'music-metadata';
+import https from 'https';
 import { PLAYLIST_TYPE } from '~/data/enum';
 import db from '~/models';
 import ApiError from '~/utils/ApiError';
@@ -39,7 +40,7 @@ const checkMaxUpload = async (req, res, next) => {
 const checkPremium = async (req, res, next) => {
     try {
         const currentUser = await db.User.findByPk(req.user.id);
-        if (currentUser.accountType !== 'Premium')
+        if (currentUser.accountType !== 'PREMIUM')
             throw new ApiError(StatusCodes.FORBIDDEN, 'Please upgrade your account to perform this function.');
         next();
     } catch (error) {
@@ -70,9 +71,34 @@ const calculateDuration = async (req, res, next) => {
     }
 };
 
+const getAudioDuration = async (key) => {
+    try {
+        const response = await new Promise((resolve, reject) => {
+            https
+                .get(`https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${key}`, (response) => {
+                    if (response.statusCode !== 200) {
+                        console.error('Failed to fetch audio file, status code:', response.statusCode);
+                        reject(new Error('Failed to fetch audio file'));
+                    }
+                    resolve(response);
+                })
+                .on('error', (error) => {
+                    console.error('Error fetching audio file:', error);
+                    reject(error);
+                });
+        });
+
+        const metadata = await parseStream(response, response.headers['content-type']);
+        return metadata.format.duration;
+    } catch (error) {
+        throw new Error('Failed to process audio file duration');
+    }
+};
+
 export const appMiddleWare = {
     checkMaxDownsload,
     checkMaxUpload,
     checkPremium,
     calculateDuration,
+    getAudioDuration,
 };
