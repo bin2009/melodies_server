@@ -33,8 +33,8 @@ export const SUSPENSION_DURATION = Object.freeze({
 });
 
 export const PLAYLIST_TYPE = Object.freeze({
-    MYMUSIC: 'Nhạc của tôi',
-    FAVOURITE: 'Yêu thích',
+    MYMUSIC: 'My music',
+    FAVOURITE: 'My favorite',
 });
 
 export const REPORT_STATUS = Object.freeze({

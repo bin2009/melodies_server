@@ -18,7 +18,10 @@ const fetchAllPlaylist = async ({ conditions = {}, limit = undefined, offset = u
         },
         include: [{ model: db.PlaylistSong, as: 'playlistSongs', attributes: [] }],
         group: ['id'],
-        order: [['updatedAt', 'DESC']],
+        order: [
+            ['privacy', 'DESC'],
+            ['updatedAt', 'DESC'],
+        ],
         limit: limit,
         offset: offset,
         subQuery: false,
