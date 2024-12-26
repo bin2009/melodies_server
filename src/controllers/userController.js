@@ -185,7 +185,11 @@ const deletePlaylist = async (req, res, next) => {
 
 const updateUser = async (req, res, next) => {
     try {
-        await userService.updateUserService({ user: req.user, data: req.body, file: req.files });
+        const { data } = req.body;
+        console.log('files', req.files);
+        console.log('body', JSON.parse(data));
+
+        await userService.updateUserService({ user: req.user, data: JSON.parse(data), file: req.files });
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Update user success',

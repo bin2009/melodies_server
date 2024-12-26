@@ -78,7 +78,15 @@ const getInfoUserService = async (user) => {
         });
         if (!findUser) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
 
-        return findUser;
+        const { image, ...other } = findUser.toJSON();
+
+        return {
+            ...other,
+            image:
+                image && image.includes('PBL6')
+                    ? `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${image}`
+                    : null,
+        };
     } catch (error) {
         throw error;
     }
@@ -255,6 +263,8 @@ const updatePlaylistService = async ({ playlistId, updateData, user, file } = {}
 
         const playlist = await db.Playlist.findByPk(playlistId);
         if (!playlist) throw new ApiError(StatusCodes.NOT_FOUND, 'Playlist not found');
+
+        if (playlist.privacy) throw new ApiError(StatusCodes.FORBIDDEN, 'You cannot update this playlist');
 
         if (playlist.userId !== user.id)
             throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to access this playlist.');
@@ -567,6 +577,7 @@ const registerService = async (data) => {
 const userUploadSongService = async ({ user, title, releaseDate, files } = {}) => {
     const transaction = await db.sequelize.transaction();
     try {
+        console.log('files: ', files);
         const dataCreateSong = {
             id: uuidv4(),
             userId: user.id,

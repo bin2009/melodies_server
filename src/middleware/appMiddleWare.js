@@ -40,8 +40,9 @@ const checkMaxUpload = async (req, res, next) => {
 const checkPremium = async (req, res, next) => {
     try {
         const currentUser = await db.User.findByPk(req.user.id);
-        if (currentUser.accountType !== 'PREMIUM')
+        if (currentUser.accountType !== 'PREMIUM') {
             throw new ApiError(StatusCodes.FORBIDDEN, 'Please upgrade your account to perform this function.');
+        }
         next();
     } catch (error) {
         next(error);

@@ -3,18 +3,22 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { client } from '~/services/redisService';
 import { Op } from 'sequelize';
+import { v4 as uuidv4 } from 'uuid';
 import { emailService } from '~/services/emailService';
 import ApiError from '~/utils/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import { ACCOUNT_STATUS } from '~/data/enum';
 const saltRounds = 10;
 
+const TOKEN_DURATION = process.env.TOKEN_DURATION;
+const REFRESH_TOKEN_DURATION = process.env.REFRESH_TOKEN_DURATION;
+
 const generateAccessToken = (user) => {
     return jwt.sign(
-        { id: user.id, role: user.role, username: user.username, accountType: user.accountType },
+        { id: user.id, role: user.role, username: user.username, accountType: user.accountType, jti: uuidv4() },
         process.env.ACCESS_TOKEN_SECRET,
         {
-            expiresIn: '1d',
+            expiresIn: TOKEN_DURATION,
         },
     );
 };
@@ -40,28 +44,23 @@ const loginService = async (data) => {
                 [Op.or]: [{ username: data.username }, { email: data.username }],
             },
         });
-        if (!user) throw new ApiError(StatusCodes.BAD_REQUEST, 'Wrong username or email');
+        if (!user) throw new ApiError(StatusCodes.BAD_REQUEST, 'Incorrect login information');
 
         const validPass = await bcrypt.compare(data.password, user.password);
-        if (!validPass) throw new ApiError(StatusCodes.UNAUTHORIZED, 'Wrong password');
+        if (!validPass) throw new ApiError(StatusCodes.BAD_REQUEST, 'Incorrect login information');
 
         if (user && validPass) {
-            // kiểm tra active
             if (user.status !== 'NORMAL') {
                 const message = ACCOUNT_STATUS[user.status];
                 throw new ApiError(StatusCodes.FORBIDDEN, `Your account has been: ${message}`);
             }
 
-            // kiểm tra đã login chưa
-            // const checkLogin = await client.get(String(user.id));
-            // if (checkLogin) throw new ApiError(StatusCodes.UNAUTHORIZED, 'User is already logged in');
-
-            // nếu chưa login
             const accessToken = generateAccessToken(user);
-            const refreshToken = generateRefreshToken(user);
+
+            // check token có nằm trong redis không -> token đã bỏ, không được dùng lại
 
             // lưu refresh token vào redis
-            await client.setEx(String(user.id), 7 * 24 * 60 * 60, refreshToken);
+            // await client.setEx(String(user.id), 7 * 24 * 60 * 60, refreshToken);
 
             let direct;
             if (user.role === 'Admin') {
@@ -75,7 +74,6 @@ const loginService = async (data) => {
                 direct: direct,
                 accountType: user.accountType,
                 accessToken: accessToken,
-                refreshToken: refreshToken,
             };
         }
     } catch (error) {
@@ -134,6 +132,14 @@ const logoutService = async (authorization) => {
 
         // lấy ra id từ accesstoken
         const user = jwt.verify(accesstoken, process.env.ACCESS_TOKEN_SECRET);
+
+        const exp = user.exp; // Lấy giá trị exp
+
+        // Tính toán thời gian còn lại
+        const currentTime = Math.floor(Date.now() / 1000); // Thời gian hiện tại tính bằng giây
+        const timeToExpire = exp - currentTime; // Thời gian còn lại cho key
+
+        await client.setEx(String(user.jti), timeToExpire, user.jti);
 
         // kiểm tra có refreshtoken không
         const storedRefreshToken = await client.get(String(user.id));
