@@ -16,6 +16,7 @@ import { ACCOUNT_STATUS, NOTIFICATIONS, REPORT_STATUS, SUSPENSION_DURATION } fro
 import { emailService } from './emailService';
 import encodeData from '~/utils/encryption';
 import { appMiddleWare } from '~/middleware/appMiddleWare';
+import { sendMessageToUser } from '~/sockets/socketManager';
 
 const saltRounds = 10;
 
@@ -265,9 +266,10 @@ const getAllUserService = async ({ page = 1, limit = 10 } = {}) => {
         ]);
 
         const result = users.map((user) => {
-            let statusMessage = ACCOUNT_STATUS[user.status];
+            const { status, ...other } = user;
+            let statusMessage = ACCOUNT_STATUS[status];
             return {
-                ...user,
+                ...other,
                 status2: statusMessage,
                 totalViolation: Math.floor(Math.random() * (100 - 1 + 1)) + 1,
             };
@@ -375,19 +377,19 @@ const verifyReportService = async (reportId) => {
         if (report.status !== 'PENDING')
             throw new ApiError(StatusCodes.CONFLICT, 'The reported comment has already been verified');
 
-        const [reportResult, commentResult] = await Promise.all([
+        const [reportResult, noti, commentResult] = await Promise.all([
             db.Report.update({ status: 'DELETE' }, { where: { id: reportId }, transaction }),
             // db.Comment.update({ hide: true }, { where: { id: report.commentId }, transaction }),
-            hideCommentAndChildren(report.commentId, transaction),
             db.Notifications.create(
                 {
                     userId: comment.userId,
                     type: 'COMMENT',
                     message: `Your comment has been deleted`,
-                    from: comment.id,
+                    from: report.id,
                 },
                 { transaction },
             ),
+            hideCommentAndChildren(report.commentId, transaction),
         ]);
 
         if (reportResult[0] === 1) {
@@ -397,8 +399,7 @@ const verifyReportService = async (reportId) => {
             ]);
             switch (count) {
                 case 3:
-                    // tạo thêm noti thông báo cảnh cáo
-                    await Promise.all([
+                    const [warnNoti] = await Promise.all([
                         db.Notifications.create({
                             userId: user.id,
                             type: 'SYSTEM',
@@ -410,6 +411,7 @@ const verifyReportService = async (reportId) => {
                             username: user.username,
                         }),
                     ]);
+                    sendMessageToUser(user.id, 'newNoti', warnNoti);
                     break;
                 case 7:
                     await db.User.update({ status: 'LOCK3' }, { where: { id: user.id }, transaction });
@@ -439,6 +441,8 @@ const verifyReportService = async (reportId) => {
                     break;
             }
         }
+
+        sendMessageToUser(comment.userId, 'newNoti', noti);
         await transaction.commit();
     } catch (error) {
         await transaction.rollback();
@@ -450,22 +454,23 @@ const rejectReportService = async (reportId) => {
     const transaction = await db.sequelize.transaction();
     try {
         const report = await db.Report.findByPk(reportId);
-        const comment = await db.Comment.findByPk(report.commentId);
+        // const comment = await db.Comment.findByPk(report.commentId);
 
         if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');
         if (report.status !== 'PENDING')
             throw new ApiError(StatusCodes.CONFLICT, 'The reported comment has already been verified');
 
         await db.Report.update({ status: 'NOTDELETE' }, { where: { id: reportId }, transaction });
-        await db.Notifications.create(
-            {
-                userId: report.userId,
-                type: 'COMMENT',
-                message: 'Your report comment has been cancelled.',
-                from: comment.id,
-            },
-            { transaction },
-        );
+        // const noti = await db.Notifications.create(
+        //     {
+        //         userId: report.userId,
+        //         type: 'COMMENT',
+        //         message: 'Your report comment has been cancelled.',
+        //         from: report.id,
+        //     },
+        //     { transaction },
+        // );
+        // sendMessageToUser(report.userId, 'newNoti', noti);
         await transaction.commit();
     } catch (error) {
         await transaction.rollback();

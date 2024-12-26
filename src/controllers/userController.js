@@ -357,7 +357,20 @@ const getAllNotifications = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Notifications',
-            notifications: notifications,
+            ...notifications,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getNotiDetail = async (req, res, next) => {
+    try {
+        const result = await userService.getNotiDetailService(req.user, req.params.id);
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Get noti detail success',
+            result: result,
         });
     } catch (error) {
         next(error);
@@ -413,6 +426,7 @@ export const userController = {
     updateUserSong,
     deleteUserSong,
     getAllNotifications,
+    getNotiDetail,
     getReportDetail,
     downloadSong,
 };

@@ -63,8 +63,9 @@ const fetchPlaylistCount = async ({ conditions = {} } = {}) => {
 
 const updatePlaylistService = async ({ playlistId, data } = {}) => {
     const [updatedCount, [playlist]] = await db.Playlist.update(data, { where: { id: playlistId }, returning: true });
-    const { playlistImage, ...other } = playlist.toJSON();
+    const { id, playlistImage, ...other } = playlist.toJSON();
     const formatPlaylist = {
+        playlistId: id,
         ...other,
         image: playlistImage,
     };

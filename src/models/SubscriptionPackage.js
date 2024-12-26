@@ -11,8 +11,8 @@ module.exports = (sequelize, DataTypes) => {
         static associate(models) {
             // define association here
             SubscriptionPackage.belongsToMany(models.User, {
-                through: 'Subscription',
-                as: 'users',
+                through: 'Subscriptions',
+                as: 'user',
                 foreignKey: 'packageId',
                 otherKey: 'userId',
             });
