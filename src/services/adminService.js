@@ -190,7 +190,7 @@ const getAllAlbumService = async (query, order, page) => {
 
         const [totalAlbum, albums] = await Promise.all([
             albumService.fetchAlbumCount(),
-            albumService.fetchAlbum({ order: [['createdAt', 'DESC']] }),
+            albumService.fetchAlbum({ order: [['updatedAt', 'DESC']] }),
         ]);
 
         const result = await Promise.all(
@@ -240,7 +240,7 @@ const getAllArtistNameService = async () => {
     try {
         const artists = await db.Artist.findAll({
             attributes: ['id', 'name'],
-            order: [['createdAt', 'DESC']],
+            order: [['updatedAt', 'DESC']],
             raw: true,
         });
         return {
@@ -262,7 +262,7 @@ const getAllUserService = async ({ page = 1, limit = 10 } = {}) => {
 
         const [totalUser, users] = await Promise.all([
             userService.fetchUserCount(),
-            userService.fetchUser({ group: ['id'], limit: limit, offset: offset }),
+            userService.fetchUser({ order: [['createdAt', 'desc']], group: ['id'], limit: limit, offset: offset }),
         ]);
 
         const result = users.map((user) => {
@@ -290,7 +290,7 @@ const getAllReportService = async ({ page = 1, limit = 10 } = {}) => {
         const offset = (page - 1) * limit;
 
         const reports = await db.Report.findAll({
-            order: [['createdAt', 'DESC']],
+            order: [['updatedAt', 'DESC']],
             include: [
                 { model: db.User, as: 'user', attributes: ['id', 'name', 'username', 'email', 'image', 'createdAt'] },
                 { model: db.Comment, as: 'comment', include: [{ model: db.Song, as: 'song' }] },

@@ -13,7 +13,7 @@ const fetchSongs = async ({
     limit = undefined,
     offset = undefined,
     conditions = {},
-    order = [['createdAt', 'DESC']],
+    order = [['updatedAt', 'DESC']],
     additionalAttributes = [],
     group = [],
     mode = 'findAll', // or findOne
@@ -30,6 +30,7 @@ const fetchSongs = async ({
                     'lyric',
                     'filePathAudio',
                     'createdAt',
+                    'updatedAt',
                     'image',
                     ...additionalAttributes,
                 ],
@@ -111,6 +112,7 @@ const fetchSongs = async ({
             const formattedSongs = songs.map((song) => {
                 const formattedSong = { ...song.toJSON() };
                 formattedSong.createdAt = formatTime(formattedSong.createdAt);
+                formattedSong.updatedAt = formatTime(formattedSong.updatedAt);
                 formattedSong.releaseDate = formatTime(formattedSong.releaseDate);
                 formattedSong.filePathAudio = encodeData(formattedSong.filePathAudio);
                 if (formattedSong.image)
@@ -134,6 +136,7 @@ const fetchSongs = async ({
             }
             const formattedSong = songs.toJSON();
             formattedSong.createdAt = formatTime(formattedSong.createdAt);
+            formattedSong.updatedAt = formatTime(formattedSong.updatedAt);
             formattedSong.releaseDate = formatTime(formattedSong.releaseDate);
             formattedSong.filePathAudio = encodeData(formattedSong.filePathAudio);
             if (formattedSong.image)
@@ -724,7 +727,7 @@ const serach2Service = async (query, page = 1, limit = 10) => {
         const end = start + limit;
 
         const [artists, songs, albums] = await Promise.all([
-            db.Artist.findAll({ order: [['createdAt', 'DESC']], where: { hide: false } }),
+            db.Artist.findAll({ order: [['updatedAt', 'DESC']], where: { hide: false } }),
             db.Song.findAll({ order: [['releaseDate', 'DESC']], where: { privacy: false } }),
             db.Album.findAll({ order: [['releaseDate', 'DESC']] }),
         ]);

@@ -1,9 +1,10 @@
 import db from '~/models';
 import { v4 as uuidv4 } from 'uuid';
+import formatTime from '~/utils/timeFormat';
 
 const fetchAllPackage = async () => {
     try {
-        const allPackages = await db.SubscriptionPackage.findAll({ order: [['createdAt', 'desc']] });
+        const allPackages = await db.SubscriptionPackage.findAll({ order: [['updatedAt', 'desc']] });
         const formatters = allPackages.map((p) => {
             const formatter = p.toJSON();
             formatter.createdAt = formatTime(formatter.createdAt);

@@ -15,7 +15,7 @@ const fetchAllComment = async ({
     limit = undefined,
     offset = undefined,
     conditions = {},
-    order = [['createdAt', 'DESC']],
+    order = [['updatedAt', 'DESC']],
 } = {}) => {
     const comments = await db.Comment.findAll({
         where: conditions,

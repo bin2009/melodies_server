@@ -18,7 +18,7 @@ const fetchAllPlaylist = async ({ conditions = {}, limit = undefined, offset = u
         },
         include: [{ model: db.PlaylistSong, as: 'playlistSongs', attributes: [] }],
         group: ['id'],
-        order: [['createdAt', 'DESC']],
+        order: [['updatedAt', 'DESC']],
         limit: limit,
         offset: offset,
         subQuery: false,
@@ -50,7 +50,7 @@ const fetchOneSongOnPlaylist = async ({ conditions = {} } = {}) => {
     const songId = await db.PlaylistSong.findOne({
         where: conditions,
         attributes: ['songId'],
-        order: [['createdAt', 'DESC']],
+        order: [['updatedAt', 'DESC']],
         raw: true,
     });
     return songId;
@@ -88,7 +88,7 @@ const fetchAllSongIdsFromPlaylist = async ({ conditions = {}, limit = undefined,
     const songIds = await db.PlaylistSong.findAll({
         where: conditions,
         attributes: ['songId', 'createdAt'],
-        order: [['createdAt', 'DESC']],
+        order: [['updatedAt', 'DESC']],
         limit: limit,
         offset: offset,
         raw: true,

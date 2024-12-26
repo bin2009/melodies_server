@@ -4,7 +4,7 @@ import { Op } from 'sequelize';
 const fetchSongIdsByArtist = async ({
     limit = undefined,
     offset = undefined,
-    order = [['createdAt', 'DESC']],
+    order = [['updatedAt', 'DESC']],
     conditions = {},
 } = {}) => {
     const songIdsByArtist = await db.ArtistSong.findAll({

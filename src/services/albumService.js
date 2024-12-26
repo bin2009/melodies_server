@@ -10,7 +10,7 @@ const checkAlbumExists = async (albumId) => {
     return await db.Album.findByPk(albumId);
 };
 
-const fetchAlbum = async ({ conditions = {}, order = [['createdAt', 'DESC']], mode = 'findAll' } = {}) => {
+const fetchAlbum = async ({ conditions = {}, order = [['updatedAt', 'DESC']], mode = 'findAll' } = {}) => {
     const albums = await db.Album[mode]({
         where: conditions,
         include: [
@@ -96,7 +96,7 @@ const fetchSongByAlbum = async ({ conditions = {}, mode = 'findAll' }) => {
 const fetchAlbumWithSong = async ({
     conditions = {},
     songConditions = {},
-    order = [['createdAt', 'DESC']],
+    order = [['updatedAt', 'DESC']],
     mode = 'findAll',
 } = {}) => {
     const albums = await db.Album[mode]({

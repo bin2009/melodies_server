@@ -25,7 +25,7 @@ const fetchArtistName = async ({ conditions } = {}) => {
     const artists = await db.Artist.findAll({
         where: conditions,
         attributes: ['id', 'name', 'avatar'],
-        order: [['createdAt', 'DESC']],
+        order: [['updatedAt', 'DESC']],
         raw: true,
     });
     const formatteds = artists.map((p) => {
@@ -82,7 +82,7 @@ const fetchArtist = async ({
     mode = 'findAll',
     limit,
     offset,
-    order = [['createdAt', 'DESC']],
+    order = [['updatedAt', 'DESC']],
 } = {}) => {
     const artists = await db.Artist[mode]({
         where: conditions,
@@ -146,7 +146,7 @@ const fetchMainArtist = async ({ conditions = {} } = {}) => {
     return artistId;
 };
 
-const fetchSArtistFeatByArtist = async ({ conditions = {}, limit, offset, order = [['createdAt', 'DESC']] } = {}) => {
+const fetchSArtistFeatByArtist = async ({ conditions = {}, limit, offset, order = [['updatedAt', 'DESC']] } = {}) => {
     const artistIds = await db.ArtistSong.findAll({
         where: conditions,
         attributes: ['artistId'],
@@ -235,7 +235,7 @@ const getAllArtistService2 = async ({ sortBy, sortOrder = 'desc', page = 1, user
                 'Invalid "sort by" value. Allowed values are: "name", "totalSong", "totalAlbum", "totalFollow".',
             );
 
-        const sort = sortOrder === 'desc' ? [['createdAt', 'DESC']] : [['createdAt', 'ASC']];
+        const sort = sortOrder === 'desc' ? [['updatedAt', 'DESC']] : [['createdAt', 'ASC']];
         const artists = await fetchArtist({ order: sort, conditions: { hide: false } });
 
         const [totalSongs, totalFollow, followedArtist] = await Promise.all([
@@ -309,12 +309,12 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
         if (!sortBy) {
             // lấy mặc định : createdAt
             const artists = await db.Artist.findAll({
-                attributes: ['id', 'name', 'avatar', 'bio', 'createdAt'],
+                attributes: ['id', 'name', 'avatar', 'bio', 'updatedAt'],
                 where: { hide: false },
                 include: [
                     { model: db.Genre, as: 'genres', attributes: ['genreId', 'name'], through: { attributes: [] } },
                 ],
-                order: [['createdAt', sortOrder]],
+                order: [['updatedAt', sortOrder]],
                 limit: limit,
                 offset: offset,
             });
@@ -363,7 +363,7 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
             }
 
             const result = artists.map((a) => {
-                const { avatar, createdAt, ...other } = a.toJSON();
+                const { avatar, updatedAt, ...other } = a.toJSON();
                 let formattedAvatar;
                 if (avatar && avatar.includes('PBL6')) {
                     formattedAvatar = `https:${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${avatar}`;
@@ -373,7 +373,7 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
                 return {
                     ...other,
                     avatar: formattedAvatar,
-                    createdAt: formatTime(createdAt),
+                    updatedAt: formatTime(updatedAt),
                     totalSong: songsPerArtistMap[a.id] ?? 0,
                     totalAlbum: albumSongsCountPerArtist[a.id] ?? 0,
                     totalFollow: totalFollowMap[a.id] ?? 0,

@@ -16,7 +16,7 @@ import { sendMessageToUser } from '~/sockets/socketManager';
 
 const saltRounds = 10;
 
-const fetchUser = async ({ conditions = {}, limit, offset, order = [['createdAt', 'DESC']], group = [] } = {}) => {
+const fetchUser = async ({ conditions = {}, limit, offset, order = [['updatedAt', 'DESC']], group = [] } = {}) => {
     const users = await db.User.findAll({
         attributes: [
             'id',
@@ -732,7 +732,7 @@ const getAllNotificationsService = async ({ user, page = 1, limit = 10 } = {}) =
         const notifications = await db.Notifications.findAll({
             order: [
                 ['isRead', 'ASC'],
-                ['createdAt', 'DESC'],
+                ['updatedAt', 'DESC'],
             ],
             limit: limit,
             offset: offset,

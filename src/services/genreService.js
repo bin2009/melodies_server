@@ -12,7 +12,7 @@ const fetchGenre = async ({
     limit = undefined,
     offset = undefined,
     conditions = {},
-    order = [['createdAt', 'DESC']],
+    order = [['updatedAt', 'DESC']],
     additionalAttributes = [],
     group = [],
 } = {}) => {
