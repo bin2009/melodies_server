@@ -18,23 +18,52 @@ const generateAccessToken = (user) => {
         { id: user.id, role: user.role, username: user.username, accountType: user.accountType, jti: uuidv4() },
         process.env.ACCESS_TOKEN_SECRET,
         {
-            expiresIn: TOKEN_DURATION,
+            expiresIn: parseInt(TOKEN_DURATION),
         },
     );
 };
 
-const generateRefreshToken = (user) => {
-    return jwt.sign(
-        { id: user.id, role: user.role, username: user.username, accountType: user.accountType },
-        process.env.REFRESH_TOKEN_SECRET,
-        {
-            expiresIn: '7d',
-        },
-    );
-};
+const verifyToken = async (token, isRefresh) => {
+    try {
+        const verified = jwt.decode(token, process.env.ACCESS_TOKEN_SECRET);
 
-const generateToken = (user) => {
-    return jwt.sign({ id: user.id }, process.env.TOKEN_SECRET, { expiresIn: '1d' });
+        if (!verified) {
+            throw new ApiError(StatusCodes.UNAUTHORIZED, 'Token is invalid');
+        }
+
+        const checkToken = await client.get(verified.jti);
+
+        if (checkToken) {
+            throw new ApiError(StatusCodes.FORBIDDEN, 'Token is blacklisted');
+        }
+
+        if (!isRefresh) {
+            if (verified.exp * 1000 <= Date.now()) {
+                throw new ApiError(StatusCodes.UNAUTHORIZED, 'Token is expired');
+            }
+
+            return verified;
+        } else {
+            if ((verified.iat + parseInt(REFRESH_TOKEN_DURATION)) * 1000 <= Date.now()) {
+                throw new ApiError(StatusCodes.FORBIDDEN, 'Refresh token has expired, please log in again');
+            }
+
+            await client.setEx(String(verified.jti), parseInt(TOKEN_DURATION), String(verified.jti));
+
+            const user = await db.User.findByPk(verified.id);
+
+            if (!user) {
+                throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+            }
+
+            const newAccessToken = generateAccessToken(user);
+
+            return newAccessToken;
+        }
+    } catch (error) {
+        // console.log('verifyToken: ', error);
+        throw error;
+    }
 };
 
 const loginService = async (data) => {
@@ -57,11 +86,6 @@ const loginService = async (data) => {
 
             const accessToken = generateAccessToken(user);
 
-            // check token có nằm trong redis không -> token đã bỏ, không được dùng lại
-
-            // lưu refresh token vào redis
-            // await client.setEx(String(user.id), 7 * 24 * 60 * 60, refreshToken);
-
             let direct;
             if (user.role === 'Admin') {
                 direct = '/admin/home';
@@ -81,46 +105,25 @@ const loginService = async (data) => {
     }
 };
 
-const refreshService = async (authorization) => {
+const refreshService = async (token) => {
     try {
-        // truyền vào refreshtoken
-        if (!authorization) {
-            return {
-                errCode: 401,
-                message: 'Refresh token is required',
-            };
-        }
+        const verified = await verifyToken(token, true);
 
-        const refreshToken = authorization.split(' ')[1];
-        // console.log('refreshToken', refreshToken);
-
-        const user = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-        // console.log('user: ', user);
+        const user = await db.User.findByPk(verified.id);
 
         if (!user) {
-            return {
-                errCode: 403,
-                message: 'Invalid refresh token',
-            };
+            throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
         }
 
-        // kiểm tra trong redis
-        const storedRefreshToken = await client.get(String(user.id));
-        if (storedRefreshToken !== refreshToken) {
-            return {
-                errCode: 403,
-                message: 'Token is not valid',
-            };
+        const iat = verified.iat;
+        const expiryTime = iat + parseInt(REFRESH_TOKEN_DURATION);
+
+        if (Date.now() >= expiryTime * 1000) {
+            throw new ApiError(StatusCodes.FORBIDDEN, 'Unauthenticated');
         }
 
-        // tạo mới
-        const newAccessToken = generateAccessToken(user);
-
-        return {
-            errCode: 200,
-            message: 'Refresh token successful',
-            accessToken: newAccessToken,
-        };
+        const accessToken = generateAccessToken(user);
+        return accessToken;
     } catch (error) {
         throw error;
     }
@@ -130,25 +133,14 @@ const logoutService = async (authorization) => {
     try {
         const accesstoken = authorization.split(' ')[1];
 
-        // lấy ra id từ accesstoken
         const user = jwt.verify(accesstoken, process.env.ACCESS_TOKEN_SECRET);
 
-        const exp = user.exp; // Lấy giá trị exp
+        const exp = user.exp;
 
-        // Tính toán thời gian còn lại
-        const currentTime = Math.floor(Date.now() / 1000); // Thời gian hiện tại tính bằng giây
-        const timeToExpire = exp - currentTime; // Thời gian còn lại cho key
+        const currentTime = Math.floor(Date.now() / 1000);
+        const timeToExpire = exp - currentTime;
 
-        await client.setEx(String(user.jti), timeToExpire, user.jti);
-
-        // kiểm tra có refreshtoken không
-        const storedRefreshToken = await client.get(String(user.id));
-        if (!storedRefreshToken) {
-            throw new ApiError(StatusCodes.NOT_FOUND, 'No refresh token found for user');
-        } else {
-            // xóa refreshtoken
-            await client.del(String(user.id));
-        }
+        await client.setEx(String(user.jti), timeToExpire, String(user.jti));
     } catch (error) {
         throw error;
     }
@@ -229,7 +221,7 @@ const resetPasswordService = async (token, password) => {
 
 export const authService = {
     generateAccessToken,
-    generateRefreshToken,
+    verifyToken,
     loginService,
     logoutService,
     refreshService,

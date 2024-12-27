@@ -2,59 +2,48 @@ import jwt from 'jsonwebtoken';
 import db from '~/models';
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '~/utils/ApiError';
+import { authService } from '~/services/authService';
 
-// const jwt = require('jsonwebtoken');
-// const db = require('../models');
-// const User = db.User;
-// const emailController = require('../controllers/emailController');
-
-const verifyToken = (req, res, next) => {
+const verifyToken = async (req, res, next) => {
     try {
-        const token = req.headers['authorization'];
-        if (!token) {
-            throw new ApiError(StatusCodes.BAD_REQUEST, 'Token is required');
+        const token = req.headers['authorization'].split(' ')[1];
+        const verified = await authService.verifyToken(token, false);
+        req.user = verified;
+        next();
+    } catch (error) {
+        next(error);
+    }
+};
+
+const verifyTokenAndAdmin = async (req, res, next) => {
+    try {
+        const token = req.headers['authorization'].split(' ')[1];
+        const verified = await authService.verifyToken(token, false);
+
+        if (verified.role === 'Admin') {
+            req.user = verified;
+            next();
         } else {
-            const accessToken = token.split(' ')[1];
-            jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-                if (err) {
-                    throw new ApiError(StatusCodes.FORBIDDEN, err.message);
-                }
-                req.user = user;
-                next();
-            });
+            throw new ApiError(StatusCodes.FORBIDDEN, "You're not allowed");
         }
     } catch (error) {
         next(error);
     }
 };
 
-const verifyTokenAndAdmin = (req, res, next) => {
-    verifyToken(req, res, (err) => {
-        if (err) {
-            return next(err);
-        }
-        if (req.user && req.user.role === 'Admin') {
-            next();
-        } else {
-            next(new ApiError(StatusCodes.FORBIDDEN, "You're not allowed"));
-        }
-    });
-};
-
 const optionalVerifyToken = async (req, res, next) => {
     try {
         const token = req.headers['authorization'];
+
         if (!token) {
             next();
         } else {
             const accessToken = token.split(' ')[1];
-            jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-                if (err) {
-                    throw new ApiError(StatusCodes.FORBIDDEN, err.message);
-                }
-                req.user = user;
-                next();
-            });
+
+            const verified = await authService.verifyToken(accessToken, false);
+
+            req.user = verified;
+            next();
         }
     } catch (error) {
         next(error);

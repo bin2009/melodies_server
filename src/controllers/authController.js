@@ -1,5 +1,6 @@
 import { StatusCodes } from 'http-status-codes';
 import { authService } from '~/services/authService';
+import ApiError from '~/utils/ApiError';
 
 const login = async (req, res, next) => {
     try {
@@ -35,31 +36,24 @@ const logout = async (req, res, next) => {
     }
 };
 
-const refresh = async (req, res) => {
-    // use authorization
-    const authorization = req.headers['authorization'];
-    const response = await authService.refreshService(authorization);
-    return res.status(response.errCode).json(response);
+const refresh = async (req, res, next) => {
+    try {
+        const token = req.body.token;
 
-    // use cookie
-    // const refreshToken = req.cookies.refreshToken;
-    // if (!refreshToken) {
-    //     return res.status(401).json("you're not authenticated");
-    // }
+        if (!token) {
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Token is required');
+        }
 
-    // const response = await authService.refreshService(refreshToken);
-    // if (response.errCode === 0) {
-    //     res.cookie('refreshToken', response.newRefreshToken, {
-    //         httpOnly: true,
-    //         secure: false, // true nếu bạn sử dụng HTTPS
-    //         path: '/',
-    //         sameSite: 'strict',
-    //     });
-    //     const { newRefreshToken, ...other } = response;
-    //     return res.status(200).json({ ...other });
-    // } else {
-    //     return res.status(response.errCode || 500).json(response.errMess);
-    // }
+        const newAccessToken = await authService.verifyToken(token, true);
+
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Refresh token success',
+            accessToken: newAccessToken,
+        });
+    } catch (error) {
+        next(error);
+    }
 };
 
 const getOtpResetPass = async (req, res) => {
