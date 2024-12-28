@@ -244,7 +244,7 @@ const getAllSongService = async ({ page = 1, limit = 10 } = {}) => {
 const getSongService = async (songId, user) => {
     try {
         const [song, likedSongs] = await Promise.all([
-            fetchSongs({ conditions: { id: songId, privacy: false }, mode: 'findOne', role: 'Admin' }),
+            fetchSongs({ conditions: { id: songId, privacy: false }, mode: 'findOne' }),
             user && db.Like.findOne({ where: { songId: songId, userId: user.id }, raw: true }),
         ]);
 

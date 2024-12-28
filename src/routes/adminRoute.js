@@ -120,7 +120,7 @@ Router.route('/total').get(authMiddleWare.verifyTokenAndAdmin, adminController.g
 Router.route('/todayBestSong').get(authMiddleWare.verifyTokenAndAdmin, adminController.getTodayBestSong);
 
 Router.route('/allAlbum').get(authMiddleWare.verifyTokenAndAdmin, adminController.getAllAlbum);
-Router.route('/allGenre').get(authMiddleWare.verifyTokenAndAdmin, adminController.getAllGenreName);
+Router.route('/allGenre').get(authMiddleWare.verifyToken, adminController.getAllGenreName);
 Router.route('/allArtistName').get(authMiddleWare.verifyToken, adminController.getAllArtistName);
 Router.route('/allUser').get(authMiddleWare.verifyTokenAndAdmin, adminController.getAllUser);
 Router.route('/allReport').get(authMiddleWare.verifyTokenAndAdmin, adminController.getAllReport);

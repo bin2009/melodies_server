@@ -5,7 +5,7 @@ import db from '~/models';
 import { userService } from '~/services/userService';
 
 const rooms = new Map();
-const userSockets = new Map(); // Track user's active sockets
+const userSockets = new Map();
 let ioRoot;
 
 const setupSocketIO = (io) => {
@@ -21,7 +21,6 @@ const setupSocketIO = (io) => {
         if (!socket.user) return;
 
         const userId = socket.user.id;
-        // Track user's sockets
         if (!userSockets.has(userId)) {
             userSockets.set(userId, new Set());
         }
@@ -42,7 +41,7 @@ const setupSocketIO = (io) => {
             const room = {
                 id: roomId,
                 host: userId,
-                members: new Set([userId]),
+                members: new Map([[userId, socket.user]]),
                 max: user.package[0].room ?? 0,
                 currentSong: {
                     song: null,
@@ -60,45 +59,194 @@ const setupSocketIO = (io) => {
             socket.emit('createRoomSuccess', roomId);
         });
 
-        socket.on('joinRoom', (roomId) => {
+        socket.on('joinRoom', ({ roomId, link }) => {
             const room = rooms.get(roomId);
             if (!room) {
-                return socket.emit('joinRoomFailed', 'Room not found');
+                if (link) {
+                    return socket.emit('joinRoomLinkFailed', 'Room not found');
+                } else {
+                    return socket.emit('joinRoomFailed', 'Room not found');
+                }
             }
 
-            if (room.members.size >= room.max) {
-                return socket.emit('joinRoomFailed', 'Room is full');
-            }
+            if (room.members.has(socket.user.id)) {
+                socket.join(roomId);
+                socket.roomId = roomId;
+                if (link) {
+                    return socket.emit('joinRoomLinkSuccess', {
+                        roomData: getRoomData(room),
+                        isHost: room.host === socket.user.id,
+                        myId: socket.user.id,
+                    });
+                } else {
+                    return socket.emit('joinRoomSuccess', {
+                        roomData: getRoomData(room),
+                        isHost: room.host === socket.user.id,
+                        myId: socket.user.id,
+                    });
+                }
+            } else {
+                if (room.members.size >= room.max) {
+                    if (link) {
+                        return socket.emit('joinRoomLinkFailed', 'Room is full');
+                    } else {
+                        return socket.emit('joinRoomFailed', 'Room is full');
+                    }
+                }
 
-            const currentRoom = getCurrentUserRoom(userId);
-            if (currentRoom && currentRoom !== roomId) {
-                leaveRoom(socket, currentRoom);
-            }
+                const currentRoom = getCurrentUserRoom(socket.user.id);
+                if (currentRoom && currentRoom !== roomId) {
+                    leaveRoom(socket, currentRoom, io);
+                }
 
-            if (!room.members.has(userId)) {
-                room.members.add(userId);
+                room.members.set(socket.user.id, socket.user);
                 socket.join(roomId);
                 socket.roomId = roomId;
 
                 broadcastToRoom(io, roomId, 'memberJoined', {
                     user: socket.user,
-                    members: Array.from(room.members),
+                    members: Array.from(room.members.values()),
                 });
 
-                socket.emit('joinRoomSuccess', {
-                    roomData: getRoomData(room),
-                    isHost: room.host === userId,
-                });
-            } else {
-                socket.join(roomId);
-                socket.roomId = roomId;
-                socket.emit('roomData', getRoomData(room));
+                if (link) {
+                    return socket.emit('joinRoomLinkSuccess', {
+                        roomData: getRoomData(room),
+                        isHost: room.host === socket.user.id,
+                        myId: socket.user.id,
+                    });
+                } else {
+                    return socket.emit('joinRoomSuccess', {
+                        roomData: getRoomData(room),
+                        isHost: room.host === socket.user.id,
+                        myId: socket.user.id,
+                    });
+                }
             }
         });
 
         socket.on('leaveRoom', () => {
             if (!socket.roomId) return;
-            leaveRoom(socket, socket.roomId);
+            const room = rooms.get(socket.roomId);
+            leaveRoom(socket, socket.roomId, io);
+        });
+
+        socket.on('addSongToProposalList', (song) => {
+            const room = rooms.get(socket.roomId);
+            if (!room) return;
+
+            const proposalListMap = new Map(room.proposalList.map((song) => [song.id, song]));
+            const checkSong = proposalListMap.get(song.id);
+            if (checkSong) {
+                return socket.emit('addSongToProposalListFailed', 'Song existed in proposal list');
+            } else {
+                room.proposalList.push(song);
+                socket.emit('addSongToProposalListSuccess');
+                return broadcastToRoom(io, socket.roomId, 'updateProposalList', room.proposalList);
+            }
+        });
+
+        socket.on('addSongToWaitingList', (song) => {
+            const room = rooms.get(socket.roomId);
+            const waitingListMap = new Map(room.waitingList.map((song) => [song.id, song]));
+            const checkSong = waitingListMap.get(song.id);
+            if (checkSong) {
+                socket.emit('addSongToWaitingListFailed', 'Song existed in waiting list');
+            } else {
+                room.waitingList.push(song);
+                socket.emit('addSongToWaitingListSuccess');
+                broadcastToRoom(io, socket.roomId, 'updateWaitingList', room.waitingList);
+            }
+        });
+
+        socket.on('forwardSong', (songId) => {
+            const room = rooms.get(socket.roomId);
+            if (!room) return;
+
+            const songIndex = room.proposalList.findIndex((song) => song.id === songId);
+            if (songIndex === -1) {
+                return broadcastToRoom(io, socket.roomId, 'updateListSong', {
+                    waitingList: room.waitingList,
+                    proposalList: room.proposalList,
+                });
+            }
+
+            const songExistsInWaiting = room.waitingList.some((song) => song.id === songId);
+            if (songExistsInWaiting) {
+                socket.emit('forwardSongFailed', 'Song existed in waiting list');
+            } else {
+                room.waitingList.push(room.proposalList[songIndex]);
+            }
+
+            room.proposalList.splice(songIndex, 1);
+
+            broadcastToRoom(io, socket.roomId, 'updateListSong', {
+                waitingList: room.waitingList,
+                proposalList: room.proposalList,
+            });
+        });
+
+        socket.on('selectSongToPlay', (songId) => {
+            const room = rooms.get(socket.roomId);
+            const waitingListMap = new Map(room.waitingList.map((song) => [song.id, song]));
+            const song = waitingListMap.get(songId);
+            if (song) {
+                room.currentSong.song = song;
+                room.currentSong.isPlaying = true;
+                room.currentSong.currentTime = 0;
+                broadcastToRoom(io, socket.roomId, 'playSong', room.currentSong);
+            } else {
+                broadcastToRoom(io, socket.roomId, 'updateListSong', {
+                    waitingList: room.waitingList,
+                    proposalList: room.proposalList,
+                });
+            }
+        });
+
+        socket.on('nextSong', () => {
+            const room = rooms.get(socket.roomId);
+            const currentSongId = room.currentSong.song.id;
+
+            const index = room.waitingList.findIndex((item) => item.id === currentSongId);
+            if (room.waitingList.length === index + 1) {
+                socket.emit('nextSongFailed', 'You are listening to the last song');
+            } else {
+                room.currentSong.song = room.waitingList[index + 1];
+                room.currentSong.isPlaying = true;
+                room.currentSong.currentTime = 0;
+                broadcastToRoom(io, socket.roomId, 'playSong', room.currentSong);
+            }
+        });
+
+        socket.on('previousSong', () => {
+            const room = rooms.get(socket.roomId);
+            const currentSongId = room.currentSong.song.id;
+
+            const index = room.waitingList.findIndex((item) => item.id === currentSongId);
+            if (index === 0) {
+                socket.emit('previousSongFailed', 'You are listening to the first song');
+            } else {
+                room.currentSong.song = room.waitingList[index - 1];
+                room.currentSong.isPlaying = true;
+                room.currentSong.currentTime = 0;
+                broadcastToRoom(io, socket.roomId, 'playSong', room.currentSong);
+            }
+        });
+
+        socket.on('randomSongPlay', () => {
+            const room = rooms.get(socket.roomId);
+            const currentSongId = room.currentSong.song.id;
+            const otherSongs = room.waitingList.filter((item) => item.id !== currentSongId);
+
+            if (otherSongs.length === 0) {
+                socket.emit('randomSongPlayFailed', 'Waiting list has only 1 song');
+            } else {
+                const randomIndex = Math.floor(Math.random() * otherSongs.length);
+                const randomSong = otherSongs[randomIndex];
+                room.currentSong.song = randomSong;
+                room.currentSong.isPlaying = true;
+                room.currentSong.currentTime = 0;
+                broadcastToRoom(io, socket.roomId, 'playSong', room.currentSong);
+            }
         });
 
         socket.on('SyncAudio', (data) => {
@@ -110,19 +258,27 @@ const setupSocketIO = (io) => {
             broadcastAudioUpdate(io, socket.roomId, room);
         });
 
+        socket.on('SendMessage', (data) => {
+            broadcastToRoom(io, socket.roomId, 'ServerSendMessage', {
+                user: socket.user,
+                message: data.message,
+                userSend: socket.user.id,
+            });
+        });
+
+        // --------------------
+
         socket.on('disconnect', () => {
-            const userSocketSet = userSockets.get(userId);
+            const userSocketSet = userSockets.get(socket.user.id);
             userSocketSet.delete(socket.id);
 
             if (userSocketSet.size === 0) {
                 userSockets.delete(userId);
                 if (socket.roomId) {
-                    leaveRoom(socket, socket.roomId);
+                    leaveRoom(socket, socket.roomId, io);
                 }
             }
         });
-
-        // Add other event handlers (addSongToProposalList, selectSongToPlay, etc.)
     });
 };
 
@@ -140,7 +296,7 @@ const getCurrentUserRoom = (userId) => {
     return null;
 };
 
-const leaveRoom = (socket, roomId) => {
+const leaveRoom = (socket, roomId, io) => {
     const room = rooms.get(roomId);
     if (!room) return;
 
@@ -151,9 +307,10 @@ const leaveRoom = (socket, roomId) => {
         broadcastToRoom(io, roomId, 'roomClosed', 'Host left the room');
         rooms.delete(roomId);
     } else {
+        socket.emit('leaveRoomSuccess');
         broadcastToRoom(io, roomId, 'memberLeft', {
             user: socket.user,
-            members: Array.from(room.members),
+            members: Array.from(room.members.values()),
         });
     }
 
@@ -163,7 +320,7 @@ const leaveRoom = (socket, roomId) => {
 
 const getRoomData = (room) => ({
     id: room.id,
-    members: Array.from(room.members),
+    members: Array.from(room.members.values()),
     currentSong: room.currentSong,
     waitingList: room.waitingList,
     proposalList: room.proposalList,
