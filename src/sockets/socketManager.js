@@ -37,6 +37,8 @@ const setupSocketIO = (io) => {
                 return socket.emit('createRoomFailed', 'You are already in a room.');
             }
 
+            socket.user.host = true;
+
             const roomId = uuidv4();
             const room = {
                 id: roomId,
@@ -102,6 +104,7 @@ const setupSocketIO = (io) => {
                 room.members.set(socket.user.id, socket.user);
                 socket.join(roomId);
                 socket.roomId = roomId;
+                socket.user.host = false;
 
                 broadcastToRoom(io, roomId, 'memberJoined', {
                     user: socket.user,
