@@ -29,7 +29,14 @@ const fetchGenre = async ({
 
 const createGenreService = async ({ name } = {}) => {
     try {
-        const checkGenre = await checkGenreExists({ conditions: { name: { [Op.iLike]: name.trim() } } });
+        const normalizedName = name.trim().toLowerCase();
+
+        const checkGenre = await checkGenreExists({
+            conditions: {
+                name: db.Sequelize.where(db.Sequelize.fn('LOWER', db.Sequelize.col('name')), '=', normalizedName),
+            },
+        });
+
         if (checkGenre) throw new ApiError(StatusCodes.CONFLICT, 'Genre exists');
 
         const genre = await db.Genre.create({

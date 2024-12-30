@@ -47,6 +47,9 @@ const fetchUser = async ({ conditions = {}, limit, offset, order = [['updatedAt'
     const formatters = users.map((u) => {
         const formatter = { ...u.toJSON() };
         formatter.createdAt = formatTime(formatter.createdAt);
+        if (formatter.image && formatter.image.includes('PBL6')) {
+            formatter.image = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatter.image}`;
+        }
         return formatter;
     });
     return formatters;
@@ -535,7 +538,16 @@ const getRecentUserService = async ({ page = 1, limit = 10 } = {}) => {
         const offset = (page - 1) * limit;
         const [totalUser, users] = await Promise.all([
             fetchUserCount(),
-            fetchUser({ limit: limit, offset: offset, group: ['User.id'] }),
+            fetchUser({
+                limit: limit,
+                offset: offset,
+                group: ['User.id'],
+                order: [
+                    ['createdAt', 'DESC'],
+                    ['username', 'ASC'],
+                ],
+                conditions: { role: 'User' },
+            }),
         ]);
         return {
             page: page,

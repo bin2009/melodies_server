@@ -19,6 +19,8 @@ import { appMiddleWare } from '~/middleware/appMiddleWare';
 import { sendMessageToUser } from '~/sockets/socketManager';
 
 const saltRounds = 10;
+const DO_SPACES_BUCKET = process.env.DO_SPACES_BUCKET;
+const DO_SPACES_ENDPOINT = process.env.DO_SPACES_ENDPOINT;
 
 const fetchAlbumSong = async ({ conditions = {}, limit, offset, order, mode = 'findAll' } = {}) => {
     const albumIds = await db.AlbumSong[mode]({
@@ -262,7 +264,13 @@ const getAllUserService = async ({ page = 1, limit = 10 } = {}) => {
 
         const [totalUser, users] = await Promise.all([
             userService.fetchUserCount(),
-            userService.fetchUser({ order: [['createdAt', 'desc']], group: ['id'], limit: limit, offset: offset }),
+            userService.fetchUser({
+                order: [['createdAt', 'desc']],
+                group: ['id'],
+                limit: limit,
+                offset: offset,
+                conditions: { role: 'User' },
+            }),
         ]);
 
         const result = users.map((user) => {
@@ -301,10 +309,20 @@ const getAllReportService = async ({ page = 1, limit = 10 } = {}) => {
 
         const formatters = reports.map((r) => {
             const formatter = { ...r.toJSON() };
+
+            delete formatter.userId;
+            delete formatter.commentId;
+
             formatter.status = REPORT_STATUS[formatter.status];
             formatter.createdAt = formatTime(formatter.createdAt);
             formatter.updatedAt = formatTime(formatter.updatedAt);
-            formatter.user.createdAt = formatTime(formatter.user.createdAt);
+            if (formatter.user) {
+                formatter.user.image =
+                    formatter.user.image && formatter.user.image.includes('PBL6')
+                        ? `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.user.image}`
+                        : formatter.user.image;
+                formatter.user.createdAt = formatTime(formatter.user.createdAt);
+            }
             formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
             formatter.comment.updatedAt = formatTime(formatter.comment.updatedAt);
             formatter.comment.song.createdAt = formatTime(formatter.comment.song.createdAt);
@@ -333,11 +351,41 @@ const getReportService = async (reportId) => {
                 { model: db.Comment, as: 'comment', include: [{ model: db.Song, as: 'song' }] },
             ],
         });
+
         if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Report not found');
         const formatter = report.toJSON();
+
+        if (formatter.comment.commentParentId) {
+            const commentParent = await db.Comment.findOne({
+                where: { id: formatter.comment.commentParentId },
+                attributes: ['id', 'content', 'createdAt'],
+                include: [
+                    { model: db.User, as: 'user', attributes: ['id', 'username', 'name', 'image', 'accountType'] },
+                ],
+            });
+
+            const format = commentParent.toJSON();
+            format.createdAt = formatTime(format.createdAt);
+            format.user.image =
+                format.user.image && format.user.image.includes('PBL6')
+                    ? `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${format.user.image}`
+                    : format.user.image;
+
+            formatter.comment.commentParent = format;
+        }
+
+        delete formatter.userId;
+        delete formatter.commentId;
+
         formatter.createdAt = formatTime(formatter.createdAt);
         formatter.updatedAt = formatTime(formatter.updatedAt);
-        formatter.user.createdAt = formatTime(formatter.user.createdAt);
+        if (formatter.user) {
+            formatter.user.image =
+                formatter.user.image && formatter.user.image.includes('PBL6')
+                    ? `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.user.image}`
+                    : formatter.user.image;
+            formatter.user.createdAt = formatTime(formatter.user.createdAt);
+        }
         formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
         formatter.comment.updatedAt = formatTime(formatter.comment.updatedAt);
         formatter.comment.song.createdAt = formatTime(formatter.comment.song.createdAt);
@@ -812,7 +860,7 @@ const updateArtistService = async ({ artistId, data, file } = {}) => {
             await db.ArtistGenre.bulkCreate(createData, { transaction });
         }
 
-        if (file && file.avatar.length > 0) updates.avatar = file.avatar[0].key;
+        if (file.avatar && file.avatar.length > 0) updates.avatar = file.avatar[0].key;
 
         if (data.name) updates.name = data.name;
 
@@ -826,7 +874,7 @@ const updateArtistService = async ({ artistId, data, file } = {}) => {
     } catch (error) {
         await transaction.rollback();
 
-        if (file && file.avatar.length > 0) SetImmediate(() => awsService.deleteFile3(file.avatar[0].key));
+        if (file.avatar && file.avatar.length > 0) SetImmediate(() => awsService.deleteFile3(file.avatar[0].key));
 
         throw error;
     }
@@ -913,6 +961,16 @@ const updateGenreService = async ({ genreId, data } = {}) => {
     try {
         const checkGenre = await db.Genre.findByPk(genreId);
         if (!checkGenre) throw new ApiError(StatusCodes.NOT_FOUND, 'Genre not found');
+
+        const normalizedName = data.name.trim().toLowerCase();
+
+        const existGenre = await db.Genre.findOne({
+            where: {
+                name: db.Sequelize.where(db.Sequelize.fn('LOWER', db.Sequelize.col('name')), '=', normalizedName),
+            },
+        });
+
+        if (existGenre) throw new ApiError(StatusCodes.CONFLICT, 'Genre name already exists');
 
         await db.Genre.update({ name: data.name }, { where: { genreId: genreId } });
         const genre = await db.Genre.findByPk(genreId);

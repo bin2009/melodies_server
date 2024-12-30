@@ -2,6 +2,9 @@ import db from '~/models';
 import { Op } from 'sequelize';
 import formatTime from '~/utils/timeFormat';
 
+const DO_SPACES_BUCKET = process.env.DO_SPACES_BUCKET;
+const DO_SPACES_ENDPOINT = process.env.DO_SPACES_ENDPOINT;
+
 const checkCommentExits = async (commentId) => {
     return await db.Comment.findByPk(commentId);
 };
@@ -66,7 +69,10 @@ const getRecentCommentService = async ({ page = 1, limit = 8 }) => {
                 userId: user.id,
                 name: user.name,
                 username: user.username,
-                image: user.image,
+                image:
+                    user.image && user.image.includes('PBL6')
+                        ? `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${user.image}`
+                        : user.image,
             };
         });
         return {

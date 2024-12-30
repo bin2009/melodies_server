@@ -1,0 +1,322 @@
+openapi: 3.0.3
+info:
+    title: Melodies
+    description: |-
+
+    termsOfService: http://swagger.io/terms/
+    contact:
+        email: apiteam@swagger.io
+    license:
+        name: Apache 2.0
+        url: http://www.apache.org/licenses/LICENSE-2.0.html
+    version: 1.0.11
+externalDocs:
+    description: Find out more about Swagger
+    url: http://swagger.io
+servers:
+    - url: https://petstore3.swagger.io/api/v3
+    - url: https://157.245.131.114
+tags:
+    - name: user
+      description: Các api liên quan đến user
+    - name: Song
+      description: Các api liên quan đến song
+
+components:
+    securitySchemes:
+        bearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+
+paths:
+    /api/song/{id}:
+        get:
+            tags:
+                - Song
+            summary: Lấy thông tin bài hát
+            description: Lấy thông tin bài hát theo id
+            operationId: getSong
+            parameters:
+                - name: id
+                  in: path
+                  description: ID của bài hát
+                  required: true
+                  schema:
+                      type: string
+                      example: '8134acb9-5c00-4cd3-a4ab-e76c0c78781b'
+            responses:
+                '200':
+                    description: Thông tin bài hát
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        type: string
+                                        example: 'success'
+                                    message:
+                                        type: string
+                                        example: 'Get song success'
+                                    song:
+                                        type: object
+                                        example:
+                                            {
+                                                'id': '8134acb9-5c00-4cd3-a4ab-e76c0c78781b',
+                                                'title': 'Nàng Thơ',
+                                                'releaseDate': '12/16/2020 00:00:00',
+                                                'duration': 254476,
+                                                'lyric': null,
+                                                'filePathAudio': 'U2FsdGVkX1+SIl9bkgFTs80sXmXCEO9lnAnY49LrJvGpDOwoSs0y49NgefPFmactKq/Rqj0uFPcG9iq8dYlL7w==',
+                                                'createdAt': '12/16/2020 00:00:00',
+                                                'updatedAt': '12/16/2020 01:03:46',
+                                                'image': null,
+                                                'album':
+                                                    [
+                                                        {
+                                                            'albumId': '70c147f7-cb84-47a1-9402-153ffd24076e',
+                                                            'title': '25',
+                                                            'albumType': 'album',
+                                                            'releaseDate': '12/16/2020 00:00:00',
+                                                            'albumImages':
+                                                                [
+                                                                    {
+                                                                        'image': 'https://i.scdn.co/image/ab67616d0000b2735a6bc1ecf16bbac5734f23da',
+                                                                        'size': 640,
+                                                                    },
+                                                                    {
+                                                                        'image': 'https://i.scdn.co/image/ab67616d00001e025a6bc1ecf16bbac5734f23da',
+                                                                        'size': 300,
+                                                                    },
+                                                                    {
+                                                                        'image': 'https://i.scdn.co/image/ab67616d000048515a6bc1ecf16bbac5734f23da',
+                                                                        'size': 64,
+                                                                    },
+                                                                ],
+                                                        },
+                                                    ],
+                                                'artists':
+                                                    [
+                                                        {
+                                                            'id': '70932cc6-ba4c-4751-ad52-6c6ae5450909',
+                                                            'name': 'Hoàng Dũng',
+                                                            'genres':
+                                                                [
+                                                                    {
+                                                                        'genreId': 'd98c0834-6e39-4725-aeb5-aada0a18af4b',
+                                                                        'name': 'vietnamese singer-songwriter',
+                                                                    },
+                                                                    {
+                                                                        'genreId': 'e374cda7-540f-420e-88da-9e8d51d55726',
+                                                                        'name': 'v-pop',
+                                                                    },
+                                                                ],
+                                                            'ArtistSong': { 'main': true },
+                                                        },
+                                                    ],
+                                                'totalComment': 0,
+                                                'totalDownload': 0,
+                                                'playCount': '12',
+                                                'likeCount': 0,
+                                            }
+            security:
+                - petstore_auth:
+                      - write:pets
+                      - read:pets
+
+    /api/user/actions/likedsong:
+        post:
+            tags:
+                - user
+            summary: Thêm bài hát vào danh sách yêu thích
+            description: Thêm bài hát vào danh sách yêu thích của người dùng
+            operationId: addLikedSong
+            security:
+                - Bearer: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                songId:
+                                    type: string
+                                    description: ID của bài hát
+                                    example: '8134acb9-5c00-4cd3-a4ab-e76c0c78781b'
+            responses:
+                '200':
+                    description: Thêm bài hát vào danh sách yêu thích thành công
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        type: string
+                                        example: 'success'
+                                    message:
+                                        type: string
+                                        example: 'Like Successfully'
+
+    /api/user/playlist:
+        get:
+            tags:
+                - user
+            summary: Lấy danh sách playlist của người dùng
+            description: Lấy danh sách playlist của người dùng
+            operationId: getPlaylist
+            security:
+                - bearerAuth:
+                      [
+                          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQyMDA3Nzc2LTY4NDQtNDljOS05YzJiLTBjMTBlNWFkOTQ4MCIsInJvbGUiOiJVc2VyIiwidXNlcm5hbWUiOiJ1c2VybmFtZTEiLCJhY2NvdW50VHlwZSI6IlBSRU1JVU0iLCJqdGkiOiJmNTA1NzA0Ni1lNGZmLTQ2NDctYTM5Yy03MTc0NjZmOTZmZTEiLCJpYXQiOjE3MzU0NTQwODIsImV4cCI6MTczNTU0MDQ4Mn0.QIjyPuK0Iei24tB6TGAjK2hH5bnmQJyUszqHcwjpTvc',
+                      ]
+            responses:
+                '200':
+                    description: Danh sách playlist
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        type: string
+                                        example: 'success'
+                                    message:
+                                        type: string
+                                        example: 'Get playlist by user success'
+                                    page:
+                                        type: integer
+                                        example: 1
+                                    totalPage:
+                                        type: integer
+                                        example: 1
+                                    playlists:
+                                        type: array
+                                        items:
+                                            type: object
+                                            properties:
+                                                playlistId:
+                                                    type: string
+                                                    example: '3cc3c964-40fd-4fa0-9543-aa4abd9091dc'
+                                                userId:
+                                                    type: string
+                                                    example: '3cc3c964-40fd-4fa0-9543-aa4abd9091dc'
+                                                title:
+                                                    type: string
+                                                    example: 'My favorite'
+                                                description:
+                                                    type: string
+                                                    example: 'Your favorite songs are here'
+                                                privacy:
+                                                    type: boolean
+                                                    example: true
+                                                createdAt:
+                                                    type: string
+                                                    example: '12/16/2020 00:00:00'
+                                                updatedAt:
+                                                    type: string
+                                                    example: '12/16/2020 00:00:00'
+                                                totalSong:
+                                                    type: integer
+                                                    example: 10
+                                                image:
+                                                    type: string
+                                                    example: 'https://i.scdn.co/image/ab67616d0000b2735a6bc1ecf16bbac5734f23da'
+
+    /api/user/actions/report:
+        post:
+            tags:
+                - user
+            summary: Báo cáo bình luận
+            description: Báo cáo bình luận
+            operationId: report comment
+            security:
+                - Bearer: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                commentId:
+                                    type: string
+                                    description: ID của comment
+                                    example: '8134acb9-5c00-4cd3-a4ab-e76c0c78781b'
+                                content:
+                                    type: string
+                                    description: Lý do báo cáo
+                                    example: 'Comment xúc phạm người khác'
+            responses:
+                '200':
+                    description: Báo cáo bình luận thành công
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        type: string
+                                        example: 'success'
+                                    message:
+                                        type: string
+                                        example: 'Report comment successfully'
+
+    /api/user/uploadSong:
+        post:
+            tags:
+                - user
+            summary: Upload bài hát
+            description: User upload bài hát
+            operationId: uploadSong
+            security:
+                - Bearer: []
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            type: object
+                            required:
+                                - title
+                                - releaseDate
+                                - filePathAudio
+                            properties:
+                                title:
+                                    type: string
+                                    description: Tên bài hát
+                                    example: 'Nàng Thơ'
+                                releaseDate:
+                                    type: string
+                                    description: Ngày phát hành
+                                    example: '12/16/2020 00:00:00'
+                                lyric:
+                                    type: string
+                                    format: binary
+                                    description: File lời bài hát
+                                    example: binary
+                                filePathAudio:
+                                    type: string
+                                    format: binary
+                                    description: File audio
+                                    example: binary
+                                image:
+                                    type: string
+                                    format: binary
+                                    description: File ảnh
+                                    example: binary
+            responses:
+                '200':
+                    description: Upload bài hát thành công
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        type: string
+                                        example: 'success'
+                                    message:
+                                        type: string
+                                        example: 'Upload song success'

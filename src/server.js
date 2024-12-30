@@ -7,6 +7,9 @@ import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import http from 'http';
 import { Server } from 'socket.io';
+import swaggerUi from 'swagger-ui-express';
+import yaml from 'js-yaml';
+import fs from 'fs';
 
 import connection from '~/config/database';
 import { errorHandlingMiddleware } from './middleware/errorHandlingMiddleware';
@@ -53,6 +56,7 @@ connection();
 // config view
 const configViewEngine = require('./config/viewEngine');
 configViewEngine(app);
+const swaggerDocument = yaml.load(fs.readFileSync('./bin-swagger.yaml', 'utf8'));
 
 // confi route
 app.use('/api/auth', authRoute);
@@ -63,6 +67,7 @@ app.use('/api/artist', artistRoute);
 app.use('/api/album', albumRoute);
 app.use('/api/payment', paymentRoute);
 app.use('/api/room', roomRoute);
+app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // handle error
 app.use(errorHandlingMiddleware);

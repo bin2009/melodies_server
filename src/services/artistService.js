@@ -623,7 +623,7 @@ const createArtistService = async ({ data, file } = {}) => {
 
         if (data.bio) dataCreateArtist.bio = data.bio;
 
-        if (file && file.avatar.length > 0) dataCreateArtist.avatar = file.avatar[0].key;
+        if (file.avatar && file.avatar.length > 0) dataCreateArtist.avatar = file.avatar[0].key;
 
         const createData = data.genres.map((g) => ({
             artistId: dataCreateArtist.id,
@@ -636,7 +636,7 @@ const createArtistService = async ({ data, file } = {}) => {
         await transaction.commit();
     } catch (error) {
         await transaction.rollback();
-        if (file && file.avatar.length > 0) await awsService.deleteFile3(file.avatar[0].key);
+        if (file.avatar && file.avatar.length > 0) await awsService.deleteFile3(file.avatar[0].key);
         throw error;
     }
 };
