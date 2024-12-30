@@ -29,7 +29,7 @@ jobs:
                   script: |
                       cd /root/melodies_server
                       git pull origin main 
-                      npm install
+                      npm ci
                       npm run build
                       pm2 stop all
                       pm2 delete all
