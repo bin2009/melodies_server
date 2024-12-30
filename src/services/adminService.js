@@ -3,7 +3,6 @@ import { Op } from 'sequelize';
 import { StatusCodes } from 'http-status-codes';
 import { v4 as uuidv4 } from 'uuid';
 import ApiError from '~/utils/ApiError';
-import sharp from 'sharp';
 import bcrypt from 'bcryptjs';
 
 import { artistService } from './artistService';

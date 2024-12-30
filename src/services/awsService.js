@@ -1,7 +1,6 @@
 import AWS from 'aws-sdk';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
-import sharp from 'sharp';
 
 const spacesEndpoint = new AWS.Endpoint(process.env.DO_SPACES_ENDPOINT);
 const s3 = new AWS.S3({
@@ -12,18 +11,17 @@ const s3 = new AWS.S3({
 const timestamp = Date.now();
 
 const uploadArtistAvatar = async (artistId, file) => {
-    const fileName = `PBL6/ARTIST/ARTIST_${artistId}/avatar_${timestamp}`;
-    const buffer = await sharp(file.buffer).resize({ width: 320, height: 320, fit: 'fill' }).toBuffer();
-    const params = {
-        Bucket: process.env.DO_SPACES_BUCKET,
-        Key: fileName,
-        Body: buffer,
-        ContentType: file.mimetype,
-        ACL: 'public-read', // Đặt quyền truy cập công khai
-    };
-
-    const data = await s3.upload(params).promise();
-    return data.Location;
+    // const fileName = `PBL6/ARTIST/ARTIST_${artistId}/avatar_${timestamp}`;
+    // const buffer = await sharp(file.buffer).resize({ width: 320, height: 320, fit: 'fill' }).toBuffer();
+    // const params = {
+    //     Bucket: process.env.DO_SPACES_BUCKET,
+    //     Key: fileName,
+    //     Body: buffer,
+    //     ContentType: file.mimetype,
+    //     ACL: 'public-read', // Đặt quyền truy cập công khai
+    // };
+    // const data = await s3.upload(params).promise();
+    // return data.Location;
 };
 
 const uploadPlaylistAvatar = async (userId, playlistId, file) => {
