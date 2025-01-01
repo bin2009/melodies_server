@@ -63,6 +63,38 @@ const calculateTotalPages = (totalItems, limit) => {
     return Math.ceil(totalItems / limit);
 };
 
+const getInfoUserService2 = async (user) => {
+    try {
+        const findUser = await db.User.findOne({
+            where: { id: user.id },
+            attributes: ['id', 'role', 'username', 'email', 'name', 'image', 'accountType', 'status'],
+            include: [
+                {
+                    model: db.SubscriptionPackage,
+                    as: 'package',
+                    attributes: { exclude: ['createdAt', 'updatedAt'] },
+                    through: {
+                        attributes: ['id', 'startDate', 'endDate', 'status', 'statusUse'],
+                    },
+                },
+            ],
+        });
+        if (!findUser) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+
+        const { image, ...other } = findUser.toJSON();
+
+        return {
+            ...other,
+            image:
+                image && image.includes('PBL6')
+                    ? `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${image}`
+                    : null,
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
 const getInfoUserService = async (user) => {
     try {
         // const findUser = await db.User.findOne({
@@ -1122,6 +1154,7 @@ export const userService = {
     fetchUser,
     fetchUserCount,
     getInfoUserService,
+    getInfoUserService2,
     getPlaylistService,
     getPlaylistDetailService,
     getSongOfPlaylistService,

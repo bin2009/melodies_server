@@ -29,7 +29,7 @@ const setupSocketIO = (io) => {
         }
         userSockets.get(userId).add(socket.id);
 
-        const user = await userService.getInfoUserService(socket.user);
+        const user = await userService.getInfoUserService2(socket.user);
 
         socket.on('createRoom', () => {
             if (socket.user.accountType !== 'PREMIUM') {
