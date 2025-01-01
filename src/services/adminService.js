@@ -1,5 +1,5 @@
 import db from '~/models';
-import { Op } from 'sequelize';
+import { Op, where } from 'sequelize';
 import { StatusCodes } from 'http-status-codes';
 import { v4 as uuidv4 } from 'uuid';
 import ApiError from '~/utils/ApiError';
@@ -294,82 +294,152 @@ const getAllUserService = async ({ page = 1, limit = 10 } = {}) => {
     }
 };
 
-const getAllReportService = async ({ page = 1, limit = 10 } = {}) => {
+const getAllReportService = async ({ type = 'AI', page = 1, limit = 10 } = {}) => {
     try {
         const offset = (page - 1) * limit;
 
-        const [totalReport, reports] = await Promise.all([
-            db.Report.count(),
-            db.Report.findAll({
-                order: [['updatedAt', 'DESC']],
-                include: [
-                    {
-                        model: db.User,
-                        as: 'user',
-                        attributes: ['id', 'name', 'username', 'email', 'image', 'createdAt'],
-                    },
-                    {
-                        model: db.Comment,
-                        as: 'comment',
-                        include: [
-                            { model: db.Song, as: 'song' },
-                            {
-                                model: db.User,
-                                as: 'user',
-                                attributes: ['id', 'username', 'name', 'image', 'accountType'],
-                            },
-                        ],
-                    },
-                ],
-                limit: limit,
-                offset: offset,
-            }),
-        ]);
+        if (type === 'AI') {
+            const [totalReport, reports] = await Promise.all([
+                db.Report.count({ where: { status: 'AI' } }),
+                db.Report.findAll({
+                    where: { status: 'AI' },
+                    order: [['updatedAt', 'DESC']],
+                    include: [
+                        {
+                            model: db.User,
+                            as: 'user',
+                            attributes: ['id', 'name', 'username', 'email', 'image', 'createdAt'],
+                        },
+                        {
+                            model: db.Comment,
+                            as: 'comment',
+                            include: [
+                                { model: db.Song, as: 'song' },
+                                {
+                                    model: db.User,
+                                    as: 'user',
+                                    attributes: ['id', 'username', 'name', 'image', 'accountType'],
+                                },
+                            ],
+                        },
+                    ],
+                    limit: limit,
+                    offset: offset,
+                }),
+            ]);
 
-        const formatters = reports.map((r) => {
-            const formatter = { ...r.toJSON() };
+            const formatters = reports.map((r) => {
+                const formatter = { ...r.toJSON() };
 
-            delete formatter.userId;
-            delete formatter.commentId;
+                delete formatter.userId;
+                delete formatter.commentId;
 
-            formatter.status = REPORT_STATUS[formatter.status];
-            formatter.createdAt = formatTime(formatter.createdAt);
-            formatter.updatedAt = formatTime(formatter.updatedAt);
+                formatter.status = REPORT_STATUS[formatter.status];
+                formatter.createdAt = formatTime(formatter.createdAt);
+                formatter.updatedAt = formatTime(formatter.updatedAt);
 
-            if (formatter.user) {
-                if (formatter.user.image && formatter.user.image.includes('PBL6')) {
-                    formatter.user.image = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.user.image}`;
+                formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
+                formatter.comment.updatedAt = formatTime(formatter.comment.updatedAt);
+                formatter.comment.song.createdAt = formatTime(formatter.comment.song.createdAt);
+                formatter.comment.song.updatedAt = formatTime(formatter.comment.song.updatedAt);
+                formatter.comment.song.releaseDate = formatTime(formatter.comment.song.releaseDate);
+
+                if (formatter.comment.song.lyric && formatter.comment.song.lyric.includes('PBL6')) {
+                    formatter.comment.song.lyric = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.comment.song.lyric}`;
                 }
-                formatter.user.createdAt = formatTime(formatter.user.createdAt);
-            }
+                if (formatter.comment.song.filePathAudio)
+                    formatter.comment.song.filePathAudio = encodeData(formatter.comment.song.filePathAudio);
 
-            formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
-            formatter.comment.updatedAt = formatTime(formatter.comment.updatedAt);
-            formatter.comment.song.createdAt = formatTime(formatter.comment.song.createdAt);
-            formatter.comment.song.updatedAt = formatTime(formatter.comment.song.updatedAt);
-            formatter.comment.song.releaseDate = formatTime(formatter.comment.song.releaseDate);
+                if (
+                    formatter.comment.user &&
+                    formatter.comment.user.image &&
+                    formatter.comment.user.image.includes('PBL6')
+                ) {
+                    formatter.comment.user.image = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.comment.user.image}`;
+                }
+                return formatter;
+            });
 
-            if (formatter.comment.song.lyric && formatter.comment.song.lyric.includes('PBL6')) {
-                formatter.comment.song.lyric = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.comment.song.lyric}`;
-            }
-            if (formatter.comment.song.filePathAudio)
-                formatter.comment.song.filePathAudio = encodeData(formatter.comment.song.filePathAudio);
+            return {
+                page: page,
+                totalPage: Math.ceil(totalReport / limit),
+                reports: formatters,
+            };
+        } else if (type === 'USER') {
+            const [totalReport, reports] = await Promise.all([
+                db.Report.count({ where: { status: { [Op.ne]: 'AI' } } }),
+                db.Report.findAll({
+                    where: { status: { [Op.ne]: 'AI' } },
+                    order: [['updatedAt', 'DESC']],
+                    include: [
+                        {
+                            model: db.User,
+                            as: 'user',
+                            attributes: ['id', 'name', 'username', 'email', 'image', 'createdAt'],
+                        },
+                        {
+                            model: db.Comment,
+                            as: 'comment',
+                            include: [
+                                { model: db.Song, as: 'song' },
+                                {
+                                    model: db.User,
+                                    as: 'user',
+                                    attributes: ['id', 'username', 'name', 'image', 'accountType'],
+                                },
+                            ],
+                        },
+                    ],
+                    limit: limit,
+                    offset: offset,
+                }),
+            ]);
 
-            if (
-                formatter.comment.user &&
-                formatter.comment.user.image &&
-                formatter.comment.user.image.includes('PBL6')
-            ) {
-                formatter.comment.user.image = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.comment.user.image}`;
-            }
-            return formatter;
-        });
+            const formatters = reports.map((r) => {
+                const formatter = { ...r.toJSON() };
 
-        return {
-            page: page,
-            totalPage: Math.ceil(totalReport / limit),
-            reports: formatters,
-        };
+                delete formatter.userId;
+                delete formatter.commentId;
+
+                formatter.status = REPORT_STATUS[formatter.status];
+                formatter.createdAt = formatTime(formatter.createdAt);
+                formatter.updatedAt = formatTime(formatter.updatedAt);
+
+                if (formatter.user) {
+                    if (formatter.user.image && formatter.user.image.includes('PBL6')) {
+                        formatter.user.image = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.user.image}`;
+                    }
+                    formatter.user.createdAt = formatTime(formatter.user.createdAt);
+                }
+
+                formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
+                formatter.comment.updatedAt = formatTime(formatter.comment.updatedAt);
+                formatter.comment.song.createdAt = formatTime(formatter.comment.song.createdAt);
+                formatter.comment.song.updatedAt = formatTime(formatter.comment.song.updatedAt);
+                formatter.comment.song.releaseDate = formatTime(formatter.comment.song.releaseDate);
+
+                if (formatter.comment.song.lyric && formatter.comment.song.lyric.includes('PBL6')) {
+                    formatter.comment.song.lyric = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.comment.song.lyric}`;
+                }
+                if (formatter.comment.song.filePathAudio)
+                    formatter.comment.song.filePathAudio = encodeData(formatter.comment.song.filePathAudio);
+
+                if (
+                    formatter.comment.user &&
+                    formatter.comment.user.image &&
+                    formatter.comment.user.image.includes('PBL6')
+                ) {
+                    formatter.comment.user.image = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.comment.user.image}`;
+                }
+                return formatter;
+            });
+
+            return {
+                page: page,
+                totalPage: Math.ceil(totalReport / limit),
+                reports: formatters,
+            };
+        }
     } catch (error) {
         throw error;
     }
@@ -481,7 +551,9 @@ const verifyReportService = async (reportId) => {
         if (report.status !== 'PENDING')
             throw new ApiError(StatusCodes.CONFLICT, 'The reported comment has already been verified');
 
-        const [reportResult, noti, commentResult] = await Promise.all([
+        const reports = await db.Report.findAll({ where: { status: 'PENDING', commentId: report.commentId } });
+
+        const [reportResult, noti] = await Promise.all([
             db.Report.update({ status: 'DELETE' }, { where: { id: reportId }, transaction }),
             // db.Comment.update({ hide: true }, { where: { id: report.commentId }, transaction }),
             db.Notifications.create(
@@ -493,6 +565,7 @@ const verifyReportService = async (reportId) => {
                 },
                 { transaction },
             ),
+            db.Report.update({ status: 'DELETE' }, { where: { id: reports.map((r) => r.id) }, transaction }),
             hideCommentAndChildren(report.commentId, transaction),
         ]);
 
@@ -594,23 +667,20 @@ const rejectReportService = async (reportId) => {
     const transaction = await db.sequelize.transaction();
     try {
         const report = await db.Report.findByPk(reportId);
-        // const comment = await db.Comment.findByPk(report.commentId);
 
         if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Comment not found');
         if (report.status !== 'PENDING')
             throw new ApiError(StatusCodes.CONFLICT, 'The reported comment has already been verified');
 
-        await db.Report.update({ status: 'NOTDELETE' }, { where: { id: reportId }, transaction });
-        // const noti = await db.Notifications.create(
-        //     {
-        //         userId: report.userId,
-        //         type: 'COMMENT',
-        //         message: 'Your report comment has been cancelled.',
-        //         from: report.id,
-        //     },
-        //     { transaction },
-        // );
-        // sendMessageToUser(report.userId, 'newNoti', noti);
+        const reports = await db.Report.findAll({ where: { status: 'PENDING', commentId: report.commentId } });
+
+        await Promise.all([
+            db.Report.update({ status: 'NOTDELETE' }, { where: { id: reportId }, transaction }),
+            db.Report.update(
+                { status: 'NOTDELETE' },
+                { where: { id: { [Op.in]: reports.map((r) => r.id) }, transaction } },
+            ),
+        ]);
         await transaction.commit();
     } catch (error) {
         await transaction.rollback();
@@ -1242,36 +1312,25 @@ const searchArtistService = async ({ query, limit = 10, page = 1 }) => {
         const start = (page - 1) * limit;
         const end = start + limit;
 
-        const [totalFollow, artistIds] = await Promise.all([
-            db.Follow.findAll({
-                attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'totalFollow']],
-                group: ['artistId'],
-                raw: true,
-            }),
-            db.Artist.findAll({ attributes: ['id', 'name'], raw: true }),
+        const [artistIds] = await Promise.all([
+            db.Artist.findAll({ attributes: ['id', 'name'], raw: true, where: { hide: false } }),
         ]);
-
-        totalFollow.sort((a, b) => b.totalFollow - a.totalFollow);
-
-        const artistIdsMap = artistIds.reduce((acc, item) => {
-            acc[item.id] = item;
-            return acc;
-        }, {});
-
-        const sortArtists = totalFollow.map((f) => artistIdsMap[f.artistId]);
 
         const options = {
             keys: ['name'],
             threshold: 0.8,
             includeScore: true,
+            limit: false,
         };
 
-        const fuseArtist = new Fuse(sortArtists, options);
-        const resultArtist = fuseArtist.search(query).slice(start, end);
+        const fuseArtist = new Fuse(artistIds, options);
 
-        const [artists, songsPerArtist, songIdsPerArtist] = await Promise.all([
+        const allResultArtist = fuseArtist.search(query);
+        const resultArtist = allResultArtist.slice(start, end);
+
+        const [artists, songsPerArtist, songIdsPerArtist, totalFollow] = await Promise.all([
             artistService.fetchArtist({
-                conditions: { id: { [Op.in]: resultArtist.map((r) => r.item.id) } },
+                conditions: { id: { [Op.in]: resultArtist.map((r) => r.item.id) }, hide: false },
             }),
             db.ArtistSong.findAll({
                 where: { artistId: { [Op.in]: resultArtist.map((r) => r.item.id) }, main: true },
@@ -1285,10 +1344,21 @@ const searchArtistService = async ({ query, limit = 10, page = 1 }) => {
                 group: ['artistId'],
                 raw: true,
             }),
+            db.Follow.findAll({
+                where: { artistId: { [Op.in]: resultArtist.map((r) => r.item.id) } },
+                attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'totalFollow']],
+                group: ['artistId'],
+                raw: true,
+            }),
         ]);
 
         const songsPerArtistMap = songsPerArtist.reduce((acc, item) => {
             acc[item.artistId] = item.totalSong;
+            return acc;
+        }, {});
+
+        const totalFollowMap = totalFollow.reduce((acc, item) => {
+            acc[item.artistId] = item.totalFollow;
             return acc;
         }, {});
 
@@ -1318,7 +1388,7 @@ const searchArtistService = async ({ query, limit = 10, page = 1 }) => {
             const artist = artistsMap[f.item.id];
             return {
                 ...artist,
-                totalFollow: totalFollow.find((t) => t.artistId === artist.id).totalFollow,
+                totalFollow: totalFollowMap[artist.id] ?? 0,
                 totalSong: songsPerArtistMap[artist.id],
                 totalAlbum: albumSongsCountPerArtist[artist.id],
                 refIndex: f.refIndex,
@@ -1327,7 +1397,7 @@ const searchArtistService = async ({ query, limit = 10, page = 1 }) => {
 
         return {
             page: page,
-            totalPage: Math.ceil(artistIds.length / limit),
+            totalPage: Math.ceil(allResultArtist.length / limit),
             artists: result,
         };
     } catch (error) {

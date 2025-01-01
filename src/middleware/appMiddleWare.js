@@ -5,8 +5,55 @@ import https from 'https';
 import { PLAYLIST_TYPE } from '~/data/enum';
 import db from '~/models';
 import ApiError from '~/utils/ApiError';
+import { Op } from 'sequelize';
+import formatTime from '~/utils/timeFormat';
 
-const checkMaxDownsload = async () => {};
+const checkMaxDownsload = async (req, res, next) => {
+    try {
+        const packOfUser = await db.Subscriptions.findOne({
+            where: { userId: req.user.id, statusUse: true },
+            attributes: ['packageId', 'startDate'],
+            raw: true,
+        });
+
+        if (!packOfUser) {
+            throw new ApiError(
+                StatusCodes.NOT_FOUND,
+                'You have not subscribed to any package yet. Please subscribe to a package to continue.',
+            );
+        }
+
+        const packInfo = await db.SubscriptionPackage.findOne({ where: { id: packOfUser.packageId }, raw: true });
+
+        if (!packInfo) {
+            throw new ApiError(StatusCodes.NOT_FOUND, 'Package not found');
+        }
+
+        if (packInfo.downloads === null) {
+            next();
+        } else {
+            // lấy ra ngày đăng kí gói thành công
+            // đếm số lần download ?
+            const startDate = packOfUser.startDate;
+
+            const downloads = await db.Download.count({
+                where: { userId: req.user.id, createdAt: { [Op.gte]: new Date(formatTime(startDate)) } },
+            });
+
+            if (packInfo.downloads <= downloads) {
+                throw new ApiError(
+                    StatusCodes.BAD_REQUEST,
+                    "You've hit the download limit for your current plan. Upgrade now to unlock unlimited downloads and keep going!",
+                );
+            }
+
+            next();
+        }
+    } catch (error) {
+        console.log('loi check download', error);
+        next(error);
+    }
+};
 
 const checkMaxUpload = async (req, res, next) => {
     try {
@@ -15,7 +62,20 @@ const checkMaxUpload = async (req, res, next) => {
             attributes: ['packageId'],
             raw: true,
         });
+
+        if (!packOfUser) {
+            throw new ApiError(
+                StatusCodes.NOT_FOUND,
+                'You have not subscribed to any package yet. Please subscribe to a package to continue.',
+            );
+        }
+
         const packInfo = await db.SubscriptionPackage.findOne({ where: { id: packOfUser.packageId }, raw: true });
+
+        if (!packInfo) {
+            throw new ApiError(StatusCodes.NOT_FOUND, 'Package not found');
+        }
+
         if (packInfo.uploads === null) {
             next();
         } else {
@@ -45,6 +105,7 @@ const checkPremium = async (req, res, next) => {
         }
         next();
     } catch (error) {
+        console.log('loi check premium', error);
         next(error);
     }
 };

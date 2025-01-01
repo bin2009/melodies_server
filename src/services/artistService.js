@@ -86,7 +86,7 @@ const fetchArtist = async ({
 } = {}) => {
     const artists = await db.Artist[mode]({
         where: conditions,
-        attributes: ['id', 'name', 'avatar', 'bio', 'createdAt'],
+        attributes: ['id', 'name', 'avatar', 'bio', 'createdAt', 'updatedAt'],
         include: [
             {
                 model: db.Genre,
@@ -106,6 +106,7 @@ const fetchArtist = async ({
         const formatteds = artists.map((p) => {
             const formatted = { ...p.toJSON() };
             formatted.createdAt = formatTime(formatted.createdAt);
+            formatted.updatedAt = formatTime(formatted.updatedAt);
             if (formatted.avatar && formatted.avatar.includes('PBL6'))
                 formatted.avatar = `https:${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.avatar}`;
             return formatted;
@@ -114,6 +115,7 @@ const fetchArtist = async ({
     } else if (mode === 'findOne') {
         const formatted = artists.toJSON();
         formatted.createdAt = formatTime(formatted.createdAt);
+        formatted.updatedAt = formatTime(formatted.updatedAt);
         if (formatted.avatar && formatted.avatar.includes('PBL6'))
             formatted.avatar = `https:${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.avatar}`;
         return formatted;
@@ -307,10 +309,11 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
 
         const start = (page - 1) * limit;
         const end = start + limit;
+        const offset = (page - 1) * limit;
 
         const [allArtist, artists] = await Promise.all([
             db.Artist.count({ where: { hide: false } }),
-            fetchArtist({ conditions: { hide: false } }),
+            fetchArtist({ conditions: { hide: false }, order: [['updatedAt', 'DESC']], limit: limit, offset: offset }),
         ]);
 
         const [songIdsPerArtist, songsPerArtist, totalFollow] = await Promise.all([
@@ -369,14 +372,15 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
             };
         });
 
-        result.sort((a, b) => {
-            return b.totalFollow - a.totalFollow;
-        });
+        // result.sort((a, b) => {
+        //     return b.totalFollow - a.totalFollow;
+        // });
 
         return {
             page: page,
             totalPage: Math.ceil(allArtist / limit),
-            artists: result.slice(start, end),
+            // artists: result.slice(start, end),
+            artists: result,
         };
     } catch (error) {
         throw error;

@@ -21,6 +21,7 @@ const setupSocketIO = (io) => {
         if (!socket.user) return;
         console.warn('socket connect: ', socket.id);
         console.warn('socket connect - user id: ', socket.user.id);
+        console.info('rooms:', rooms);
 
         const userId = socket.user.id;
         if (!userSockets.has(userId)) {
@@ -58,13 +59,19 @@ const setupSocketIO = (io) => {
             };
 
             rooms.set(roomId, room);
+            console.log('1. rooms: ', rooms);
             socket.join(roomId);
             socket.roomId = roomId;
             socket.emit('createRoomSuccess', roomId);
         });
 
         socket.on('joinRoom', ({ roomId, link }) => {
+            console.log('2. : ', roomId);
+
             const room = rooms.get(roomId);
+
+            console.log('3. ', room);
+
             if (!room) {
                 if (link) {
                     return socket.emit('joinRoomLinkFailed', 'Room not found');
@@ -151,6 +158,7 @@ const setupSocketIO = (io) => {
         });
 
         socket.on('addSongToWaitingList', (song) => {
+            console.log('addSongToWaitingList: ', song);
             const room = rooms.get(socket.roomId);
             const waitingListMap = new Map(room.waitingList.map((song) => [song.id, song]));
             const checkSong = waitingListMap.get(song.id);
@@ -259,8 +267,9 @@ const setupSocketIO = (io) => {
             if (!room || room.host !== userId) return;
 
             const now = Date.now();
-            updateRoomAudio(room, data, now);
-            broadcastAudioUpdate(io, socket.roomId, room);
+            // updateRoomAudio(room, data, now );
+            updateRoomAudio(room, data, now, io, socket.roomId);
+            // broadcastAudioUpdate(io, socket.roomId, room);
         });
 
         socket.on('SendMessage', (data) => {
@@ -338,11 +347,21 @@ const broadcastToRoom = (io, roomId, event, data) => {
     io.to(roomId).emit(event, data);
 };
 
-const updateRoomAudio = (room, data, now) => {
-    if (room.currentSong.isPlaying !== data.isPlaying || now - room.timestamp > 1000) {
+const updateRoomAudio = (room, data, now, io, roomId) => {
+    console.log('old', room.currentSong.isPlaying, '\t', room.currentSong.currentTime);
+    // console.log('new: ', data, '\t', now);
+    if (
+        room.currentSong.isPlaying !== data.isPlaying ||
+        Math.abs(data.currentTime - room.currentSong.currentTime) > 1
+    ) {
+        console.log('true');
+        // if (room.currentSong.isPlaying !== data.isPlaying || now - room.timestamp > 1000) {
         room.currentSong.isPlaying = data.isPlaying;
         room.currentSong.currentTime = data.currentTime;
         room.timestamp = now;
+
+        // update
+        broadcastAudioUpdate(io, roomId, room);
     }
 };
 

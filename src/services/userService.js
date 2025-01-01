@@ -65,30 +65,76 @@ const calculateTotalPages = (totalItems, limit) => {
 
 const getInfoUserService = async (user) => {
     try {
-        const findUser = await db.User.findOne({
-            where: { id: user.id },
-            attributes: ['id', 'role', 'username', 'email', 'name', 'image', 'accountType', 'status'],
-            include: [
-                {
-                    model: db.SubscriptionPackage,
-                    as: 'package',
-                    attributes: { exclude: ['createdAt', 'updatedAt'] },
-                    through: {
-                        attributes: ['id', 'startDate', 'endDate', 'status', 'statusUse'],
-                    },
-                },
-            ],
-        });
-        if (!findUser) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+        // const findUser = await db.User.findOne({
+        //     where: { id: user.id },
+        //     attributes: ['id', 'role', 'username', 'email', 'name', 'image', 'accountType', 'status'],
+        //     include: [
+        //         {
+        //             model: db.SubscriptionPackage,
+        //             as: 'package',
+        //             attributes: { exclude: ['createdAt', 'updatedAt'] },
+        //             through: {
+        //                 attributes: ['id', 'startDate', 'endDate', 'status', 'statusUse'],
+        //             },
+        //         },
+        //     ],
+        // });
 
+        const [findUser, packageId] = await Promise.all([
+            db.User.findOne({
+                where: { id: user.id },
+                attributes: ['id', 'role', 'username', 'email', 'name', 'image', 'accountType', 'status'],
+            }),
+            db.Subscriptions.findOne({
+                where: { userId: user.id, statusUse: true },
+            }),
+        ]);
+
+        if (!findUser) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
         const { image, ...other } = findUser.toJSON();
 
+        const result = {
+            ...other,
+            image:
+                image && image.includes('PBL6')
+                    ? `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${image}`
+                    : null,
+        };
+
+        if (packageId) {
+            const findPackage = await db.SubscriptionPackage.findByPk(packageId.packageId);
+            const formatter = findPackage.toJSON();
+
+            formatter.createdAt = formatTime(formatter.createdAt);
+            formatter.updatedAt = formatTime(formatter.updatedAt);
+
+            const formatterSub = packageId.toJSON();
+            formatterSub.createdAt = formatTime(formatterSub.createdAt);
+            formatterSub.updatedAt = formatTime(formatterSub.updatedAt);
+            formatterSub.startDate = formatTime(formatterSub.startDate);
+            formatterSub.endDate = formatTime(formatterSub.endDate);
+
+            result.package = {
+                ...formatter,
+                Subscriptions: {
+                    ...formatterSub,
+                },
+            };
+        }
+
+        return result;
         return {
             ...other,
             image:
                 image && image.includes('PBL6')
                     ? `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${image}`
                     : null,
+            package: {
+                ...formatter,
+                Subscriptions: {
+                    ...formatterSub,
+                },
+            },
         };
     } catch (error) {
         throw error;
@@ -369,10 +415,13 @@ const updateUserService = async ({ user, data, file } = {}) => {
         const findUser = await db.User.findByPk(user.id);
         if (!findUser) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
 
+        // if (data.)
+
         if (data.username) {
-            const checkUsername = await db.User.findOne({ where: { username: data.username } });
-            if (checkUsername && checkUsername.id !== user.id)
-                throw new ApiError(StatusCodes.CONFLICT, 'Username already exists');
+            throw new ApiError(StatusCodes.FORBIDDEN, 'You are not allowed change username');
+            // const checkUsername = await db.User.findOne({ where: { username: data.username } });
+            // if (checkUsername && checkUsername.id !== user.id)
+            //     throw new ApiError(StatusCodes.CONFLICT, 'Username already exists');
         }
 
         if (data.name) {
@@ -800,6 +849,14 @@ const getAllNotificationsService = async ({ user, page = 1, limit = 10 } = {}) =
     }
 };
 
+const updateNotificationService = async ({ user } = {}) => {
+    try {
+        await db.Notifications.update({ isRead: true }, { where: { userId: user.id } });
+    } catch (error) {
+        throw error;
+    }
+};
+
 const getNotiDetailService = async (user, id) => {
     try {
         const noti = await db.Notifications.findByPk(id);
@@ -1093,6 +1150,7 @@ export const userService = {
     updateUserSongService,
     deleteUserSongService,
     getAllNotificationsService,
+    updateNotificationService,
     getNotiDetailService,
     getReportDetailService,
     downloadSongService,

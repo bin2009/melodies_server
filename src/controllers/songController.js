@@ -214,6 +214,15 @@ const search = async (req, res, next) => {
     }
 };
 
+const searchExtend = async (req, res, next) => {
+    try {
+        const response = await songService.searchExtendService({ query: req.query.query, user: req.user });
+        res.status(response.errCode).json(response);
+    } catch (error) {
+        next(error);
+    }
+};
+
 const searchSong = async (req, res, next) => {
     try {
         const songs = await songService.searchSongService(req.query.query, req.query.page);
@@ -240,5 +249,6 @@ export const songController = {
     getCommentChild,
     // ------------
     search,
+    searchExtend,
     searchSong,
 };

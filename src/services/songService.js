@@ -32,6 +32,7 @@ const fetchSongs = async ({
                     'createdAt',
                     'updatedAt',
                     'image',
+                    'privacy',
                     ...additionalAttributes,
                 ],
                 include: [
@@ -871,6 +872,129 @@ const serach2Service = async (query, page = 1, limit = 10) => {
                 .filter((album) => album),
         };
     } catch (error) {
+        console.log('error', error);
+        throw error;
+    }
+};
+
+const searchExtendService = async ({ query, user, page = 1, limit = 10 } = {}) => {
+    try {
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
+        const [artists, songs, albums] = await Promise.all([
+            db.Artist.findAll({ order: [['updatedAt', 'DESC']], where: { hide: false } }),
+            db.Song.findAll({ order: [['releaseDate', 'DESC']] }),
+            db.Album.findAll({ order: [['releaseDate', 'DESC']] }),
+        ]);
+
+        const dataArtist = artists.map((a) => ({ id: a.id, name: a.name }));
+        const dataSong = songs.map((s) => ({ id: s.id, title: s.title }));
+        const dataAlbum = albums.map((a) => ({ albumId: a.albumId, title: a.title }));
+
+        const options = {
+            keys: ['name'],
+            threshold: 0.8,
+            includeScore: true,
+        };
+        const optionsSong = {
+            keys: ['title'],
+            threshold: 0.8,
+            includeScore: true,
+        };
+        const optionsAlbum = {
+            keys: ['title'],
+            threshold: 0.8,
+            includeScore: true,
+        };
+
+        // Fuse.js
+        const fuseArtist = new Fuse(dataArtist, options);
+        const fuseSong = new Fuse(dataSong, optionsSong);
+        const fuseAlbum = new Fuse(dataAlbum, optionsAlbum);
+
+        // Search
+        const resultArtist = fuseArtist.search(query);
+        const resultSong = fuseSong.search(query);
+        const resultAlbum = fuseAlbum.search(query);
+
+        const combinedResults = [
+            ...resultArtist.map((result) => ({ ...result.item, score: result.score, type: 'artist' })),
+            ...resultSong.map((result) => ({ ...result.item, score: result.score, type: 'song' })),
+            ...resultAlbum.map((result) => ({ ...result.item, score: result.score, type: 'album' })),
+        ].sort((a, b) => a.score - b.score);
+
+        let songIds = [];
+        if (combinedResults[0].type === 'artist') {
+            songIds = await db.ArtistSong.findAll({
+                where: { artistId: combinedResults[0].id, main: true },
+                attributes: ['songId'],
+            });
+        }
+
+        const [topResult, songTopResult, artistData, songData, albumData] = await Promise.all([
+            combinedResults[0].type === 'artist' ? db.Artist.findByPk(combinedResults[0].id) : [],
+            combinedResults[0].type === 'artist'
+                ? fetchSongs({
+                      conditions: { id: { [Op.in]: songIds?.map((s) => s.songId) }, privacy: false },
+                      limit: 5,
+                  })
+                : [],
+            db.Artist.findAll({
+                where: { id: { [Op.in]: resultArtist.map((r) => r.item.id).slice(start, end) } },
+                attributes: ['id', 'name', 'avatar', 'bio'],
+            }),
+            fetchSongs({
+                conditions: { id: { [Op.in]: resultSong.map((r) => r.item.id).slice(start, end) } },
+            }),
+            db.Album.findAll({
+                where: { albumId: { [Op.in]: resultAlbum.map((a) => a.item.albumId).slice(start, end) } },
+                attributes: ['albumId', 'title', 'releaseDate'],
+                include: [{ model: db.AlbumImage, as: 'albumImages', attributes: ['image', 'size'] }],
+            }),
+        ]);
+
+        const albumDataDetail = await Promise.all(
+            albumData.map(async (album) => {
+                const songId = await db.AlbumSong.findOne({ where: { albumId: album.albumId } });
+                const songOfAlbum =
+                    songId &&
+                    (await db.Song.findOne({
+                        // where: { albumId: album.albumId },
+                        where: { id: songId.songId, privacy: false },
+                        attributes: [],
+                        include: [
+                            {
+                                model: db.Artist,
+                                as: 'artists',
+                                attributes: ['id', 'name', 'avatar', 'bio'],
+                                through: {
+                                    attributes: ['main'],
+                                },
+                            },
+                        ],
+                        limit: 1,
+                    }));
+                return {
+                    ...album.toJSON(),
+                    artists: songOfAlbum ? songOfAlbum.toJSON().artists : null,
+                };
+            }),
+        );
+
+        return {
+            errCode: 200,
+            topResult: topResult,
+            songTopResult: songTopResult,
+            artistData: resultArtist
+                .map((r) => artistData.find((artist) => artist.id === r.item.id))
+                .filter((artist) => artist),
+            songData: resultSong.map((r) => songData.find((song) => song.id === r.item.id)).filter((song) => song),
+            albumData: resultAlbum
+                .map((r) => albumDataDetail.find((album) => album.albumId === r.item.albumId))
+                .filter((album) => album),
+        };
+    } catch (error) {
         throw error;
     }
 };
@@ -931,5 +1055,6 @@ export const songService = {
     postLikedSongService,
     // ---------------
     serach2Service,
+    searchExtendService,
     searchSongService,
 };

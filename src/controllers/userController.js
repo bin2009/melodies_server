@@ -368,6 +368,18 @@ const getAllNotifications = async (req, res, next) => {
     }
 };
 
+const updateNotification = async (req, res, next) => {
+    try {
+        await userService.updateNotificationService({ user: req.user });
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Read notifications success',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const getNotiDetail = async (req, res, next) => {
     try {
         const result = await userService.getNotiDetailService(req.user, req.params.id);
@@ -397,11 +409,13 @@ const getReportDetail = async (req, res, next) => {
 const downloadSong = async (req, res, next) => {
     try {
         await userService.downloadSongService({ user: req.user, songId: req.params.songId });
+        console.log('ok');
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Download song success',
         });
     } catch (error) {
+        console.log('Looix service', error);
         next(error);
     }
 };
@@ -430,6 +444,7 @@ export const userController = {
     updateUserSong,
     deleteUserSong,
     getAllNotifications,
+    updateNotification,
     getNotiDetail,
     getReportDetail,
     downloadSong,

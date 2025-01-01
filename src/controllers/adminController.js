@@ -449,7 +449,7 @@ const getAllReport = async (req, res, next) => {
     try {
         if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
 
-        const result = await adminService.getAllReportService({ page: req.query.page });
+        const result = await adminService.getAllReportService({ page: req.query.page, type: req.query.type });
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Get all report success',
