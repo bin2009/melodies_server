@@ -303,90 +303,81 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
     try {
         // sort by: artist name / num song / num album / num follow
         // sort order: desc / asc
+        // default sort by follow
 
-        const offset = (page - 1) * limit;
-        const allArtist = await db.Artist.count({ where: { hide: false } });
-        if (!sortBy) {
-            // lấy mặc định : createdAt
-            const artists = await db.Artist.findAll({
-                attributes: ['id', 'name', 'avatar', 'bio', 'updatedAt'],
-                where: { hide: false },
-                include: [
-                    { model: db.Genre, as: 'genres', attributes: ['genreId', 'name'], through: { attributes: [] } },
-                ],
-                order: [['updatedAt', sortOrder]],
-                limit: limit,
-                offset: offset,
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
+        const [allArtist, artists] = await Promise.all([
+            db.Artist.count({ where: { hide: false } }),
+            fetchArtist({ conditions: { hide: false } }),
+        ]);
+
+        const [songIdsPerArtist, songsPerArtist, totalFollow] = await Promise.all([
+            db.ArtistSong.findAll({
+                where: { artistId: { [Op.in]: artists.map((a) => a.id) }, main: true },
+                attributes: ['artistId', [db.Sequelize.fn('ARRAY_AGG', db.Sequelize.col('songId')), 'songIds']],
+                group: ['artistId'],
+                raw: true,
+            }),
+            db.ArtistSong.findAll({
+                where: { artistId: { [Op.in]: artists.map((a) => a.id) }, main: true },
+                attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'totalSong']],
+                group: ['artistId'],
+                raw: true,
+            }),
+            db.Follow.findAll({
+                where: { artistId: { [Op.in]: artists.map((a) => a.id) } },
+                attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'totalFollow']],
+                group: ['artistId'],
+                raw: true,
+            }),
+        ]);
+
+        const songsPerArtistMap = songsPerArtist.reduce((acc, item) => {
+            acc[item.artistId] = item.totalSong;
+            return acc;
+        }, {});
+        const totalFollowMap = totalFollow.reduce((acc, item) => {
+            acc[item.artistId] = item.totalFollow;
+            return acc;
+        }, {});
+        const songIdsPerArtistMap = songIdsPerArtist.reduce((acc, item) => {
+            acc[item.artistId] = item.songIds;
+            return acc;
+        }, {});
+
+        const albumSongsCountPerArtist = {};
+        for (const artistId in songIdsPerArtistMap) {
+            const songIds = songIdsPerArtistMap[artistId];
+            const count = await db.AlbumSong.count({
+                where: { songId: { [Op.in]: songIds } },
+                distinct: true,
+                col: 'albumId',
             });
-
-            const [songIdsPerArtist, songsPerArtist, totalFollow] = await Promise.all([
-                db.ArtistSong.findAll({
-                    where: { artistId: { [Op.in]: artists.map((a) => a.id) }, main: true },
-                    attributes: ['artistId', [db.Sequelize.fn('ARRAY_AGG', db.Sequelize.col('songId')), 'songIds']],
-                    group: ['artistId'],
-                    raw: true,
-                }),
-                db.ArtistSong.findAll({
-                    where: { artistId: { [Op.in]: artists.map((a) => a.id) }, main: true },
-                    attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'totalSong']],
-                    group: ['artistId'],
-                    raw: true,
-                }),
-                db.Follow.findAll({
-                    where: { artistId: { [Op.in]: artists.map((a) => a.id) } },
-                    attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'totalFollow']],
-                    group: ['artistId'],
-                    raw: true,
-                }),
-            ]);
-
-            const songsPerArtistMap = songsPerArtist.reduce((acc, item) => {
-                acc[item.artistId] = item.totalSong;
-                return acc;
-            }, {});
-            const totalFollowMap = totalFollow.reduce((acc, item) => {
-                acc[item.artistId] = item.totalFollow;
-                return acc;
-            }, {});
-            const songIdsPerArtistMap = songIdsPerArtist.reduce((acc, item) => {
-                acc[item.artistId] = item.songIds;
-                return acc;
-            }, {});
-
-            const albumSongsCountPerArtist = {};
-            for (const artistId in songIdsPerArtistMap) {
-                const songIds = songIdsPerArtistMap[artistId];
-                const count = await db.AlbumSong.count({
-                    where: { songId: { [Op.in]: songIds } },
-                });
-                albumSongsCountPerArtist[artistId] = count;
-            }
-
-            const result = artists.map((a) => {
-                const { avatar, updatedAt, ...other } = a.toJSON();
-                let formattedAvatar;
-                if (avatar && avatar.includes('PBL6')) {
-                    formattedAvatar = `https:${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${avatar}`;
-                } else {
-                    formattedAvatar = avatar;
-                }
-                return {
-                    ...other,
-                    avatar: formattedAvatar,
-                    updatedAt: formatTime(updatedAt),
-                    totalSong: songsPerArtistMap[a.id] ?? 0,
-                    totalAlbum: albumSongsCountPerArtist[a.id] ?? 0,
-                    totalFollow: totalFollowMap[a.id] ?? 0,
-                };
-            });
-
-            return {
-                page: page,
-                totalPage: Math.ceil(allArtist / limit),
-                artists: result,
-            };
-        } else {
+            albumSongsCountPerArtist[artistId] = count;
         }
+
+        const result = artists.map((a) => {
+            const { updatedAt, ...other } = a;
+            return {
+                ...other,
+                updatedAt: formatTime(updatedAt),
+                totalSong: songsPerArtistMap[a.id] ?? 0,
+                totalAlbum: albumSongsCountPerArtist[a.id] ?? 0,
+                totalFollow: totalFollowMap[a.id] ?? 0,
+            };
+        });
+
+        result.sort((a, b) => {
+            return b.totalFollow - a.totalFollow;
+        });
+
+        return {
+            page: page,
+            totalPage: Math.ceil(allArtist / limit),
+            artists: result.slice(start, end),
+        };
     } catch (error) {
         throw error;
     }

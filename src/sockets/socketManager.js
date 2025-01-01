@@ -19,6 +19,8 @@ const setupSocketIO = (io) => {
 
     io.on('connection', async (socket) => {
         if (!socket.user) return;
+        console.warn('socket connect: ', socket.id);
+        console.warn('socket connect - user id: ', socket.user.id);
 
         const userId = socket.user.id;
         if (!userSockets.has(userId)) {
@@ -272,6 +274,9 @@ const setupSocketIO = (io) => {
         // --------------------
 
         socket.on('disconnect', () => {
+            console.error(`User disconnected:`, socket.user.id);
+            console.error(`Socket disconnected:`, socket.id);
+
             const userSocketSet = userSockets.get(socket.user.id);
             userSocketSet.delete(socket.id);
 
@@ -349,4 +354,19 @@ const broadcastAudioUpdate = (io, roomId, room) => {
     broadcastToRoom(io, roomId, 'animation', room.currentSong.isPlaying);
 };
 
+const sendMessageToUser = (userId, event, data) => {
+    const socketIds = userSockets.get(userId);
+    if (!socketIds || socketIds.size === 0) {
+        console.error(`No active sockets found for user ID: ${userId}`);
+        return false;
+    }
+
+    for (const socketId of socketIds) {
+        ioRoot.to(socketId).emit(event, data);
+    }
+    return true;
+};
+
 export default setupSocketIO;
+
+export { sendMessageToUser };

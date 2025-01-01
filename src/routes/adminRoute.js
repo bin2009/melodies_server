@@ -29,7 +29,7 @@ const uploadS3 = multer({
             if (file.fieldname === 'avatar') {
                 cb(null, `PBL6/PUBLIC/ARTIST/${file.fieldname}/${uniqueSuffix}`);
             } else if (file.fieldname === 'lyricFile') {
-                cb(null, `PBL6/PRIVATE/MELODIES/${file.fieldname}/${uniqueSuffix}.json`);
+                cb(null, `PBL6/PUBLIC/ADMIN_UPLOAD/${file.fieldname}/${uniqueSuffix}.json`);
             } else {
                 cb(null, `PBL6/PRIVATE/MELODIES/${file.fieldname}/${uniqueSuffix}`);
             }
@@ -110,6 +110,11 @@ Router.route('/delete/artist').delete(authMiddleWare.verifyTokenAndAdmin, adminC
 Router.route('/delete/song').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteSong);
 Router.route('/delete/genre').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deleteGenre);
 Router.route('/delete/payment').delete(authMiddleWare.verifyTokenAndAdmin, adminController.deletePayment);
+
+// -------------search---------------
+Router.route('/search/album').get(authMiddleWare.verifyTokenAndAdmin, adminController.searchAlbum);
+Router.route('/search/artist').get(adminController.searchArtist);
+Router.route('/search/song').get(adminController.searchSong);
 
 // -----------------------------------
 Router.route('/recentUser').get(authMiddleWare.verifyTokenAndAdmin, adminController.getRecentUser);

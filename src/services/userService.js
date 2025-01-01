@@ -107,25 +107,6 @@ const getPlaylistService = async ({ page = 1, user, limit = 7 } = {}) => {
             playlistService.fetchPlaylistCount({ conditions: { userId: user.id } }),
         ]);
 
-        // const playlistsWithSongs = await Promise.all(
-        //     allPlaylist.map(async (playlist) => {
-        //         const songId = await playlistService.fetchOneSongOnPlaylist({
-        //             conditions: { playlistId: playlist.id },
-        //         });
-        //         const song =
-        //             songId && (await songService.fetchSongs({ conditions: { id: songId.songId }, mode: 'findOne' }));
-
-        //         return {
-        //             playlistId: playlist.id,
-        //             name: playlist.title || null,
-        //             image: (song && song.album) || null,
-        //             description: playlist.description || null,
-        //             privacy: playlist.privacy,
-        //             totalSong: playlist.totalSong ?? 0,
-        //         };
-        //     }),
-        // );
-
         const result = allPlaylist.map((playlist) => {
             const { id, playlistImage, ...other } = playlist;
             return {
@@ -526,7 +507,12 @@ const reportCommentService = async ({ data, user } = {}) => {
             ),
         ]);
         await transaction.commit();
-        return report;
+
+        const result = report.toJSON();
+        result.createdAt = formatTime(result.createdAt);
+        result.updatedAt = formatTime(result.updatedAt);
+
+        return result;
     } catch (error) {
         await transaction.rollback();
         throw error;
@@ -790,6 +776,14 @@ const getAllNotificationsService = async ({ user, page = 1, limit = 10 } = {}) =
                         const reportFormatter = report.toJSON();
                         reportFormatter.createdAt = formatTime(reportFormatter.createdAt);
                         reportFormatter.comment.createdAt = formatTime(reportFormatter.comment.createdAt);
+
+                        if (
+                            reportFormatter.comment.user &&
+                            reportFormatter.comment.user.image &&
+                            reportFormatter.comment.user.image.includes('PBL6')
+                        ) {
+                            reportFormatter.comment.user.image = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${reportFormatter.comment.user.image}`;
+                        }
                         formatter.report = reportFormatter;
                     }
                 }
@@ -851,6 +845,14 @@ const getNotiDetailService = async (user, id) => {
             const formatter = report.toJSON();
             formatter.createdAt = formatTime(formatter.createdAt);
             formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
+
+            if (
+                formatter.comment.user &&
+                formatter.comment.user.image &&
+                formatter.comment.user.image.includes('PBL6')
+            ) {
+                formatter.comment.user.image = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatter.comment.user.image}`;
+            }
             const comment = await db.Comment.findByPk(report.commentId);
 
             // 1. User chính là người report, reject

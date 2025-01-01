@@ -115,18 +115,31 @@ const fetchSongs = async ({
                 formattedSong.updatedAt = formatTime(formattedSong.updatedAt);
                 formattedSong.releaseDate = formatTime(formattedSong.releaseDate);
                 formattedSong.filePathAudio = encodeData(formattedSong.filePathAudio);
-                if (formattedSong.image)
+                if (formattedSong.image && formattedSong.image.includes('PBL6')) {
                     formattedSong.image = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formattedSong.image}`;
-                if (role && role === 'Admin') {
+                }
+                if (formattedSong.lyric && formattedSong.lyric.includes('PBL6')) {
                     formattedSong.lyric = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formattedSong.lyric}`;
-                } else {
-                    formattedSong.lyric = formattedSong.lyric ? encodeData(formattedSong.lyric) : null;
                 }
                 formattedSong.totalPlay = totalPlayMap[formattedSong.id] ?? 0;
                 formattedSong.totalComment = totalCommentMap[formattedSong.id] ?? 0;
                 formattedSong.totalLike = totalLikeMap[formattedSong.id] ?? 0;
                 formattedSong.totalDownload = totalDownloadMap[formattedSong.id] ?? 0;
                 formattedSong.album.map((a) => (a.releaseDate = formatTime(a.releaseDate)));
+
+                if (formattedSong.album && formattedSong.album.length > 0) {
+                    formattedSong.album = formattedSong.album.map((a) => {
+                        if (a.albumImages && a.albumImages.length > 0) {
+                            a.albumImages = a.albumImages.map((image) => {
+                                if (image.image && image.image.includes('PBL6')) {
+                                    image.image = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${image.image}`;
+                                }
+                                return image;
+                            });
+                        }
+                        return a;
+                    });
+                }
                 return formattedSong;
             });
             return formattedSongs;
@@ -139,18 +152,32 @@ const fetchSongs = async ({
             formattedSong.updatedAt = formatTime(formattedSong.updatedAt);
             formattedSong.releaseDate = formatTime(formattedSong.releaseDate);
             formattedSong.filePathAudio = encodeData(formattedSong.filePathAudio);
-            if (formattedSong.image)
+            if (formattedSong.image && formattedSong.image.includes('PBL6')) {
                 formattedSong.image = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formattedSong.image}`;
-            if (role && role === 'Admin') {
+            }
+            if (formattedSong.lyric && formattedSong.lyric.includes('PBL6')) {
                 formattedSong.lyric = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formattedSong.lyric}`;
-            } else {
-                formattedSong.lyric = formattedSong.lyric ? encodeData(formattedSong.lyric) : null;
             }
             formattedSong.totalPlay = totalPlayMap[formattedSong.id] ?? 0;
             formattedSong.totalComment = totalCommentMap[formattedSong.id] ?? 0;
             formattedSong.totalLike = totalLikeMap[formattedSong.id] ?? 0;
             formattedSong.totalDownload = totalDownload[formattedSong.id] ?? 0;
             formattedSong.album.map((a) => (a.releaseDate = formatTime(a.releaseDate)));
+
+            if (formattedSong.album && formattedSong.album.length > 0) {
+                formattedSong.album = formattedSong.album.map((a) => {
+                    if (a.albumImages && a.albumImages.length > 0) {
+                        a.albumImages = a.albumImages.map((image) => {
+                            if (image.image && image.image.includes('PBL6')) {
+                                image.image = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${image.image}`;
+                            }
+                            return image;
+                        });
+                    }
+                    return a;
+                });
+            }
+
             return formattedSong;
         }
     } catch (error) {
@@ -216,7 +243,12 @@ const getAllSongService = async ({ page = 1, limit = 10 } = {}) => {
 
         const [totalSong, songs] = await Promise.all([
             db.Song.count({ where: { privacy: false } }),
-            fetchSongs({ limit: limit, offset: offset, conditions: { privacy: false }, role: 'Admin' }),
+            fetchSongs({
+                limit: limit,
+                offset: offset,
+                conditions: { privacy: false },
+                order: [['releaseDate', 'DESC']],
+            }),
         ]);
 
         const result = songs.map((s) => {

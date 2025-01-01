@@ -38,6 +38,10 @@ const fetchAllComment = async ({
     const formattedComments = comments.map((c) => {
         const formattedComment = { ...c.toJSON() };
         formattedComment.createdAt = formatTime(formattedComment.createdAt);
+
+        if (formattedComment.user.image && formattedComment.user.image.includes('PBL6')) {
+            formattedComment.user.image = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formattedComment.user.image}`;
+        }
         return formattedComment;
     });
 

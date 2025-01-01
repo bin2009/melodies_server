@@ -6,6 +6,10 @@ import { authService } from '~/services/authService';
 
 const verifyToken = async (req, res, next) => {
     try {
+        if (!req.headers['authorization']) {
+            throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized');
+        }
+
         const token = req.headers['authorization'].split(' ')[1];
         const verified = await authService.verifyToken(token, false);
         req.user = verified;
@@ -17,6 +21,10 @@ const verifyToken = async (req, res, next) => {
 
 const verifyTokenAndAdmin = async (req, res, next) => {
     try {
+        if (!req.headers['authorization']) {
+            throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized');
+        }
+
         const token = req.headers['authorization'].split(' ')[1];
         const verified = await authService.verifyToken(token, false);
 

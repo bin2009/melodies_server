@@ -244,6 +244,71 @@ const deletePayment = async (req, res, next) => {
 
 // -----------------------------------------------------------------------------------------------
 
+const searchAlbum = async (req, res, next) => {
+    try {
+        let result;
+
+        if (!req.query.query) {
+            result = await adminService.getAllAlbumService(req.query.query, req.query.order, req.query.page);
+        } else {
+            result = await adminService.searchAlbumService({
+                query: req.query.query,
+                page: req.query.page,
+            });
+        }
+
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Search album success',
+            ...result,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const searchArtist = async (req, res, next) => {
+    try {
+        let result;
+
+        if (!req.query.query) {
+            result = await artistService.getAllArtistService({ page: req.query.page });
+        } else {
+            result = await adminService.searchArtistService({ query: req.query.query, page: req.query.page });
+        }
+
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Search artist success',
+            ...result,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const searchSong = async (req, res, next) => {
+    try {
+        let result;
+
+        if (!req.query.query) {
+            result = await songService.getAllSongService({ page: req.query.page });
+        } else {
+            result = await adminService.searchSongService({ query: req.query.query, page: req.query.page });
+        }
+
+        res.status(StatusCodes.OK).json({
+            status: 'success',
+            message: 'Search song success',
+            ...result,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// -----------------------------------------------------------------------------------------------
+
 const getRecentUser = async (req, res, next) => {
     try {
         if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
@@ -384,11 +449,11 @@ const getAllReport = async (req, res, next) => {
     try {
         if (req.query.page < 1) throw new ApiError(StatusCodes.BAD_REQUEST, 'Page must be greater than 1');
 
-        const reports = await adminService.getAllReportService({ page: req.query.page });
+        const result = await adminService.getAllReportService({ page: req.query.page });
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Get all report success',
-            reports: reports,
+            ...result,
         });
     } catch (error) {
         next(error);
@@ -489,6 +554,10 @@ export const adminController = {
     deleteSong,
     deleteGenre,
     deletePayment,
+    // --------------
+    searchAlbum,
+    searchArtist,
+    searchSong,
     // --------------
     getRecentUser,
     getRecentComment,

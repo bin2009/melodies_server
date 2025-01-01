@@ -16,6 +16,9 @@ import { emailService } from './emailService';
 import encodeData from '~/utils/encryption';
 import { appMiddleWare } from '~/middleware/appMiddleWare';
 import { sendMessageToUser } from '~/sockets/socketManager';
+import { start } from 'pm2';
+import { ref } from 'joi';
+const Fuse = require('fuse.js');
 
 const saltRounds = 10;
 const DO_SPACES_BUCKET = process.env.DO_SPACES_BUCKET;
@@ -185,13 +188,12 @@ const getTodayBestSongService = async () => {
 const getAllAlbumService = async (query, order, page) => {
     try {
         const limit = 10;
-        const offset = (page - 1) * limit;
         const start = (page - 1) * limit;
         const end = start + limit;
 
         const [totalAlbum, albums] = await Promise.all([
             albumService.fetchAlbumCount(),
-            albumService.fetchAlbum({ order: [['updatedAt', 'DESC']] }),
+            albumService.fetchAlbum({ order: [['releaseDate', 'DESC']] }),
         ]);
 
         const result = await Promise.all(
@@ -296,15 +298,33 @@ const getAllReportService = async ({ page = 1, limit = 10 } = {}) => {
     try {
         const offset = (page - 1) * limit;
 
-        const reports = await db.Report.findAll({
-            order: [['updatedAt', 'DESC']],
-            include: [
-                { model: db.User, as: 'user', attributes: ['id', 'name', 'username', 'email', 'image', 'createdAt'] },
-                { model: db.Comment, as: 'comment', include: [{ model: db.Song, as: 'song' }] },
-            ],
-            limit: limit,
-            offset: offset,
-        });
+        const [totalReport, reports] = await Promise.all([
+            db.Report.count(),
+            db.Report.findAll({
+                order: [['updatedAt', 'DESC']],
+                include: [
+                    {
+                        model: db.User,
+                        as: 'user',
+                        attributes: ['id', 'name', 'username', 'email', 'image', 'createdAt'],
+                    },
+                    {
+                        model: db.Comment,
+                        as: 'comment',
+                        include: [
+                            { model: db.Song, as: 'song' },
+                            {
+                                model: db.User,
+                                as: 'user',
+                                attributes: ['id', 'username', 'name', 'image', 'accountType'],
+                            },
+                        ],
+                    },
+                ],
+                limit: limit,
+                offset: offset,
+            }),
+        ]);
 
         const formatters = reports.map((r) => {
             const formatter = { ...r.toJSON() };
@@ -315,26 +335,41 @@ const getAllReportService = async ({ page = 1, limit = 10 } = {}) => {
             formatter.status = REPORT_STATUS[formatter.status];
             formatter.createdAt = formatTime(formatter.createdAt);
             formatter.updatedAt = formatTime(formatter.updatedAt);
+
             if (formatter.user) {
-                formatter.user.image =
-                    formatter.user.image && formatter.user.image.includes('PBL6')
-                        ? `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.user.image}`
-                        : formatter.user.image;
+                if (formatter.user.image && formatter.user.image.includes('PBL6')) {
+                    formatter.user.image = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.user.image}`;
+                }
                 formatter.user.createdAt = formatTime(formatter.user.createdAt);
             }
+
             formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
             formatter.comment.updatedAt = formatTime(formatter.comment.updatedAt);
             formatter.comment.song.createdAt = formatTime(formatter.comment.song.createdAt);
             formatter.comment.song.updatedAt = formatTime(formatter.comment.song.updatedAt);
             formatter.comment.song.releaseDate = formatTime(formatter.comment.song.releaseDate);
-            if (formatter.comment.song.lyric) formatter.comment.song.lyric = encodeData(formatter.comment.song.lyric);
+
+            if (formatter.comment.song.lyric && formatter.comment.song.lyric.includes('PBL6')) {
+                formatter.comment.song.lyric = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.comment.song.lyric}`;
+            }
             if (formatter.comment.song.filePathAudio)
                 formatter.comment.song.filePathAudio = encodeData(formatter.comment.song.filePathAudio);
 
+            if (
+                formatter.comment.user &&
+                formatter.comment.user.image &&
+                formatter.comment.user.image.includes('PBL6')
+            ) {
+                formatter.comment.user.image = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.comment.user.image}`;
+            }
             return formatter;
         });
 
-        return formatters;
+        return {
+            page: page,
+            totalPage: Math.ceil(totalReport / limit),
+            reports: formatters,
+        };
     } catch (error) {
         throw error;
     }
@@ -342,57 +377,75 @@ const getAllReportService = async ({ page = 1, limit = 10 } = {}) => {
 
 const getReportService = async (reportId) => {
     try {
-        const report = await db.Report.findOne({
+        const reportDetail = await db.Report.findOne({
             where: { id: reportId },
-            attributes: ['id', 'content', 'status', 'createdAt', 'updatedAt'],
+            attributes: ['id', 'content', 'status', 'createdAt'],
             include: [
-                { model: db.User, as: 'user', attributes: ['id', 'name', 'username', 'email', 'image', 'createdAt'] },
-                { model: db.Comment, as: 'comment', include: [{ model: db.Song, as: 'song' }] },
+                {
+                    model: db.User,
+                    as: 'user',
+                    attributes: ['id', 'username', 'name', 'email', 'image', 'accountType', 'status', 'createdAt'],
+                },
+                {
+                    model: db.Comment,
+                    as: 'comment',
+                },
             ],
         });
 
-        if (!report) throw new ApiError(StatusCodes.NOT_FOUND, 'Report not found');
-        const formatter = report.toJSON();
+        const formatter = reportDetail.toJSON();
+        const [song, userComment] = await Promise.all([
+            songService.fetchSongs({ conditions: { id: formatter.comment.songId }, mode: 'findOne' }),
+            db.User.findOne({
+                where: { id: formatter.comment.userId },
+                attributes: ['id', 'username', 'name', 'email', 'image', 'accountType', 'status', 'createdAt'],
+            }),
+        ]);
+        formatter.comment.song = song;
+        formatter.comment.user = userComment.toJSON();
+        delete formatter.comment.userId;
+        delete formatter.comment.songId;
+
+        formatter.createdAt = formatTime(formatter.createdAt);
+        formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
+        formatter.comment.updatedAt = formatTime(formatter.comment.updatedAt);
+        formatter.comment.user.createdAt = formatTime(formatter.comment.user.createdAt);
+
+        if (formatter.user) {
+            if (formatter.user.image && formatter.user.image.includes('PBL6')) {
+                formatter.user.image = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.user.image}`;
+            }
+            formatter.user.createdAt = formatTime(formatter.user.createdAt);
+        }
+
+        if (formatter.comment.user && formatter.comment.user.image && formatter.comment.user.image.includes('PBL6')) {
+            formatter.comment.user.image = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.comment.user.image}`;
+        }
 
         if (formatter.comment.commentParentId) {
-            const commentParent = await db.Comment.findOne({
+            const parentComment = await db.Comment.findOne({
                 where: { id: formatter.comment.commentParentId },
                 attributes: ['id', 'content', 'createdAt'],
                 include: [
-                    { model: db.User, as: 'user', attributes: ['id', 'username', 'name', 'image', 'accountType'] },
+                    {
+                        model: db.User,
+                        as: 'user',
+                        attributes: ['id', 'username', 'name', 'image', 'accountType', 'createdAt'],
+                    },
                 ],
             });
 
-            const format = commentParent.toJSON();
-            format.createdAt = formatTime(format.createdAt);
-            format.user.image =
-                format.user.image && format.user.image.includes('PBL6')
-                    ? `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${format.user.image}`
-                    : format.user.image;
+            const parentFormatter = parentComment.toJSON();
+            parentFormatter.createdAt = formatTime(parentFormatter.createdAt);
+            parentFormatter.user.createdAt = formatTime(parentFormatter.user.createdAt);
 
-            formatter.comment.commentParent = format;
+            if (parentFormatter.user && parentFormatter.user.image && parentFormatter.user.image.includes('PBL6')) {
+                parentFormatter.user.image = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${parentFormatter.user.image}`;
+            }
+
+            formatter.comment.parentComment = parentFormatter;
         }
 
-        delete formatter.userId;
-        delete formatter.commentId;
-
-        formatter.createdAt = formatTime(formatter.createdAt);
-        formatter.updatedAt = formatTime(formatter.updatedAt);
-        if (formatter.user) {
-            formatter.user.image =
-                formatter.user.image && formatter.user.image.includes('PBL6')
-                    ? `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.user.image}`
-                    : formatter.user.image;
-            formatter.user.createdAt = formatTime(formatter.user.createdAt);
-        }
-        formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
-        formatter.comment.updatedAt = formatTime(formatter.comment.updatedAt);
-        formatter.comment.song.createdAt = formatTime(formatter.comment.song.createdAt);
-        formatter.comment.song.updatedAt = formatTime(formatter.comment.song.updatedAt);
-        formatter.comment.song.releaseDate = formatTime(formatter.comment.song.releaseDate);
-        if (formatter.comment.song.lyric) formatter.comment.song.lyric = encodeData(formatter.comment.song.lyric);
-        if (formatter.comment.song.filePathAudio)
-            formatter.comment.song.filePathAudio = encodeData(formatter.comment.song.filePathAudio);
         return formatter;
     } catch (error) {
         throw error;
@@ -489,7 +542,43 @@ const verifyReportService = async (reportId) => {
             }
         }
 
-        sendMessageToUser(comment.userId, 'newNoti', noti);
+        const result = noti.toJSON();
+
+        const reportDetail = await db.Report.findOne({
+            where: { id: noti.from },
+            attributes: ['id', 'content', 'userId', 'status', 'createdAt'],
+            include: [
+                {
+                    model: db.Comment,
+                    as: 'comment',
+                    attributes: ['id', 'songId', 'content', 'hide', 'createdAt'],
+                    include: [
+                        {
+                            model: db.User,
+                            as: 'user',
+                            attributes: ['id', 'image', 'username', 'name', 'email'],
+                        },
+                    ],
+                },
+            ],
+        });
+
+        if (reportDetail) {
+            const reportFormatter = reportDetail.toJSON();
+            reportFormatter.createdAt = formatTime(reportFormatter.createdAt);
+            reportFormatter.comment.createdAt = formatTime(reportFormatter.comment.createdAt);
+
+            if (
+                reportFormatter.comment.user &&
+                reportFormatter.comment.user.image &&
+                reportFormatter.comment.user.image.includes('PBL6')
+            ) {
+                reportFormatter.comment.user.image = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${reportFormatter.comment.user.image}`;
+            }
+            result.report = reportFormatter;
+        }
+
+        sendMessageToUser(comment.userId, 'newNoti', result);
         await transaction.commit();
     } catch (error) {
         await transaction.rollback();
@@ -1140,6 +1229,246 @@ const deletePaymentService = async ({ paymentIds } = {}) => {
     }
 };
 
+const searchArtistService = async ({ query, limit = 10, page = 1 }) => {
+    try {
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
+        const [totalFollow, artistIds] = await Promise.all([
+            db.Follow.findAll({
+                attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'totalFollow']],
+                group: ['artistId'],
+                raw: true,
+            }),
+            db.Artist.findAll({ attributes: ['id', 'name'], raw: true }),
+        ]);
+
+        totalFollow.sort((a, b) => b.totalFollow - a.totalFollow);
+
+        const artistIdsMap = artistIds.reduce((acc, item) => {
+            acc[item.id] = item;
+            return acc;
+        }, {});
+
+        const sortArtists = totalFollow.map((f) => artistIdsMap[f.artistId]);
+
+        const options = {
+            keys: ['name'],
+            threshold: 0.8,
+            includeScore: true,
+        };
+
+        const fuseArtist = new Fuse(sortArtists, options);
+        const resultArtist = fuseArtist.search(query).slice(start, end);
+
+        const [artists, songsPerArtist, songIdsPerArtist] = await Promise.all([
+            artistService.fetchArtist({
+                conditions: { id: { [Op.in]: resultArtist.map((r) => r.item.id) } },
+            }),
+            db.ArtistSong.findAll({
+                where: { artistId: { [Op.in]: resultArtist.map((r) => r.item.id) }, main: true },
+                attributes: ['artistId', [db.Sequelize.fn('COUNT', db.Sequelize.col('artistId')), 'totalSong']],
+                group: ['artistId'],
+                raw: true,
+            }),
+            db.ArtistSong.findAll({
+                where: { artistId: { [Op.in]: resultArtist.map((r) => r.item.id) }, main: true },
+                attributes: ['artistId', [db.Sequelize.fn('ARRAY_AGG', db.Sequelize.col('songId')), 'songIds']],
+                group: ['artistId'],
+                raw: true,
+            }),
+        ]);
+
+        const songsPerArtistMap = songsPerArtist.reduce((acc, item) => {
+            acc[item.artistId] = item.totalSong;
+            return acc;
+        }, {});
+
+        const songIdsPerArtistMap = songIdsPerArtist.reduce((acc, item) => {
+            acc[item.artistId] = item.songIds;
+            return acc;
+        }, {});
+
+        const artistsMap = artists.reduce((acc, item) => {
+            acc[item.id] = item;
+            return acc;
+        }, {});
+
+        const albumSongsCountPerArtist = {};
+
+        for (const artistId in songIdsPerArtistMap) {
+            const songIds = songIdsPerArtistMap[artistId];
+            const count = await db.AlbumSong.count({
+                where: { songId: { [Op.in]: songIds } },
+                distinct: true,
+                col: 'albumId',
+            });
+            albumSongsCountPerArtist[artistId] = count;
+        }
+
+        const result = resultArtist.map((f) => {
+            const artist = artistsMap[f.item.id];
+            return {
+                ...artist,
+                totalFollow: totalFollow.find((t) => t.artistId === artist.id).totalFollow,
+                totalSong: songsPerArtistMap[artist.id],
+                totalAlbum: albumSongsCountPerArtist[artist.id],
+                refIndex: f.refIndex,
+            };
+        });
+
+        return {
+            page: page,
+            totalPage: Math.ceil(artistIds.length / limit),
+            artists: result,
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+const searchAlbumService = async ({ query, limit = 10, page = 1 }) => {
+    try {
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
+        const [totalAlbum, albumIds] = await Promise.all([
+            albumService.fetchAlbumCount(),
+            db.Album.findAll({
+                attributes: ['albumId', 'title'],
+                order: [['releaseDate', 'DESC']],
+                raw: true,
+            }),
+        ]);
+
+        const options = {
+            keys: ['title'],
+            threshold: 0.8,
+            includeScore: true,
+        };
+
+        const fuseAlbum = new Fuse(albumIds, options);
+        const resultAlbum = fuseAlbum.search(query).slice(start, end);
+
+        const resultAlbumMap = resultAlbum.reduce((acc, item) => {
+            acc[item.item.albumId] = item.item;
+            return acc;
+        }, {});
+
+        const albums = await albumService.fetchAlbum({
+            conditions: { albumId: { [Op.in]: resultAlbum.map((r) => r.item.albumId) } },
+        });
+
+        const albumsMap = albums.reduce((acc, item) => {
+            acc[item.albumId] = item;
+            return acc;
+        }, {});
+
+        const result = await Promise.all(
+            resultAlbum.map(async (album) => {
+                const firstSongOfAlbum = await db.AlbumSong.findOne({
+                    where: { albumId: album.item.albumId },
+                    attributes: ['songId'],
+                });
+
+                if (!firstSongOfAlbum) {
+                    return {
+                        // ...album,
+                        ...albumsMap[album.item.albumId],
+                        totalSong: 0,
+                        mainArtist: null,
+                        refIndex: album.refIndex,
+                    };
+                }
+
+                const mainArtistId = await artistService.fetchMainArtist({
+                    conditions: { songId: firstSongOfAlbum.songId, main: true },
+                });
+
+                const totalSong = await db.AlbumSong.count({ where: { albumId: album.item.albumId } });
+
+                const mainArtist = await artistService.fetchArtist({
+                    mode: 'findOne',
+                    conditions: { id: mainArtistId.artistId },
+                });
+                return {
+                    // ...album,
+                    ...albumsMap[album.item.albumId],
+                    totalSong: totalSong,
+                    mainArtist: mainArtist ?? null,
+                    refIndex: album.refIndex,
+                };
+            }),
+        );
+
+        return {
+            page: page,
+            totalPage: Math.ceil(totalAlbum / limit),
+            data: result,
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+const searchSongService = async ({ query, page = 1, limit = 10 }) => {
+    try {
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
+        const [totalSong, songIds] = await Promise.all([
+            db.Song.count({ where: { privacy: false } }),
+            db.Song.findAll({
+                order: [['releaseDate', 'DESC']],
+                attributes: ['id', 'title'],
+                where: { privacy: false },
+                raw: true,
+            }),
+        ]);
+
+        const options = {
+            keys: ['title'],
+            threshold: 0.8,
+            includeScore: true,
+        };
+
+        const fuseSong = new Fuse(songIds, options);
+        const resultSong = fuseSong.search(query).slice(start, end);
+
+        const [songs] = await Promise.all([
+            songService.fetchSongs({
+                conditions: { id: { [Op.in]: resultSong.map((r) => r.item.id) } },
+            }),
+        ]);
+
+        const songsMap = songs.reduce((acc, item) => {
+            acc[item.id] = item;
+            return acc;
+        }, {});
+
+        const result = resultSong.map((s) => {
+            const { album, artists, ...other } = songsMap[s.item.id];
+            return {
+                ...other,
+                album: album ?? null,
+                artists: artists.map(({ ArtistSong, ...otherArtist }) => ({
+                    ...otherArtist,
+                    main: ArtistSong?.main ?? false,
+                })),
+                refIndex: s.refIndex,
+            };
+        });
+
+        return {
+            page: page,
+            totalPage: Math.ceil(totalSong / limit),
+            song: result,
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
 export const adminService = {
     fetchAlbumSong,
     // ---------------
@@ -1172,4 +1501,8 @@ export const adminService = {
     deleteSongService,
     deleteGenreService,
     deletePaymentService,
+    // -----------------
+    searchArtistService,
+    searchAlbumService,
+    searchSongService,
 };
