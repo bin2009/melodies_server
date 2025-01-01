@@ -393,6 +393,8 @@ const getReportService = async (reportId) => {
             ],
         });
 
+        if (!reportDetail) throw new ApiError(StatusCodes.NOT_FOUND, 'Report not found');
+
         const formatter = reportDetail.toJSON();
         const [song, userComment] = await Promise.all([
             songService.fetchSongs({ conditions: { id: formatter.comment.songId }, mode: 'findOne' }),
@@ -405,6 +407,8 @@ const getReportService = async (reportId) => {
         formatter.comment.user = userComment.toJSON();
         delete formatter.comment.userId;
         delete formatter.comment.songId;
+
+        formatter.status = REPORT_STATUS[formatter.status];
 
         formatter.createdAt = formatTime(formatter.createdAt);
         formatter.comment.createdAt = formatTime(formatter.comment.createdAt);
