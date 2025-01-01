@@ -646,6 +646,10 @@ const getAllPaymentService = async ({ page = 1, limit = 10 } = {}) => {
             formatter.user.createdAt = formatTime(formatter.user.createdAt);
             formatter.package.createdAt = formatTime(formatter.package.createdAt);
             formatter.package.updatedAt = formatTime(formatter.package.updatedAt);
+
+            if (formatter.user && formatter.user.image && formatter.user.image.includes('PBL6')) {
+                formatter.user.image = `https://${DO_SPACES_BUCKET}.${DO_SPACES_ENDPOINT}/${formatter.user.image}`;
+            }
             return formatter;
         });
 
