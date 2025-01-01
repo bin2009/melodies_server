@@ -193,7 +193,12 @@ const getAllAlbumService = async (query, order, page) => {
 
         const [totalAlbum, albums] = await Promise.all([
             albumService.fetchAlbumCount(),
-            albumService.fetchAlbum({ order: [['releaseDate', 'DESC']] }),
+            albumService.fetchAlbum({
+                order: [
+                    ['releaseDate', 'DESC'],
+                    ['updatedAt', 'DESC'],
+                ],
+            }),
         ]);
 
         const result = await Promise.all(
@@ -1188,6 +1193,7 @@ const deleteArtistService = async ({ artistIds } = {}) => {
             attributes: ['songId'],
             raw: true,
         });
+
         const comments = await db.Comment.findAll({
             where: { songId: { [Op.in]: songIds.map((s) => s.songId) } },
             raw: true,
@@ -1195,8 +1201,8 @@ const deleteArtistService = async ({ artistIds } = {}) => {
 
         await Promise.all([
             db.ArtistGenre.destroy({ where: { artistId: { [Op.in]: artistIds } }, transaction }),
-            db.ArtistSong.destroy({ where: { artistId: { [Op.in]: artistIds } }, transaction }),
             db.Follow.destroy({ where: { artistId: { [Op.in]: artistIds } }, transaction }),
+            db.ArtistSong.destroy({ where: { songId: { [Op.in]: songIds.map((s) => s.songId) } }, transaction }),
             db.Artist.update(
                 { avatar: null, bio: null, hide: true },
                 { where: { id: { [Op.in]: artistIds } }, transaction },
