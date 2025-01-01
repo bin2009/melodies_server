@@ -820,6 +820,7 @@ const getAllNotificationsService = async ({ user, page = 1, limit = 10 } = {}) =
         const offset = (page - 1) * limit;
         const count = await db.Notifications.count({ where: { userId: user.id, isRead: false } });
         const notifications = await db.Notifications.findAll({
+            where: { userId: user.id },
             order: [
                 ['isRead', 'ASC'],
                 ['updatedAt', 'DESC'],
