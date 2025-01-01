@@ -387,16 +387,17 @@ const getAllArtistService = async ({ sortBy, sortOrder = 'desc', page = 1, user,
     }
 };
 
-const getArtistService = async ({ artistId } = {}) => {
+const getArtistService = async ({ artistId, user } = {}) => {
     try {
         const checkArtist = await checkArtistExits(artistId);
         if (!checkArtist) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
         if (checkArtist.hide) throw new ApiError(StatusCodes.NOT_FOUND, 'Artist not found');
 
-        const [artist, totalFollow, totalSong] = await Promise.all([
+        const [artist, totalFollow, totalSong, checkFollow] = await Promise.all([
             fetchArtist({ mode: 'findOne', conditions: { id: artistId } }),
             fetchFollowCount({ mode: 'findOne', conditions: { artistId: artistId } }),
             fetchSongCount({ mode: 'findOne', conditions: { artistId: artistId, main: true } }),
+            user && db.Follow.findOne({ where: { userId: user.id, artistId: artistId } }),
         ]);
 
         const data = {
@@ -404,6 +405,10 @@ const getArtistService = async ({ artistId } = {}) => {
             totalFollow: totalFollow ? parseInt(totalFollow.followCount) : 0,
             totalSong: totalSong ? parseInt(totalSong.totalSongs) : 0,
         };
+
+        if (user) {
+            data.followed = checkFollow ? true : false;
+        }
 
         return data;
     } catch (error) {

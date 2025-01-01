@@ -39,7 +39,7 @@ const getPopularArtist = async (req, res, next) => {
 
 const getArtist = async (req, res, next) => {
     try {
-        const artist = await artistService.getArtistService({ artistId: req.params.id });
+        const artist = await artistService.getArtistService({ artistId: req.params.id, user: req.user });
         res.status(StatusCodes.OK).json({
             status: 'success',
             message: 'Get artist successfully',
