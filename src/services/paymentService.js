@@ -138,7 +138,7 @@ const listenForPaymentStatus = (orderCode, payment, userId, pack) => {
             clearInterval(interval);
             throw error;
         }
-    }, 1000);
+    }, 3000);
 };
 
 const getPaymentDetailService = async ({ user, paymentId } = {}) => {
