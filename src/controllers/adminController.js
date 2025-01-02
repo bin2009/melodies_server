@@ -41,11 +41,13 @@ const createArtist = async (req, res, next) => {
 
 const createSong = async (req, res, next) => {
     try {
-        const { data } = req.body;
+        const { data, duration } = req.body;
         const parsedData = JSON.parse(data);
+        const parsedDuration = JSON.parse(duration);
 
         await adminService.createSongService({
             data: parsedData,
+            duration: parsedDuration,
             files: req.files,
         });
 

@@ -779,7 +779,7 @@ const getPaymentDetailService = async ({ user, paymentId } = {}) => {
 
 // ---------------------------
 
-const createSongService = async ({ data, files } = {}) => {
+const createSongService = async ({ data, duration, files } = {}) => {
     const transaction = await db.sequelize.transaction();
     const songId = uuidv4();
 
@@ -806,8 +806,9 @@ const createSongService = async ({ data, files } = {}) => {
             dataCreateSong.filePathAudio = files.audioFile[0].key;
             console.log('key: ', files.audioFile[0].key);
 
-            const duration = await appMiddleWare.getAudioDuration(files.audioFile[0].key);
-            dataCreateSong.duration = duration ? parseInt(duration * 1000) : 0;
+            // const duration = await appMiddleWare.getAudioDuration(files.audioFile[0].key);
+            // dataCreateSong.duration = duration ? parseInt(duration * 1000) : 0;
+            dataCreateSong.duration = duration;
         }
 
         if (files.lyricFile && files.lyricFile.length > 0) dataCreateSong.lyric = files.lyricFile[0].key;

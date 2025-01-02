@@ -94,9 +94,9 @@ const listenForPaymentStatus = (orderCode, payment, userId, pack) => {
                                 userId: userId,
                                 // type: NOTIFICATIONS.PAYMENT_PAID,
                                 type: 'PAYMENT',
-                                message: `Đăng kí thành công gói: ${pack.name} - Thời gian: ${
+                                message: `Package registration successful: ${pack.name} - Time: ${
                                     PACKAGE_TIME[pack.time]
-                                } ngày - Giá: ${pack.fare} `,
+                                } days - Fare: ${pack.fare} `,
                                 from: payment.id,
                             },
                             { transaction },
