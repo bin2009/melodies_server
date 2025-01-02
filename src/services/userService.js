@@ -632,9 +632,8 @@ const registerService = async (data) => {
         const hashPass = await bcrypt.hash(data.password, saltRounds);
         data.password = hashPass;
         data.role = 'User';
-        data.statusPassword = false;
         data.accountType = 'FREE';
-        data.status = true;
+        data.status = 'NORMAL';
         const newUser = await db.User.create(data, { transaction });
         await db.Playlist.create(
             {
