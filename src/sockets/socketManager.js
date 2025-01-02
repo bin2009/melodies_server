@@ -268,7 +268,8 @@ const setupSocketIO = (io) => {
 
             const now = Date.now();
             // updateRoomAudio(room, data, now );
-            updateRoomAudio(room, data, now, io, socket.roomId);
+            // updateRoomAudio(room, data, now, io, socket.roomId); // ok
+            updateRoomAudio2(room, data, now, io, socket, socket.roomId);
             // broadcastAudioUpdate(io, socket.roomId, room);
         });
 
@@ -347,6 +348,10 @@ const broadcastToRoom = (io, roomId, event, data) => {
     io.to(roomId).emit(event, data);
 };
 
+const broadcastToRoom2 = (socket, roomId, event, data) => {
+    socket.to(roomId).emit(event, data);
+};
+
 const updateRoomAudio = (room, data, now, io, roomId) => {
     console.log('old', room.currentSong.isPlaying, '\t', room.currentSong.currentTime);
     // console.log('new: ', data, '\t', now);
@@ -362,11 +367,38 @@ const updateRoomAudio = (room, data, now, io, roomId) => {
 
         // update
         broadcastAudioUpdate(io, roomId, room);
+        broadcastAudioUpdate2(io, socket, roomId, room);
+    }
+};
+
+const updateRoomAudio2 = (room, data, now, io, socket, roomId) => {
+    console.log('old', room.currentSong.isPlaying, '\t', room.currentSong.currentTime);
+    // console.log('new: ', data, '\t', now);
+    if (
+        room.currentSong.isPlaying !== data.isPlaying ||
+        Math.abs(data.currentTime - room.currentSong.currentTime) > 1
+    ) {
+        console.log('true');
+        // if (room.currentSong.isPlaying !== data.isPlaying || now - room.timestamp > 1000) {
+        room.currentSong.isPlaying = data.isPlaying;
+        room.currentSong.currentTime = data.currentTime;
+        room.timestamp = now;
+
+        // update
+        broadcastAudioUpdate2(io, socket, roomId, room);
     }
 };
 
 const broadcastAudioUpdate = (io, roomId, room) => {
     broadcastToRoom(io, roomId, 'UpdateAudio', {
+        isPlaying: room.currentSong.isPlaying,
+        currentTime: room.currentSong.currentTime,
+    });
+    broadcastToRoom(io, roomId, 'animation', room.currentSong.isPlaying);
+};
+
+const broadcastAudioUpdate2 = (io, socket, roomId, room) => {
+    broadcastToRoom2(socket, roomId, 'UpdateAudio', {
         isPlaying: room.currentSong.isPlaying,
         currentTime: room.currentSong.currentTime,
     });
