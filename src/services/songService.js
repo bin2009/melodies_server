@@ -438,7 +438,12 @@ const getNewReleaseSongsService = async ({ page = 1, limit = 10, user } = {}) =>
     try {
         const offset = (page - 1) * limit;
 
-        const newReleaseSongs = await fetchSongs({ limit: limit, offset: offset, order: [['releaseDate', 'DESC']] });
+        const newReleaseSongs = await fetchSongs({
+            limit: limit,
+            offset: offset,
+            order: [['releaseDate', 'DESC']],
+            conditions: { privacy: false },
+        });
 
         const [likedSongs, totalSong] = await Promise.all([
             user &&

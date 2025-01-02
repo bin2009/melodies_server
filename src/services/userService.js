@@ -633,7 +633,7 @@ const registerService = async (data) => {
         data.password = hashPass;
         data.role = 'User';
         data.statusPassword = false;
-        data.accountType = 'Free';
+        data.accountType = 'FREE';
         data.status = true;
         const newUser = await db.User.create(data, { transaction });
         await db.Playlist.create(
