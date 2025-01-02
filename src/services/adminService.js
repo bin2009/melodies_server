@@ -560,7 +560,7 @@ const verifyReportService = async (reportId) => {
 
         const [reportResult, noti] = await Promise.all([
             db.Report.update({ status: 'DELETE' }, { where: { id: reportId }, transaction }),
-            // db.Comment.update({ hide: true }, { where: { id: report.commentId }, transaction }),
+            db.Comment.update({ hide: true }, { where: { id: report.commentId }, transaction }),
             db.Notifications.create(
                 {
                     userId: comment.userId,
