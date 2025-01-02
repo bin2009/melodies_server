@@ -805,10 +805,10 @@ const createSongService = async ({ data, duration, files } = {}) => {
         if (files.audioFile && files.audioFile.length > 0) {
             dataCreateSong.filePathAudio = files.audioFile[0].key;
             console.log('key: ', files.audioFile[0].key);
-
+            console.log('duration: ', duration);
             // const duration = await appMiddleWare.getAudioDuration(files.audioFile[0].key);
             // dataCreateSong.duration = duration ? parseInt(duration * 1000) : 0;
-            dataCreateSong.duration = duration;
+            dataCreateSong.duration = duration ? parseInt(duration * 1000) : 0;
         }
 
         if (files.lyricFile && files.lyricFile.length > 0) dataCreateSong.lyric = files.lyricFile[0].key;
