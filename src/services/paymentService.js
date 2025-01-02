@@ -39,8 +39,10 @@ const createPaymentService = async ({ user, data } = {}) => {
             description: pack.description,
             orderCode: currentDate,
             items: items,
-            returnUrl: `${process.env.DOMAIN}/success.html`,
-            cancelUrl: `${process.env.DOMAIN}/cancel.html`,
+            // returnUrl: `${process.env.DOMAIN}/success.html`,
+            // cancelUrl: `${process.env.DOMAIN}/cancel.html`,
+            returnUrl: `https://melodies-hazel.vercel.app/package`,
+            cancelUrl: `https://melodies-hazel.vercel.app/premium`,
             expiredAt: Math.floor(Date.now() / 1000) + 5 * 60,
         };
         const paymentLink = await payos.createPaymentLink(order);
