@@ -126,7 +126,7 @@ const checkEmailExitsService = async (email) => {
 
 const emailNotiLockAccount = async ({ email, username, time } = {}) => {
     try {
-        const htmlContent = await ejs.renderFile(path.join(__dirname, '..', 'views/templates', 'lockAccount.ejs'), {
+        const htmlContent = await ejs.renderFile(path.join('/root/melodies_server/src/views/templates', 'lockAccount.ejs'), {
             username: username,
             duration: time,
         });
@@ -146,7 +146,8 @@ const emailNotiLockAccount = async ({ email, username, time } = {}) => {
 
 const emailWarnAccount = async ({ email, username } = {}) => {
     try {
-        const htmlContent = await ejs.renderFile(path.join(__dirname, '..', 'views/templates', 'warnAccount.ejs'), {
+        // const htmlContent = await ejs.renderFile(path.join(__dirname, '..', 'views/templates', 'warnAccount.ejs'), {
+        const htmlContent = await ejs.renderFile(path.join('/root/melodies_server/src/views/templates', 'warnAccount.ejs'), {
             username: username,
         });
 

@@ -6,6 +6,7 @@ const jobUpdateAccount = new CronJob(
     () => {
         console.log('Checking for expired premium accounts...');
         userService.updateAccountType();
+        userService.updateLockAccount();
     },
     null,
     true,

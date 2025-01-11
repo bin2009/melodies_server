@@ -1070,6 +1070,46 @@ const downloadSongService = async ({ user, songId } = {}) => {
 
 // --------------------------cron job
 
+const updateLockAccount = async () => {
+    const transaction = await db.sequelize.transaction();
+
+    try {
+        const currentDate = new Date();
+
+        const users = await db.User.findAll({ where: { status: { [Op.ne]: 'NORMAL' } } });
+
+        for (const user of users) {
+            const createdAtDate = new Date(user.createdAt);
+
+            if (user.status === 'LOCK3') {
+                const unlockDate = new Date(createdAtDate);
+                unlockDate.setDate(createdAtDate.getDate() + 3); // Thêm 3 ngày
+                if (currentDate >= unlockDate) {
+                    await db.User.update(
+                        { status: 'NORMAL' },
+                        { where: { id: user.id }, transaction }
+                    );
+                }
+            } else if (user.status === 'LOCK7') {
+                const unlockDate = new Date(createdAtDate);
+                unlockDate.setDate(createdAtDate.getDate() + 7); // Thêm 7 ngày
+                if (currentDate >= unlockDate) {
+                    await db.User.update(
+                        { status: 'NORMAL' },
+                        { where: { id: user.id }, transaction }
+                    );
+                }
+            }
+        }
+
+        await transaction.commit(); 
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
+};
+
+
 const updateAccountType = async () => {
     const transaction = await db.sequelize.transaction();
     try {
@@ -1189,4 +1229,5 @@ export const userService = {
     downloadSongService,
     // ---------------cron job
     updateAccountType,
+    updateLockAccount,
 };
