@@ -181,9 +181,10 @@ const requestResetPasswordService = async (email) => {
             };
         }
 
-        const token = generateToken(user);
+        const token = generateAccessToken(user);
 
-        const resetLink = `http://localhost:2009/api/auth/reset/${token}`;
+        // const resetLink = `http://localhost:20099/api/auth/reset/${token}`;
+        const resetLink = `https://www.pbl6melodies.me/api/auth/reset/${token}`;
 
         const respone = await emailService.emailResetPasswordService(email, resetLink);
         return respone;
@@ -197,7 +198,7 @@ const requestResetPasswordService = async (email) => {
 
 const resetPasswordService = async (token, password) => {
     try {
-        const userToken = jwt.verify(token, process.env.TOKEN_SECRET);
+        const userToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
         const user = await db.User.findByPk(userToken.id);
         if (!user) {
             return {
@@ -212,6 +213,7 @@ const resetPasswordService = async (token, password) => {
             message: 'Reset password success',
         };
     } catch (error) {
+        console.log('resetPasswordService: ', error);
         return {
             errCode: 500,
             message: `Request reset passworđ failed: ${error.message}`,

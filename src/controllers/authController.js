@@ -86,8 +86,10 @@ const resetPassword = async (req, res) => {
     const response = await authService.resetPasswordService(token, password);
     if (response.errCode == 404) {
         return res.send(response.message);
+    } else {
+        return res.redirect('https://melodies-hazel.vercel.app');
+        // return res.status(response.errCode).json(response);
     }
-    return res.status(response.errCode).json(response);
 };
 
 export const authController = {

@@ -50,7 +50,7 @@
         <div class="reset-container">
             <h2>Reset Password</h2>
             <form action="/api/auth/reset-password/<%= token %>" method="POST">
-                <h1>"<%= token%>"</h1>
+                <!-- <h1>"<%= token%>"</h1> -->
                 <input type="password" name="password" placeholder="Enter new password" required />
                 <input type="password" name="confirmPassword" placeholder="Confirm new password" required />
                 <button type="submit">Reset Password</button>
