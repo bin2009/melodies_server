@@ -69,7 +69,8 @@ const requestResetPassword = async (req, res) => {
 const resetForm = (req, res) => {
     const { token } = req.params;
     console.log(token);
-    return res.render('reset', { token });
+    // return res.render('reset', { token });
+    return res.redirect('https://melodies-hazel.vercel.app/setpassword/' + token);
 };
 
 const resetPassword = async (req, res) => {
