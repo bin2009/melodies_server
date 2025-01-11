@@ -31,7 +31,7 @@ const fetchArtistName = async ({ conditions } = {}) => {
     const formatteds = artists.map((p) => {
         const formatted = { ...p };
         if (formatted.avatar && formatted.avatar.includes('PBL6'))
-            formatted.avatar = `https:${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.avatar}`;
+            formatted.avatar = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.avatar}`;
         return formatted;
     });
     return formatteds;
@@ -108,7 +108,7 @@ const fetchArtist = async ({
             formatted.createdAt = formatTime(formatted.createdAt);
             formatted.updatedAt = formatTime(formatted.updatedAt);
             if (formatted.avatar && formatted.avatar.includes('PBL6'))
-                formatted.avatar = `https:${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.avatar}`;
+                formatted.avatar = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.avatar}`;
             return formatted;
         });
         return formatteds;
@@ -117,7 +117,7 @@ const fetchArtist = async ({
         formatted.createdAt = formatTime(formatted.createdAt);
         formatted.updatedAt = formatTime(formatted.updatedAt);
         if (formatted.avatar && formatted.avatar.includes('PBL6'))
-            formatted.avatar = `https:${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.avatar}`;
+            formatted.avatar = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${formatted.avatar}`;
         return formatted;
     }
 };
